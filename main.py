@@ -96,7 +96,7 @@ def get_qsm_series(dicom_folder):
 
     return qsm_series
 
-def apply_flags(qsm_series, json_spec):
+def apply_flags(qsm_series, json_spec, ref=None):
     # Load JSON specification
     flags_spec = json.loads(json_spec)["flags"]
     
@@ -116,6 +116,18 @@ def apply_flags(qsm_series, json_spec):
             except Exception as e:
                 print(f"Error evaluating flag {flag['flag_id']}: {e}")
 
+    if ref is not None:
+        qsm_series['ref_flags'] = [[] for _ in range(len(qsm_series))]
+        ref_spec = json.loads(json_spec)["reference_flags"]
+        for qsm_run in qsm_series['QSM Run'].unique():
+            df = qsm_series[qsm_series['QSM Run'] == qsm_run]
+            for flag in ref_spec:
+                try:
+                    if eval(flag["data_source"]):
+                        qsm_series.loc[qsm_series['QSM Run'] == qsm_run, 'ref_flags'] = qsm_series.loc[qsm_series['QSM Run'] == qsm_run, 'ref_flags'].apply(lambda x: x + [flag["flag_id"]])
+                except Exception as e:
+                    print(f"Error evaluating flag {flag['flag_id']}: {e}")
+
     return qsm_series
 
 # Example usage
@@ -123,12 +135,17 @@ if __name__ == "__main__":
     dicom_folder = "/home/ashley/downloads/DICOMs/dicoms-sorted"
     qsm_series = get_qsm_series(dicom_folder)
 
+    # remove qsm_series with `QSM Run` 1 and store as ref_qsm_series
+    ref_qsm_series = qsm_series[qsm_series['QSM Run'] == 1]
+    qsm_series = qsm_series[qsm_series['QSM Run'] != 1]
+    print("REF")
+    print(ref_qsm_series)
     # load the JSON specification
     with open("guidelines/qsm.json") as f:
         json_spec = f.read()
 
     # Apply flags based on JSON specs
-    qsm_series = apply_flags(qsm_series, json_spec)
+    qsm_series = apply_flags(qsm_series, json_spec, ref=ref_qsm_series)
 
     print(qsm_series)
 

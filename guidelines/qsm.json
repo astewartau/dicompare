@@ -33,9 +33,15 @@
     ],
     "reference_flags": [
         {
-            "flag_id": "TE_MATCHES",
-            "description": "EchoTime field matches the value in the reference file",
-            "data_source": "df['EchoTime'].isin(ref_df['EchoTime'])"
+            "flag_id": "NUM_ECHOES_DOES_NOT_MATCH",
+            "description": "Number of echoes does not match the number of echoes in the reference",
+            "data_source": "len(df['EchoTime'].unique()) != len(ref['EchoTime'].unique())"
+        },
+        {
+            "flag_id": "NO_CLOSE_TE",
+            "description": "There is no TE in the data that is close (<2 ms) to a TE in the reference",
+            "data_source": "not any([any(abs(df['EchoTime'] - te) < 2) for te in ref['EchoTime']])"
         }
-    ]
+    ],
+    "reference_required_matches": ["Modality"]
 }
