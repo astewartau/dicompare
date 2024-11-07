@@ -1,0 +1,41 @@
+{
+    "flags": [
+        {
+            "flag_id": "LONG_TE",
+            "description": "EchoTime field is greater than 30 ms",
+            "data_source": "(df['EchoTime'] > 30).any()"
+        },
+        {
+            "flag_id": "SINGLE_ECHO_AND_LONG_TE",
+            "description": "Single echo and EchoTime field is greater than 30 ms",
+            "data_source": "(len(df['EchoTime'].unique()) == 1) & (df['EchoTime'].unique()[0] > 30)"
+        },
+        {
+            "flag_id": "LESS_THAN_3_ECHOES",
+            "description": "Less than 3 echoes are present",
+            "data_source": "len(df['EchoTime'].unique()) < 3"
+        },
+        {
+            "flag_id": "SINGLE_ECHO",
+            "description": "Single echo",
+            "data_source": "len(df['EchoTime'].unique()) == 1"
+        },
+        {
+            "flag_id": "SUB_MM",
+            "description": "Sub-millimeter resolution",
+            "data_source": "(df['PixelSpacing'].apply(lambda x: x[0]) < 1).any() | (df['PixelSpacing'].apply(lambda x: x[1]) < 1).any() | (df['SliceThickness'] < 1).any()"
+        },
+        {
+            "flag_id": "ANISOTROPIC",
+            "description": "Anisotropic resolution",
+            "data_source": "(df['PixelSpacing'].apply(lambda x: x[0]) != df['PixelSpacing'].apply(lambda x: x[1])).any() | (df['PixelSpacing'].apply(lambda x: x[0]) != df['SliceThickness']).any() | (df['PixelSpacing'].apply(lambda x: x[1]) != df['SliceThickness']).any()"
+        }
+    ],
+    "reference_flags": [
+        {
+            "flag_id": "TE_MATCHES",
+            "description": "EchoTime field matches the value in the reference file",
+            "data_source": "df['EchoTime'].isin(ref_df['EchoTime'])"
+        }
+    ]
+}
