@@ -1,0 +1,243 @@
+{
+    "T1_MPR": {
+        "description": "High-resolution T1-weighted structural scan",
+        "required": true,
+        "required_parameters": {
+            "SeriesDescription": {
+                "value": "T1_MPR",
+                "datatype": "str"
+            },
+            "MagneticFieldStrength": {
+                "value": 3,
+                "tolerance": 0.1,
+                "datatype": "float"
+            },
+            "RepetitionTime": {
+                "value": 2400,
+                "tolerance": 100,
+                "datatype": "float"
+            },
+            "EchoTime": {
+                "value": 0.00232,
+                "tolerance": 0.01,
+                "datatype": "float"
+            },
+            "PixelSpacing": {
+                "value": [
+                    0.8,
+                    0.8
+                ],
+                "tolerance": 0.05,
+                "datatype": "list[float]"
+            },
+            "SliceThickness": {
+                "value": 0.8,
+                "tolerance": 0.05,
+                "datatype": "float"
+            }
+        }
+    },
+    "T2w_SPC": {
+        "description": "High-resolution T2-weighted structural scan",
+        "required": true,
+        "required_parameters": {
+            "SeriesDescription": {
+                "value": "T2w_SPC",
+                "datatype": "str"
+            },
+            "MagneticFieldStrength": {
+                "value": 3,
+                "tolerance": 0.1,
+                "datatype": "float"
+            },
+            "RepetitionTime": {
+                "value": 3.2,
+                "tolerance": 0.1,
+                "datatype": "float"
+            },
+            "EchoTime": {
+                "value": 0.056,
+                "tolerance": 0.002,
+                "datatype": "float"
+            },
+            "PixelSpacing": {
+                "value": [
+                    0.8,
+                    0.8
+                ],
+                "tolerance": 0.05,
+                "datatype": "list[float]"
+            },
+            "SliceThickness": {
+                "value": 0.8,
+                "tolerance": 0.05,
+                "datatype": "float"
+            }
+        }
+    },
+    "Diff_1k": {
+        "description": "Diffusion-weighted image with b-value of 1000 s/mm²",
+        "required": true,
+        "required_parameters": {
+            "SeriesDescription": {
+                "value": "Diff_1k",
+                "datatype": "str"
+            },
+            "bValue": {
+                "value": 1000,
+                "tolerance": 50,
+                "datatype": "int"
+            },
+            "NumberOfDirections": {
+                "value": 30,
+                "minimum": 6,
+                "datatype": "int"
+            },
+            "PixelSpacing": {
+                "value": [
+                    1.25,
+                    1.25
+                ],
+                "tolerance": 0.1,
+                "datatype": "list[float]"
+            },
+            "SliceThickness": {
+                "value": 1.25,
+                "tolerance": 0.1,
+                "datatype": "float"
+            }
+        }
+    },
+    "Diff_3k": {
+        "description": "Diffusion-weighted image with b-value of 3000 s/mm²",
+        "required": true,
+        "required_parameters": {
+            "SeriesDescription": {
+                "value": "Diff_3k",
+                "datatype": "str"
+            },
+            "bValue": {
+                "value": 3000,
+                "tolerance": 100,
+                "datatype": "int"
+            },
+            "NumberOfDirections": {
+                "value": 60,
+                "minimum": 30,
+                "datatype": "int"
+            },
+            "PixelSpacing": {
+                "value": [
+                    1.25,
+                    1.25
+                ],
+                "tolerance": 0.1,
+                "datatype": "list[float]"
+            },
+            "SliceThickness": {
+                "value": 1.25,
+                "tolerance": 0.1,
+                "datatype": "float"
+            }
+        }
+    },
+    "Diff_5k": {
+        "description": "Diffusion-weighted image with b-value of 5000 s/mm²",
+        "required": true,
+        "required_parameters": {
+            "SeriesDescription": {
+                "value": "Diff_5k",
+                "datatype": "str"
+            },
+            "bValue": {
+                "value": 5000,
+                "tolerance": 100,
+                "datatype": "int"
+            },
+            "NumberOfDirections": {
+                "value": 90,
+                "minimum": 60,
+                "datatype": "int"
+            },
+            "PixelSpacing": {
+                "value": [
+                    1.25,
+                    1.25
+                ],
+                "tolerance": 0.1,
+                "datatype": "list[float]"
+            },
+            "SliceThickness": {
+                "value": 1.25,
+                "tolerance": 0.1,
+                "datatype": "float"
+            }
+        }
+    },
+    "Diff_10k_set1": {
+        "description": "Diffusion-weighted image with b-value of 10000 s/mm², set 1",
+        "required": true,
+        "required_parameters": {
+            "SeriesDescription": {
+                "value": "Diff_10k_set1",
+                "datatype": "str"
+            },
+            "bValue": {
+                "value": 10000,
+                "tolerance": 200,
+                "datatype": "int"
+            },
+            "NumberOfDirections": {
+                "value": 120,
+                "minimum": 90,
+                "datatype": "int"
+            },
+            "PixelSpacing": {
+                "value": [
+                    1.25,
+                    1.25
+                ],
+                "tolerance": 0.1,
+                "datatype": "list[float]"
+            },
+            "SliceThickness": {
+                "value": 1.25,
+                "tolerance": 0.1,
+                "datatype": "float"
+            }
+        }
+    },
+    "Diff_10k_set2": {
+        "description": "Diffusion-weighted image with b-value of 10000 s/mm², set 2",
+        "required": true,
+        "required_parameters": {
+            "SeriesDescription": {
+                "value": "Diff_10k_set2",
+                "datatype": "str"
+            },
+            "bValue": {
+                "value": 10000,
+                "tolerance": 200,
+                "datatype": "int"
+            },
+            "NumberOfDirections": {
+                "value": 120,
+                "minimum": 90,
+                "datatype": "int"
+            },
+            "PixelSpacing": {
+                "value": [
+                    1.25,
+                    1.25
+                ],
+                "tolerance": 0.1,
+                "datatype": "list[float]"
+            },
+            "SliceThickness": {
+                "value": 1.25,
+                "tolerance": 0.1,
+                "datatype": "float"
+            }
+        }
+    }
+}

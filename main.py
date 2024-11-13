@@ -3,6 +3,7 @@ import pydicom
 import pandas as pd
 from pydicom.multival import MultiValue
 import json
+from guidelines.qsm.qsm import identify_qsm_runs
 
 # Existing functions remain the same
 def extract_relevant_fields(dicom_path, fields):
@@ -28,8 +29,7 @@ def extract_relevant_fields(dicom_path, fields):
         print(f"Skipping non-DICOM file {dicom_path}: {e}")
         return None
 
-def get_unique_dicom_combinations(dicom_folder, fields):
-    """Process all possible DICOM files in a folder tree and return unique combinations of specified fields."""
+def read_dicoms(dicom_folder, fields):
     combinations_dict = {}
     
     for root, _, files in os.walk(dicom_folder):
@@ -52,104 +52,116 @@ def get_unique_dicom_combinations(dicom_folder, fields):
     df = pd.DataFrame(data)
     return df
 
-def get_qsm_series(dicom_folder):
-    unique_fields = [
-        "SeriesTime", "Modality", "PatientName", "PatientID", "AcquisitionDate", "SeriesNumber",
-        "StudyDescription", "SequenceName", "ProtocolName", "SeriesDescription",
-        "MagneticFieldStrength", "EchoNumbers", "EchoTime", "RepetitionTime", "SliceThickness", 
-        "FlipAngle", "Rows", "Columns", "ImageType", "PixelSpacing"
-    ]
-    
-    df = get_unique_dicom_combinations(dicom_folder, unique_fields)
+def apply_flags(df, json_data, ref=None):
+    # Extract the flags specification
+    flags_spec = json_data["rules"]
 
-    sort_fields = [col for col in ["PatientName", "AcquisitionDate", "SeriesTime", "SeriesNumber"] if col in df.columns]
-    df.sort_values(by=sort_fields, inplace=True)
-
-    df_echo = df.drop(columns=['EchoTime', 'EchoNumbers']).drop_duplicates()
-
-    phase_series = df_echo[df_echo['ImageType'].apply(lambda x: 'P' in x)]
-    magnitude_series = df_echo[df_echo['ImageType'].apply(lambda x: 'M' in x and 'P' not in x) & (df_echo['SeriesNumber'].isin(phase_series['SeriesNumber'] - 1) | df_echo['SeriesNumber'].isin(phase_series['SeriesNumber'] + 1))]
-    qsm_series = pd.concat([phase_series, magnitude_series]).sort_values(by='SeriesNumber')
-
-    qsm_run_counter = 1
-    qsm_series['QSM Run'] = None
-
-    for _, phase_row in phase_series.iterrows():
-        matching_magnitude = magnitude_series[
-                (magnitude_series['PatientName'] == phase_row['PatientName']) &
-                (magnitude_series['AcquisitionDate'] == phase_row['AcquisitionDate']) &
-                (magnitude_series['SequenceName'] == phase_row['SequenceName']) &
-                (magnitude_series['ProtocolName'] == phase_row['ProtocolName']) &
-                (magnitude_series['MagneticFieldStrength'] == phase_row['MagneticFieldStrength']) &
-                (abs(phase_row['SeriesNumber'] - magnitude_series['SeriesNumber']) == 1)
-        ]
-
-        qsm_series.loc[qsm_series.index == phase_row.name, 'QSM Run'] = qsm_run_counter
-
-        if not matching_magnitude.empty:
-            qsm_series.loc[matching_magnitude.index, 'QSM Run'] = qsm_run_counter
-
-        qsm_run_counter += 1
-
-    qsm_series = qsm_series[qsm_series['QSM Run'].notna()]
-    qsm_series = pd.merge(qsm_series, df, on=[col for col in df.columns if col in qsm_series.columns])
-
-    return qsm_series
-
-def apply_flags(qsm_series, json_spec, ref=None):
-    # Load JSON specification
-    flags_spec = json.loads(json_spec)["flags"]
-    
-    # Add a new column to hold flags
-    qsm_series['flags'] = [[] for _ in range(len(qsm_series))]
-
-    # Process each unique QSM Run
-    for qsm_run in qsm_series['QSM Run'].unique():
-        df = qsm_series[qsm_series['QSM Run'] == qsm_run]
-
-        for flag in flags_spec:
-            # Evaluate the data_source expression for the subset dataframe
-            try:
-                if eval(flag["data_source"]):
-                    # Append the flag_id to each entry in the subset
-                    qsm_series.loc[qsm_series['QSM Run'] == qsm_run, 'flags'] = qsm_series.loc[qsm_series['QSM Run'] == qsm_run, 'flags'].apply(lambda x: x + [flag["flag_id"]])
-            except Exception as e:
-                print(f"Error evaluating flag {flag['flag_id']}: {e}")
-
+    # Initialize `rules` and `failed_matches` as empty lists
+    df['rules'] = [[] for _ in range(len(df))]
     if ref is not None:
-        qsm_series['ref_flags'] = [[] for _ in range(len(qsm_series))]
-        ref_spec = json.loads(json_spec)["reference_flags"]
-        for qsm_run in qsm_series['QSM Run'].unique():
-            df = qsm_series[qsm_series['QSM Run'] == qsm_run]
-            for flag in ref_spec:
-                try:
-                    if eval(flag["data_source"]):
-                        qsm_series.loc[qsm_series['QSM Run'] == qsm_run, 'ref_flags'] = qsm_series.loc[qsm_series['QSM Run'] == qsm_run, 'ref_flags'].apply(lambda x: x + [flag["flag_id"]])
-                except Exception as e:
-                    print(f"Error evaluating flag {flag['flag_id']}: {e}")
+        df['failed_matches'] = [[] for _ in range(len(df))]
 
-    return qsm_series
+    for index, row in df.iterrows():
+        # Local variable to represent the current row
+        row_data = row.to_dict()
+        for rule in flags_spec:
+            # Execute the condition as code within Python, using row_data to check each condition
+            try:
+                # Define the condition explicitly
+                condition = rule["data_source"]
 
-# Example usage
+                # Check if the condition is True for the current row
+                result = eval(condition, {"df": df, "row": row_data})
+                if result:
+                    df.at[index, 'rules'].append(rule["rule_id"])
+            except Exception as e:
+                print(f"Error evaluating flag {rule['rule_id']}: {e}")
+
+    # Apply reference rules if a reference DataFrame is provided
+    if ref is not None:
+        if "reference_rules" in json_data:
+            df['reference_rules'] = [[] for _ in range(len(df))]
+            ref_spec = json_data["reference_rules"]
+            for index, row in df.iterrows():
+                for rule in ref_spec:
+                    try:
+                        if eval(rule["data_source"]):
+                            df.at[index, 'reference_rules'].append(rule["rule_id"])
+                    except Exception as e:
+                        print(f"Error evaluating flag {rule['rule_id']}: {e}")
+                        
+    if "reference_required_matches" in json_data and ref is not None:
+        ref_nomatch_spec = json_data["reference_required_matches"]
+
+        # Check that the number of rows in df and ref are the same
+        if len(df) != len(ref):
+            df['failed_matches'] = [ref_nomatch_spec for _ in range(len(df))]
+            return df
+        
+        # Save the original order of df and ref by creating a temporary index
+        df['original_order'] = range(len(df))
+        ref['original_order'] = range(len(ref))
+        
+        for field in ref_nomatch_spec:
+            # Sort both df and ref by the current field without reassigning
+            df_sorted = df.sort_values(by=field).reset_index(drop=True)
+            ref_sorted = ref.sort_values(by=field).reset_index(drop=True)
+
+            # Perform the row-wise comparison for the current field
+            for index, (row_df, row_ref) in enumerate(zip(df_sorted.iterrows(), ref_sorted.iterrows())):
+                row_df_data, row_ref_data = row_df[1], row_ref[1]  # Extract row data
+                if row_df_data[field] != row_ref_data[field]:
+                    df.at[df_sorted.index[index], 'failed_matches'].append(field)
+        
+        # Restore the original order based on the temporary index and drop it afterward
+        df = df.sort_values(by='original_order').drop(columns='original_order').reset_index(drop=True)
+        ref = ref.sort_values(by='original_order').drop(columns='original_order').reset_index(drop=True)
+
+    # Fill any remaining NaNs in `rules`, `failed_matches`, and `reference_rules` with empty lists
+    df['rules'] = df['rules'].apply(lambda x: x if isinstance(x, list) else [])
+    if 'failed_matches' in df.columns:
+        df['failed_matches'] = df['failed_matches'].apply(lambda x: x if isinstance(x, list) else [])
+    if 'reference_rules' in df.columns:
+        df['reference_rules'] = df['reference_rules'].apply(lambda x: x if isinstance(x, list) else [])
+
+    return df
+    
+
 if __name__ == "__main__":
-    dicom_folder = "/home/ashley/downloads/DICOMs/dicoms-sorted"
-    qsm_series = get_qsm_series(dicom_folder)
+    with open("guidelines/qsm/qsm.json") as f:
+        json_data = json.load(f)
 
-    # remove qsm_series with `QSM Run` 1 and store as ref_qsm_series
-    ref_qsm_series = qsm_series[qsm_series['QSM Run'] == 1]
-    qsm_series = qsm_series[qsm_series['QSM Run'] != 1]
-    print("REF")
-    print(ref_qsm_series)
-    # load the JSON specification
-    with open("guidelines/qsm.json") as f:
-        json_spec = f.read()
+    #dicom_folder = "/home/ashley/downloads/DICOMs/dicoms-sorted"
+    dicom_folder = "/home/ashley/downloads/DICOMs/dwi-dicoms"
+    dicom_series = read_dicoms(dicom_folder, json_data["series_fields"])
 
-    # Apply flags based on JSON specs
-    qsm_series = apply_flags(qsm_series, json_spec, ref=ref_qsm_series)
-
-    print(qsm_series)
+    print(dicom_series)
 
     # Save the DataFrame to a CSV file
     csv_path = "results.csv"
-    qsm_series.to_csv(csv_path, index=False)
+    dicom_series.to_csv(csv_path, index=False)
     print("Results saved to", csv_path)
+    exit()
+    dicom_series = identify_qsm_runs(dicom_series)
+
+    # remove qsm_series with `QSM Run` 1 and store as ref_qsm_series
+    ref_series = dicom_series[dicom_series['QSM Run'] == 1]
+    new_series = dicom_series[dicom_series['QSM Run'] != 1]
+
+    # Create an empty list to hold processed DataFrames
+    processed_segments = []
+
+    # Apply flags in-place based on JSON specs for each QSM Run and collect results
+    for i in range(1, new_series['QSM Run'].max() + 1):
+        mask = new_series['QSM Run'] == i
+        # Apply flags on a copy of the masked segment
+        flagged_segment = apply_flags(new_series.loc[mask].copy(), json_data, ref_series)
+        # Append the processed segment to the list
+        processed_segments.append(flagged_segment)
+
+    # Concatenate all processed segments back into new_series
+    new_series = pd.concat(processed_segments).reset_index(drop=True)
+
+    print("REF", ref_series)
+    print("NEW", new_series)
+
