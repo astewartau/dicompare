@@ -1,3 +1,6 @@
 .venv
 results.csv
 *__pycache__/
+.coverage
+dcm_check.egg-info
+report.json
