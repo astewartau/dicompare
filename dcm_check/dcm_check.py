@@ -131,6 +131,9 @@ def load_ref_json(json_path: str, scan_type: str, group_name: Optional[str] = No
     fields_config = acquisition_config.get("fields", [])
     acquisition_reference = {field["field"]: field.get("value") for field in fields_config if "value" in field}
 
+    # Always include acquisition-level fields
+    reference_values.update(acquisition_reference)
+
     # Check if a group_name is specified and retrieve its configuration
     group_fields = []
     if group_name:
@@ -141,8 +144,6 @@ def load_ref_json(json_path: str, scan_type: str, group_name: Optional[str] = No
         group_fields = group.get("fields", [])
         group_reference = {field["field"]: field.get("value") for field in group_fields if "value" in field}
         reference_values.update(group_reference)
-    else:
-        reference_values.update(acquisition_reference)
 
     # Combine acquisition and group fields for the reference model creation
     combined_fields_config = fields_config + group_fields
