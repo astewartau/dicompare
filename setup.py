@@ -11,7 +11,9 @@ setup(
     entry_points={
         "console_scripts": [
             "dcm-check=dcm_check.cli:main",
-            "generate-json-ref=dcm_check.generate_json_ref:main",
+            "dcm-gen-session=dcm_check.generate_json_ref:main",
+            "dcm-read-session=dcm_check.read_session:main",
+            "dcm-check-session=dcm_check.session_check:main",
         ]
     },
     install_requires=[

@@ -97,10 +97,12 @@ def test_t1_mpr_repetition_vs_echo_rule(t1_mpr_dicom_values):
 
     # Check compliance summary
     compliance_summary = dcm_check.get_compliance_summary(t1_mpr_model, t1_mpr_dicom_values)
+
     assert len(compliance_summary) > 0
-    assert any("RepetitionTime" in error["Parameter"] for error in compliance_summary)
-    assert any("EchoTime" in error["Parameter"] for error in compliance_summary)
-    assert any("RepetitionTime must be at least 2x EchoTime" in error["Expected"] for error in compliance_summary)
+    assert compliance_summary[0]["Parameter"] == "Model-Level Error"
+    assert compliance_summary[0]["Expected"] == "RepetitionTime must be at least 2x EchoTime"
+    assert compliance_summary[0]["Pass"] == False
+    assert compliance_summary[0]["Actual"] == "N/A"
 
 def test_diffusion_config_compliance():
     """Test DiffusionConfig compliance for a sample diffusion scan."""

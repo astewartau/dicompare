@@ -193,16 +193,8 @@ def load_ref_pydantic(module_path: str, scan_type: str) -> BaseModel:
 
     return reference_model
 
-def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, Any], raise_errors: bool = False) -> List[Dict[str, Any]]:
-    """Validate a DICOM file against the reference model.
-
-    Args:
-        reference_model (BaseModel): The reference model for validation.
-        dicom_values (Dict[str, Any]): The DICOM values to validate.
-
-    Returns:
-        results (List[Dict[str, Any]]): Compliance results, including expected and actual values and pass/fail status.
-    """
+def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, Any], model_name: str = "Reference Model", raise_errors: bool = False) -> List[Dict[str, Any]]:
+    """Validate a DICOM file against the reference model."""
     compliance_summary = []
 
     try:
@@ -211,14 +203,11 @@ def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, A
         if raise_errors:
             raise e
         for error in e.errors():
-            
-            # Check if the error has a specific location
-            param = error['loc'][0] if error['loc'] else str(error['ctx'].keys()) if 'ctx' in error else "Model-Level Error"
-            
+            param = error['loc'][0] if error['loc'] else "Model-Level Error"
             expected = (error['ctx'].get('expected') if 'ctx' in error else None) or error['msg']
             actual = dicom_values.get(param, "N/A") if param != "Model-Level Error" else "N/A"
-            
             compliance_summary.append({
+                "Model_Name": model_name,
                 "Parameter": param,
                 "Expected": expected,
                 "Actual": actual,
@@ -226,6 +215,16 @@ def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, A
             })
 
     return compliance_summary
+
+def get_compliance_summaries(dicom_series: List[Dict[str, Any]], reference_models: List[BaseModel], model_names: List[str]) -> List[Dict[str, Any]]:
+    """Compare a series of dicom_values against a series of reference_model objects."""
+    compliance_summaries = []
+    
+    for dicom_values, reference_model, model_name in zip(dicom_series, reference_models, model_names):
+        summary = get_compliance_summary(reference_model, dicom_values, model_name=model_name)
+        compliance_summaries.extend(summary)
+
+    return compliance_summaries
 
 def is_compliant(reference_model: BaseModel, dicom_values: Dict[str, Any]) -> bool:
     """Validate a DICOM file against the reference model.
