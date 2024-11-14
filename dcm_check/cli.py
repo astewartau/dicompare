@@ -52,6 +52,10 @@ def main():
         ref_dicom_values = load_dicom(args.ref)
         reference_model = load_ref_dicom(ref_dicom_values, args.fields)
     elif ref_type == "pydantic":
+        # check if scan is provided
+        if not args.scan:
+            print("Error: Scan type is required (--scan) when using a Pydantic reference.", file=sys.stderr)
+            sys.exit(1)
         reference_model = load_ref_pydantic(args.ref, args.scan)
     else:
         print(f"Error: Unsupported reference type '{ref_type}'", file=sys.stderr)

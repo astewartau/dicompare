@@ -22,25 +22,24 @@ def calculate_field_difference(expected, actual, tolerance=None, contains=None):
             return 0  # Contains requirement fulfilled, no difference
         return min(MAX_DIFF_SCORE, 5)  # 'Contains' not met, fixed penalty
 
-    if tolerance is not None:
-        try:
-            expected_value = float(expected)
-            actual_value = float(actual)
-            if abs(expected_value - actual_value) <= tolerance:
-                return 0  # Within tolerance
-            return min(MAX_DIFF_SCORE, abs(expected_value - actual_value))  # Tolerance exceeded
-        except ValueError:
-            pass
-
     if isinstance(expected, (list, tuple)) or isinstance(actual, (list, tuple)):
         expected_tuple = tuple(expected) if not isinstance(expected, tuple) else expected
         actual_tuple = tuple(actual) if not isinstance(actual, tuple) else actual
+        
+        # if they are numeric tuples of the same length, calculate the sum of the differences and take into account tolerance
+        if all(isinstance(e, (int, float)) for e in expected_tuple) and all(isinstance(a, (int, float)) for a in actual_tuple) and len(expected_tuple) == len(actual_tuple):
+            if tolerance is not None:
+                return min(MAX_DIFF_SCORE, sum(abs(e - a) for e, a in zip(expected_tuple, actual_tuple) if abs(e - a) > tolerance))
+
         max_length = max(len(expected_tuple), len(actual_tuple))
         expected_padded = expected_tuple + ("",) * (max_length - len(expected_tuple))
         actual_padded = actual_tuple + ("",) * (max_length - len(actual_tuple))
         return min(MAX_DIFF_SCORE, sum(levenshtein_distance(str(e), str(a)) for e, a in zip(expected_padded, actual_padded)))
     
     if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
+        if tolerance is not None:
+            if abs(expected - actual) <= tolerance:
+                return 0
         return min(MAX_DIFF_SCORE, abs(expected - actual))
     
     return min(MAX_DIFF_SCORE, levenshtein_distance(str(expected), str(actual)))
