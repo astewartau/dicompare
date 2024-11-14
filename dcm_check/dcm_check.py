@@ -9,6 +9,7 @@ from pydicom.multival import MultiValue
 from pydicom.uid import UID
 from pydicom.valuerep import PersonName, DSfloat, IS
 from pydantic_core import PydanticUndefined
+from pydantic.class_validators import validator
 
 def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
     """Convert a DICOM dataset to a dictionary, handling sequences and DICOM-specific data types.
@@ -59,42 +60,57 @@ def load_dicom(dicom_file: str) -> Dict[str, Any]:
 
 def create_reference_model(reference_values: Dict[str, Any], fields_config: List[Union[str, Dict[str, Any]]]) -> BaseModel:
     model_fields = {}
+    validators = {}
+
+    # Define validation functions dynamically
+    def contains_check_factory(field_name, contains_value):
+        @validator(field_name, pre=True, allow_reuse=True)
+        def contains_check(cls, v):
+            if not isinstance(v, list) or contains_value not in v:
+                raise ValueError(f"{field_name} must contain '{contains_value}'")
+            return v
+        return contains_check
 
     for field in fields_config:
         field_name = field["field"]
         tolerance = field.get("tolerance")
         pattern = field.get("value") if isinstance(field.get("value"), str) and "*" in field["value"] else None
+        contains = field.get("contains")
         ref_value = reference_values.get(field_name, field.get("value"))
 
         if pattern:
-            # Use the `pattern` parameter in Field to directly enforce the regex pattern
+            # Pattern matching
             model_fields[field_name] = (
                 str,
-                Field(
-                    default=PydanticUndefined,
-                    pattern=pattern.replace("*", ".*")  # Pydantic will apply this regex pattern directly
-                ),
+                Field(default=PydanticUndefined, pattern=pattern.replace("*", ".*"))
             )
         elif tolerance is not None:
+            # Numeric tolerance
             model_fields[field_name] = (
                 confloat(ge=ref_value - tolerance, le=ref_value + tolerance),
-                Field(default=ref_value),
+                Field(default=ref_value)
             )
+        elif contains:
+            # Add a field expecting a list and register a custom validator for "contains"
+            model_fields[field_name] = (List[str], Field(default=PydanticUndefined))
+            validators[f"{field_name}_contains"] = contains_check_factory(field_name, contains)
         else:
+            # Exact match
             model_fields[field_name] = (
                 Literal[ref_value],
-                Field(default=PydanticUndefined),
+                Field(default=PydanticUndefined)
             )
 
-    return create_model("ReferenceModel", **model_fields)
+    # Create model with dynamically added validators
+    return create_model("ReferenceModel", **model_fields, __validators__=validators)
 
-
-def load_ref_json(json_path: str, scan_type: str) -> BaseModel:
-    """Load a JSON configuration file and create a reference model for a specified scan type.
+def load_ref_json(json_path: str, scan_type: str, group_name: Optional[str] = None) -> BaseModel:
+    """Load a JSON configuration file and create a reference model for a specified scan type and group.
 
     Args:
         json_path (str): Path to the JSON configuration file.
-        scan_type (str): Scan type to load (e.g., "T1").
+        scan_type (str): Acquisition scan type to load (e.g., "T1").
+        group_name (Optional[str]): Specific group name to validate within the acquisition.
 
     Returns:
         reference_model (BaseModel): A Pydantic model based on the JSON configuration.
@@ -102,19 +118,36 @@ def load_ref_json(json_path: str, scan_type: str) -> BaseModel:
     with open(json_path, 'r') as f:
         config = json.load(f)
 
-    scan_config = config.get("acquisitions", {}).get(scan_type)
-    if not scan_config:
+    # Load acquisition configuration
+    acquisition_config = config.get("acquisitions", {}).get(scan_type)
+    if not acquisition_config:
         raise ValueError(f"Scan type '{scan_type}' not found in JSON configuration.")
 
-    ref_file = scan_config.get("ref", None)
-    fields_config = scan_config["fields"]
+    # Load the reference DICOM if specified
+    ref_file = acquisition_config.get("ref", None)
+    reference_values = load_dicom(ref_file) if ref_file else {}
 
-    if ref_file:
-        reference_values = load_dicom(ref_file)
+    # Add acquisition-level fields to the reference model configuration
+    fields_config = acquisition_config.get("fields", [])
+    acquisition_reference = {field["field"]: field.get("value") for field in fields_config if "value" in field}
+
+    # Check if a group_name is specified and retrieve its configuration
+    group_fields = []
+    if group_name:
+        group = next((grp for grp in acquisition_config.get("groups", []) if grp["name"] == group_name), None)
+        if not group:
+            raise ValueError(f"Group '{group_name}' not found in acquisition '{scan_type}'.")
+
+        group_fields = group.get("fields", [])
+        group_reference = {field["field"]: field.get("value") for field in group_fields if "value" in field}
+        reference_values.update(group_reference)
     else:
-        reference_values = {field["field"]: field["value"] for field in fields_config if "value" in field}
+        reference_values.update(acquisition_reference)
 
-    return create_reference_model(reference_values, fields_config)
+    # Combine acquisition and group fields for the reference model creation
+    combined_fields_config = fields_config + group_fields
+
+    return create_reference_model(reference_values, combined_fields_config)
 
 def load_ref_dicom(dicom_values: Dict[str, Any], fields: Optional[List[str]] = None) -> BaseModel:
     """Create a reference model based on DICOM values.

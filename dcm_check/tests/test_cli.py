@@ -3,6 +3,8 @@ import json
 import os
 import pytest
 import pydicom
+import pandas as pd
+from tabulate import tabulate
 
 # Directory setup (update paths as necessary)
 CLI_SCRIPT = "dcm-check"  # Adjust path if needed
@@ -11,68 +13,142 @@ JSON_REF = "dcm_check/tests/ref_json.json"  # Replace with actual JSON reference
 PYDANTIC_REF = "dcm_check/tests/ref_pydantic.py"  # Python module for pydantic references
 OUTPUT_JSON = "compliance_output.json"  # Output file for tests
 
-# Test with JSON Reference
+COMPLIANT_MESSAGE = "DICOM file is compliant with the reference model."
+SAVED_MESSAGE = "Compliance report saved to compliance_output.json"
+
+def test_cli_json_reference_with_group():
+    command = [
+        CLI_SCRIPT,
+        "--ref", JSON_REF,
+        "--type", "json",
+        "--scan", "T1",
+        "--group", "Group 1",
+        "--in", DICOM_FILE
+    ]
+
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True)
+    
+    expected_output = "DICOM file is compliant with the reference model."
+    
+    assert result.returncode == 0
+    assert expected_output in result.stdout
+
+
+def test_cli_json_reference_compliant_no_group():
+    command = [CLI_SCRIPT, "--ref", JSON_REF, "--type", "json", "--scan", "T1", "--in", DICOM_FILE]
+    
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True)
+    
+    assert result.returncode == 0
+    assert COMPLIANT_MESSAGE in result.stdout
+
+def test_cli_output_file_compliant_with_group():
+    command = [
+        CLI_SCRIPT,
+        "--ref", JSON_REF,
+        "--type", "json",
+        "--scan", "T1",
+        "--group", "Group 1",
+        "--in", DICOM_FILE,
+        "--out", OUTPUT_JSON
+    ]
+    
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True, check=True)
+    
+    assert COMPLIANT_MESSAGE in result.stdout
+    assert SAVED_MESSAGE in result.stdout
+
+    assert os.path.isfile(OUTPUT_JSON)
+    
+    with open(OUTPUT_JSON) as f:
+        results = json.load(f)
+    
+    assert isinstance(results, list)  # Validate that results are in list format
+    assert len(results) == 0  # Validate that no compliance issues were found
+
+    os.remove(OUTPUT_JSON)
+
+def test_cli_output_file_not_compliant_with_group():
+    # Modify the DICOM file to make it non-compliant
+    dicom = pydicom.dcmread(DICOM_FILE)
+    dicom.ImageType = ["ORIGINAL", "PRIMARY", "P", "N"]
+    non_compliant_dicom = "dcm_check/tests/non_compliant_dicom.dcm"
+    dicom.save_as(non_compliant_dicom)
+
+    command = [
+        CLI_SCRIPT,
+        "--ref", JSON_REF,
+        "--type", "json",
+        "--scan", "T1",
+        "--group", "Group 1",
+        "--in", non_compliant_dicom,
+        "--out", OUTPUT_JSON
+    ]
+
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    expected_output = tabulate(pd.DataFrame({
+        "Parameter": ["ImageType"],
+        "Expected": ["Value error, ImageType must contain 'M'"],
+        "Actual": [["ORIGINAL", "PRIMARY", "P", "N"]],
+        "Pass": [False]
+    }), headers="keys", tablefmt="simple")
+
+    print(expected_output)
+    
+    assert result.returncode == 0
+    assert expected_output in result.stdout
+
+    assert os.path.isfile(OUTPUT_JSON)
+    
+    with open(OUTPUT_JSON) as f:
+        results = json.load(f)
+    
+    assert isinstance(results, list)  # Validate that results are in list format
+    assert len(results) == 1  # Validate that one compliance issue was found
+
+    os.remove(OUTPUT_JSON)
+
+    # delete the non-compliant DICOM file
+    os.remove(non_compliant_dicom)
+
 def test_cli_json_reference():
     command = [CLI_SCRIPT, "--ref", JSON_REF, "--type", "json", "--scan", "T1", "--in", DICOM_FILE]
 
     print(f"Running command: {' '.join(command)}")
     result = subprocess.run(command, capture_output=True, text=True)
     
-    # Define the expected output as a single string
-    expected_output = (
-        "    Parameter          Expected                              Actual       Pass\n"
-        "--  -----------------  ------------------------------------  -----------  ------\n"
-        " 0  SeriesDescription  String should match pattern '.*t1.*'  T1-weighted  False\n"
-    )
-    
-    # Assert that the command executed successfully
     assert result.returncode == 0
-    
-    # Assert that the output contains the exact expected string
-    assert expected_output in result.stdout
+    assert COMPLIANT_MESSAGE in result.stdout
 
-
-# Test with JSON Reference
 def test_cli_json_reference_inferred_type():
     command = [CLI_SCRIPT, "--ref", JSON_REF, "--scan", "T1", "--in", DICOM_FILE]
 
     print(f"Running command: {' '.join(command)}")
     result = subprocess.run(command, capture_output=True, text=True)
     
-    # Define the expected output as a single string
-    expected_output = (
-        "    Parameter          Expected                              Actual       Pass\n"
-        "--  -----------------  ------------------------------------  -----------  ------\n"
-        " 0  SeriesDescription  String should match pattern '.*t1.*'  T1-weighted  False\n"
-    )
-
-    # Assert that the command executed successfully
     assert result.returncode == 0
-    
-    # Assert that the output contains the exact expected string
-    assert expected_output in result.stdout
+    assert COMPLIANT_MESSAGE in result.stdout
 
-# Test with DICOM Reference
 def test_cli_dicom_reference():
-    result = subprocess.run(
-        [CLI_SCRIPT, "--ref", DICOM_FILE, "--type", "dicom", "--in", DICOM_FILE, "--fields", "SAR", "FlipAngle"],
-        capture_output=True,
-        text=True
-    )
-    assert result.returncode == 0
-    assert "DICOM file is compliant with the reference model." in result.stdout
+    command = [CLI_SCRIPT, "--ref", DICOM_FILE, "--type", "dicom", "--in", DICOM_FILE, "--fields", "SAR", "FlipAngle"]
 
-# Test with DICOM Reference
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode == 0
+    assert COMPLIANT_MESSAGE in result.stdout
+
 def test_cli_dicom_reference_inferred_type():
-    result = subprocess.run(
-        [CLI_SCRIPT, "--ref", DICOM_FILE, "--in", DICOM_FILE, "--fields", "SAR", "FlipAngle"],
-        capture_output=True,
-        text=True
-    )
+    command = [CLI_SCRIPT, "--ref", DICOM_FILE, "--in", DICOM_FILE, "--fields", "SAR", "FlipAngle"]
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode == 0
-    assert "DICOM file is compliant with the reference model." in result.stdout
+    assert COMPLIANT_MESSAGE in result.stdout
 
-# Test with DICOM Reference
 def test_cli_dicom_reference_non_compliant():
     # Modify the DICOM file to make it non-compliant
     dicom = pydicom.dcmread(DICOM_FILE)
@@ -80,17 +156,16 @@ def test_cli_dicom_reference_non_compliant():
     non_compliant_dicom = "dcm_check/tests/non_compliant_dicom.dcm"
     dicom.save_as(non_compliant_dicom)
 
-    result = subprocess.run(
-        [CLI_SCRIPT, "--ref", DICOM_FILE, "--type", "dicom", "--in", non_compliant_dicom, "--fields", "SAR", "FlipAngle"],
-        capture_output=True,
-        text=True
-    )
+    command = [CLI_SCRIPT, "--ref", DICOM_FILE, "--type", "dicom", "--in", non_compliant_dicom, "--fields", "SAR", "FlipAngle"]
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True)
 
-    expected_output = (
-        "    Parameter      Expected    Actual  Pass\n"
-        "--  -----------  ----------  --------  ------\n"
-        " 0  FlipAngle            15        45  False\n"
-    )
+    expected_output = tabulate(pd.DataFrame({
+        "Parameter": ["FlipAngle"],
+        "Expected": [15],
+        "Actual": [45],
+        "Pass": [False]
+    }), headers="keys", tablefmt="simple")
 
     # delete the non-compliant DICOM file
     os.remove(non_compliant_dicom)
@@ -98,44 +173,36 @@ def test_cli_dicom_reference_non_compliant():
     assert result.returncode == 0
     assert expected_output in result.stdout
 
-# Test with Pydantic Reference
 def test_cli_pydantic_reference():
-    result = subprocess.run(
-        [CLI_SCRIPT, "--ref", PYDANTIC_REF, "--type", "pydantic", "--scan", "T1_MPR", "--in", DICOM_FILE],
-        capture_output=True,
-        text=True
-    )
-    expected_output = (
-        "    Parameter              Expected                                                               Actual          Pass\n"
-        "--  ---------------------  ---------------------------------------------------------------------  --------------  ------\n"
-        " 0  MagneticFieldStrength  Field required                                                         N/A             False\n"
-        " 1  RepetitionTime         Input should be greater than or equal to 2300                          8.0             False\n"
-        " 2  PixelSpacing           Value error, Each value in PixelSpacing must be between 0.75 and 0.85  ['0.5', '0.5']  False\n"
-        " 3  SliceThickness         Input should be less than or equal to 0.85                             1.0             False\n"
-    )
+    command = [CLI_SCRIPT, "--ref", PYDANTIC_REF, "--type", "pydantic", "--scan", "T1_MPR", "--in", DICOM_FILE]
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    expected_output = tabulate(pd.DataFrame({
+        "Parameter": ["MagneticFieldStrength", "RepetitionTime", "PixelSpacing", "SliceThickness"],
+        "Expected": ["Field required", "Input should be greater than or equal to 2300", "Value error, Each value in PixelSpacing must be between 0.75 and 0.85", "Input should be less than or equal to 0.85"],
+        "Actual": ["N/A", 8.0, ['0.5', '0.5'], 1.0],
+        "Pass": [False, False, False, False]
+    }), headers="keys", tablefmt="simple")
+
     assert result.returncode == 0
     assert expected_output in result.stdout  # Validate that output includes compliance info
 
-
-# Test with Pydantic Reference
 def test_cli_pydantic_reference_inferred_type():
-    result = subprocess.run(
-        [CLI_SCRIPT, "--ref", PYDANTIC_REF, "--scan", "T1_MPR", "--in", DICOM_FILE],
-        capture_output=True,
-        text=True
-    )
-    expected_output = (
-        "    Parameter              Expected                                                               Actual          Pass\n"
-        "--  ---------------------  ---------------------------------------------------------------------  --------------  ------\n"
-        " 0  MagneticFieldStrength  Field required                                                         N/A             False\n"
-        " 1  RepetitionTime         Input should be greater than or equal to 2300                          8.0             False\n"
-        " 2  PixelSpacing           Value error, Each value in PixelSpacing must be between 0.75 and 0.85  ['0.5', '0.5']  False\n"
-        " 3  SliceThickness         Input should be less than or equal to 0.85                             1.0             False\n"
-    )
+    command = [CLI_SCRIPT, "--ref", PYDANTIC_REF, "--scan", "T1_MPR", "--in", DICOM_FILE]
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    expected_output = tabulate(pd.DataFrame({
+        "Parameter": ["MagneticFieldStrength", "RepetitionTime", "PixelSpacing", "SliceThickness"],
+        "Expected": ["Field required", "Input should be greater than or equal to 2300", "Value error, Each value in PixelSpacing must be between 0.75 and 0.85", "Input should be less than or equal to 0.85"],
+        "Actual": ["N/A", 8.0, ['0.5', '0.5'], 1.0],
+        "Pass": [False, False, False, False]
+    }), headers="keys", tablefmt="simple")
+
     assert result.returncode == 0
     assert expected_output in result.stdout  # Validate that output includes compliance info
 
-# Test JSON Output File Creation
 @pytest.mark.parametrize("ref_type,scan", [("json", "T1"), ("pydantic", "T1_MPR"), ("dicom", DICOM_FILE)])
 def test_cli_output_file_creation(ref_type, scan):
     ref_path = JSON_REF if ref_type == "json" else PYDANTIC_REF if ref_type == "pydantic" else DICOM_FILE

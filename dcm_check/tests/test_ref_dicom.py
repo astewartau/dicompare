@@ -44,6 +44,7 @@ def t1() -> Dataset:
     ref_dicom.AcquisitionContrast = "UNKNOWN"
     ref_dicom.PixelBandwidth = "200"
     ref_dicom.DeviceSerialNumber = "12345"
+    ref_dicom.ImageType = ["ORIGINAL", "PRIMARY", "M", "ND"]
 
     # Set PixelData to a 10x10 array of random integers
     ref_dicom.Rows = 10

@@ -44,6 +44,10 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
         if dicom_df[field].apply(lambda x: isinstance(x, list)).any():
             dicom_df[field] = dicom_df[field].apply(lambda x: tuple(x) if isinstance(x, list) else x)
 
+    # Sort the DataFrame by acquisition fields and reference fields
+    sort_order = acquisition_fields + reference_fields
+    dicom_df = dicom_df.sort_values(by=sort_order).reset_index(drop=True)
+
     # Drop duplicates based on unique acquisition fields
     unique_series_df = dicom_df.drop_duplicates(subset=acquisition_fields)
 
@@ -58,6 +62,9 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
         # Dictionary to store unique groups of reference fields
         unique_groups = {}
 
+        # Track reference fields that are constant across all groups
+        constant_reference_fields = {}
+
         # Group by reference field combinations and gather representative paths
         for _, group_row in series_df.drop(columns=acquisition_fields).drop_duplicates().iterrows():
             # Create a tuple for the current field combination
@@ -66,6 +73,28 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
             # Check if this combination is already stored
             if group_values not in unique_groups:
                 unique_groups[group_values] = group_row['dicom_path']
+
+        # Identify constant reference fields across groups
+        for field in reference_fields:
+            unique_values = series_df[field].unique()
+            if len(unique_values) == 1:
+                constant_reference_fields[field] = unique_values[0]
+
+        # Remove constant fields from the groups and only include changing fields
+        groups = []
+        group_number = 1
+        for group, example_path in unique_groups.items():
+            group_fields = [
+                {"field": field, "value": value}
+                for field, value in group if field not in constant_reference_fields
+            ]
+            if group_fields:
+                groups.append({
+                    "name": f"Group {group_number}",  # Assign default name
+                    "fields": group_fields,
+                    "example": example_path
+                })
+                group_number += 1
 
         # Format the series name based on the template using MissingFieldDict to handle missing keys
         try:
@@ -81,28 +110,23 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
         # Add acquisition-level fields and values
         acquisition_fields_list = [{"field": field, "value": unique_row[field]} for field in acquisition_fields]
 
+        # Include constant reference fields in the acquisition-level fields
+        acquisition_fields_list.extend(
+            [{"field": field, "value": value} for field, value in constant_reference_fields.items()]
+        )
+
         # Decide whether to include groups or inline reference fields
-        if len(unique_groups) == 1:
-            # Only one unique group, so inline its fields
-            single_group = list(unique_groups.items())[0]
-            group_fields = [{"field": field, "value": value} for field, value in single_group[0]]
-            acquisitions[final_series_name] = {
-                "ref": unique_row['dicom_path'],
-                "fields": acquisition_fields_list + group_fields
-            }
-        else:
-            # Multiple groups, add them under the "groups" key
-            groups = [
-                {
-                    "fields": [{"field": field, "value": value} for field, value in group],
-                    "example": example_path
-                }
-                for group, example_path in unique_groups.items()
-            ]
+        if groups:
             acquisitions[final_series_name] = {
                 "ref": unique_row['dicom_path'],
                 "fields": acquisition_fields_list,
                 "groups": groups
+            }
+        else:
+            # No changing groups, so we store only the acquisition-level fields
+            acquisitions[final_series_name] = {
+                "ref": unique_row['dicom_path'],
+                "fields": acquisition_fields_list
             }
 
     # Build the JSON output structure
@@ -114,7 +138,6 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
     with open(out_json_ref, "w") as f:
         json.dump(output, f, indent=4)
     print(f"JSON reference saved to {out_json_ref}")
-
 
 
 def main():

@@ -1,11 +1,18 @@
 {
     "acquisitions": {
         "T1": {
-            "ref": "dcm_check/tests/ref_dicom.dcm",
             "fields": [
-                { "field": "EchoTime", "tolerance": 0.1 },
-                { "field": "RepetitionTime" },
-                { "field": "SeriesDescription", "value": "*t1*" }
+                {"field": "EchoTime", "tolerance": 0.1, "value": 3.0},
+                {"field": "RepetitionTime", "value": 8.0},
+                {"field": "SeriesDescription", "value": "*T1*"}
+            ],
+            "groups": [
+                {
+                    "name": "Group 1",
+                    "fields": [
+                        {"field": "ImageType", "contains": "M"}
+                    ]
+                }
             ]
         }
     }

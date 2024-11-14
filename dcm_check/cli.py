@@ -7,15 +7,20 @@ import sys
 import os
 
 from tabulate import tabulate
-
-from dcm_check.dcm_check import load_ref_json, load_ref_dicom, load_ref_pydantic, get_compliance_summary, load_dicom
+from dcm_check.dcm_check import (
+    load_ref_json,
+    load_ref_dicom,
+    load_ref_pydantic,
+    get_compliance_summary,
+    load_dicom
+)
 
 def infer_type_from_extension(ref_path):
     """Infer the reference type based on the file extension."""
     _, ext = os.path.splitext(ref_path.lower())
     if ext == ".json":
         return "json"
-    elif ext == ".dcm":
+    elif ext in [".dcm", ".IMA"]:
         return "dicom"
     elif ext == ".py":
         return "pydantic"
@@ -28,6 +33,7 @@ def main():
     parser.add_argument("--ref", required=True, help="Reference JSON file, DICOM file, or Python module to use for compliance.")
     parser.add_argument("--type", choices=["json", "dicom", "pydantic"], help="Reference type: 'json', 'dicom', or 'pydantic'.")
     parser.add_argument("--scan", required=False, help="Scan type when using a JSON or Pydantic reference.")
+    parser.add_argument("--group", required=False, help="Specific group name within the acquisition for JSON references.")
     parser.add_argument("--in", dest="in_file", required=True, help="Path to the DICOM file to check.")
     parser.add_argument("--fields", nargs="*", help="Optional: List of DICOM fields to include in validation for DICOM reference.")
     parser.add_argument("--out", required=False, help="Path to save the compliance report in JSON format.")
@@ -37,7 +43,11 @@ def main():
     ref_type = args.type or infer_type_from_extension(args.ref)
 
     if ref_type == "json":
-        reference_model = load_ref_json(args.ref, args.scan)
+        # Include group if specified
+        if args.group:
+            reference_model = load_ref_json(args.ref, args.scan, group_name=args.group)
+        else:
+            reference_model = load_ref_json(args.ref, args.scan)
     elif ref_type == "dicom":
         ref_dicom_values = load_dicom(args.ref)
         reference_model = load_ref_dicom(ref_dicom_values, args.fields)
