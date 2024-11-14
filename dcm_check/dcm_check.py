@@ -38,6 +38,9 @@ def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
             return str(element.value[:50])
 
     for element in ds:
+        # skip pixel data
+        if element.tag == 0x7fe00010:
+            continue
         dicom_dict[element.keyword] = process_element(element)
         
     return dicom_dict
