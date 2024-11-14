@@ -44,7 +44,7 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
         if dicom_df[field].apply(lambda x: isinstance(x, list)).any():
             dicom_df[field] = dicom_df[field].apply(lambda x: tuple(x) if isinstance(x, list) else x)
 
-    # Drop duplicates based on unique fields
+    # Drop duplicates based on unique acquisition fields
     unique_series_df = dicom_df.drop_duplicates(subset=acquisition_fields)
 
     print(f"Found {len(unique_series_df)} unique series in {in_session_dir}")
@@ -52,7 +52,7 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
     # Iterate over unique series in the DataFrame
     id = 1
     for _, unique_row in unique_series_df.iterrows():
-        # Filter rows that match the unique fields in this row
+        # Filter rows that match the acquisition fields in this row
         series_df = dicom_df[dicom_df[acquisition_fields].eq(unique_row[acquisition_fields]).all(axis=1)]
 
         # Dictionary to store unique groups of reference fields
@@ -78,20 +78,32 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
         final_series_name = series_name if series_name not in acquisitions else f"{series_name}_{id}"
         id += 1
 
-        # Convert unique groups back into the desired JSON structure
-        groups = [
-            {
-                "fields": [{"field": field, "value": value} for field, value in group],
-                "example": example_path
-            }
-            for group, example_path in unique_groups.items()
-        ]
+        # Add acquisition-level fields and values
+        acquisition_fields_list = [{"field": field, "value": unique_row[field]} for field in acquisition_fields]
 
-        # Add each unique series to acquisitions with grouped field combinations
-        acquisitions[final_series_name] = {
-            "ref": unique_row['dicom_path'],  # Reference the first DICOM file for this unique series
-            "groups": groups
-        }
+        # Decide whether to include groups or inline reference fields
+        if len(unique_groups) == 1:
+            # Only one unique group, so inline its fields
+            single_group = list(unique_groups.items())[0]
+            group_fields = [{"field": field, "value": value} for field, value in single_group[0]]
+            acquisitions[final_series_name] = {
+                "ref": unique_row['dicom_path'],
+                "fields": acquisition_fields_list + group_fields
+            }
+        else:
+            # Multiple groups, add them under the "groups" key
+            groups = [
+                {
+                    "fields": [{"field": field, "value": value} for field, value in group],
+                    "example": example_path
+                }
+                for group, example_path in unique_groups.items()
+            ]
+            acquisitions[final_series_name] = {
+                "ref": unique_row['dicom_path'],
+                "fields": acquisition_fields_list,
+                "groups": groups
+            }
 
     # Build the JSON output structure
     output = {
