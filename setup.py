@@ -21,7 +21,8 @@ setup(
         "pydantic",
         "pandas",
         "tabulate",
-        "pytest",
+        "Levenshtein",
+        "scipy"
     ],
     python_requires=">=3.10",
     classifiers=[
