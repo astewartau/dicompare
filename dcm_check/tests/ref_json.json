@@ -1,7 +1,7 @@
 {
     "acquisitions": {
         "T1": {
-            "ref": "/home/ashley/downloads/DICOMs/dicoms-sorted/sub-masop_ma001-0002_bl/ses-1/6_gre_qsm_5echoes_iso1mm/MR.1.3.12.2.1107.5.2.19.145080.30000019060700402238900011732.1.IMA",
+            "ref": "dcm_check/tests/ref_dicom.dcm",
             "fields": [
                 { "field": "EchoTime", "tolerance": 0.1 },
                 { "field": "RepetitionTime" },

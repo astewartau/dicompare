@@ -13,19 +13,16 @@ OUTPUT_JSON = "compliance_output.json"  # Output file for tests
 
 # Test with JSON Reference
 def test_cli_json_reference():
-    result = subprocess.run(
-        [CLI_SCRIPT, "--ref", JSON_REF, "--type", "json", "--scan", "T1", "--in", DICOM_FILE],
-        capture_output=True,
-        text=True
-    )
+    command = [CLI_SCRIPT, "--ref", JSON_REF, "--type", "json", "--scan", "T1", "--in", DICOM_FILE]
+
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True)
     
     # Define the expected output as a single string
     expected_output = (
-        "    Parameter          Expected                                       Actual       Pass\n"
-        "--  -----------------  ---------------------------------------------  -----------  ------\n"
-        " 0  EchoTime           Input should be greater than or equal to 5.74  3.0          False\n"
-        " 1  RepetitionTime     29.0                                           8.0          False\n"
-        " 2  SeriesDescription  String should match pattern '.*t1.*'           T1-weighted  False\n"
+        "    Parameter          Expected                              Actual       Pass\n"
+        "--  -----------------  ------------------------------------  -----------  ------\n"
+        " 0  SeriesDescription  String should match pattern '.*t1.*'  T1-weighted  False\n"
     )
     
     # Assert that the command executed successfully
@@ -37,21 +34,18 @@ def test_cli_json_reference():
 
 # Test with JSON Reference
 def test_cli_json_reference_inferred_type():
-    result = subprocess.run(
-        [CLI_SCRIPT, "--ref", JSON_REF, "--scan", "T1", "--in", DICOM_FILE],
-        capture_output=True,
-        text=True
-    )
+    command = [CLI_SCRIPT, "--ref", JSON_REF, "--scan", "T1", "--in", DICOM_FILE]
+
+    print(f"Running command: {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True)
     
     # Define the expected output as a single string
     expected_output = (
-        "    Parameter          Expected                                       Actual       Pass\n"
-        "--  -----------------  ---------------------------------------------  -----------  ------\n"
-        " 0  EchoTime           Input should be greater than or equal to 5.74  3.0          False\n"
-        " 1  RepetitionTime     29.0                                           8.0          False\n"
-        " 2  SeriesDescription  String should match pattern '.*t1.*'           T1-weighted  False\n"
+        "    Parameter          Expected                              Actual       Pass\n"
+        "--  -----------------  ------------------------------------  -----------  ------\n"
+        " 0  SeriesDescription  String should match pattern '.*t1.*'  T1-weighted  False\n"
     )
-    
+
     # Assert that the command executed successfully
     assert result.returncode == 0
     
