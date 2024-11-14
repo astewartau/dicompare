@@ -77,10 +77,11 @@ def test_cli_dicom_reference_non_compliant():
     # Modify the DICOM file to make it non-compliant
     dicom = pydicom.dcmread(DICOM_FILE)
     dicom.FlipAngle = 45
-    dicom.save_as("non_compliant_dicom.dcm")
+    non_compliant_dicom = "dcm_check/tests/non_compliant_dicom.dcm"
+    dicom.save_as(non_compliant_dicom)
 
     result = subprocess.run(
-        [CLI_SCRIPT, "--ref", DICOM_FILE, "--type", "dicom", "--in", "non_compliant_dicom.dcm", "--fields", "SAR", "FlipAngle"],
+        [CLI_SCRIPT, "--ref", DICOM_FILE, "--type", "dicom", "--in", non_compliant_dicom, "--fields", "SAR", "FlipAngle"],
         capture_output=True,
         text=True
     )
@@ -90,6 +91,9 @@ def test_cli_dicom_reference_non_compliant():
         "--  -----------  ----------  --------  ------\n"
         " 0  FlipAngle            15        45  False\n"
     )
+
+    # delete the non-compliant DICOM file
+    os.remove(non_compliant_dicom)
 
     assert result.returncode == 0
     assert expected_output in result.stdout
