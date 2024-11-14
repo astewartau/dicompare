@@ -26,7 +26,6 @@ def calculate_field_difference(expected, actual, tolerance=None, contains=None):
         expected_tuple = tuple(expected) if not isinstance(expected, tuple) else expected
         actual_tuple = tuple(actual) if not isinstance(actual, tuple) else actual
         
-        # if they are numeric tuples of the same length, calculate the sum of the differences and take into account tolerance
         if all(isinstance(e, (int, float)) for e in expected_tuple) and all(isinstance(a, (int, float)) for a in actual_tuple) and len(expected_tuple) == len(actual_tuple):
             if tolerance is not None:
                 return min(MAX_DIFF_SCORE, sum(abs(e - a) for e, a in zip(expected_tuple, actual_tuple) if abs(e - a) > tolerance))
@@ -137,19 +136,39 @@ def read_session(reference_json, session_dir):
                 dicom_entry = {field: tuple(dicom_values[field]) if isinstance(dicom_values.get(field), list) 
                                else dicom_values.get(field, "N/A") 
                                for field in all_fields}
+                
+                dicom_entry["DICOM_Path"] = dicom_path  # Store the DICOM path
+
+                if "InstanceNumber" in dicom_values and "InstanceNumber" not in dicom_entry:
+                    dicom_entry["InstanceNumber"] = int(dicom_values["InstanceNumber"])
+
                 session_data.append(dicom_entry)
 
-    session_df = pd.DataFrame(session_data).drop_duplicates()
+    session_df = pd.DataFrame(session_data)
 
-    acquisitions, groups, scores = find_closest_matches(session_df, acquisitions_info)
+    # sort by InstanceNumber if available
+    if "InstanceNumber" in session_df.columns:
+        session_df.sort_values("InstanceNumber", inplace=True)
+    else:
+        session_df.sort_values("DICOM_Path", inplace=True)
+    
+    # Group by unique series fields and calculate 'First_DICOM' and 'Count'
+    dedup_fields = all_fields
+    series_count_df = (
+        session_df.groupby(list(dedup_fields))
+        .agg(First_DICOM=('DICOM_Path', 'first'), Count=('DICOM_Path', 'size'))
+        .reset_index()
+    )
 
-    session_df["Acquisition"] = acquisitions
-    session_df["Group"] = groups
-    session_df["Match_Score"] = scores
+    acquisitions, groups, scores = find_closest_matches(series_count_df, acquisitions_info)
 
-    session_df.sort_values(["Acquisition", "Group", "Match_Score"], inplace=True)
+    series_count_df["Acquisition"] = acquisitions
+    series_count_df["Group"] = groups
+    series_count_df["Match_Score"] = scores
 
-    return session_df
+    series_count_df.sort_values(["Acquisition", "Group", "Match_Score"], inplace=True)
+
+    return series_count_df
 
 def main():
     parser = argparse.ArgumentParser(description="Map a DICOM session directory to a JSON reference file and print the closest acquisition and group matches.")
@@ -158,6 +177,12 @@ def main():
     args = parser.parse_args()
     
     df = read_session(args.ref, args.session_dir)
+    
+    # Save the results to a CSV file
+    df.to_csv("output.csv", index=False)
+
+    # drop First_DICOM and Count columns
+    df.drop(columns=["First_DICOM", "Count"], inplace=True)
     print(df)
 
 if __name__ == "__main__":
