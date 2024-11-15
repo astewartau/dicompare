@@ -3,13 +3,12 @@
 import pydicom
 import json
 import importlib.util
-from pydantic import ValidationError, create_model, BaseModel, Field, confloat
-from typing import Literal, List, Optional, Dict, Any, Union, Pattern
+from pydantic import ValidationError, create_model, BaseModel, Field, confloat, field_validator
+from typing import Literal, List, Optional, Dict, Any, Union
 from pydicom.multival import MultiValue
 from pydicom.uid import UID
 from pydicom.valuerep import PersonName, DSfloat, IS
 from pydantic_core import PydanticUndefined
-from pydantic.class_validators import validator
 
 def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
     """Convert a DICOM dataset to a dictionary, handling sequences and DICOM-specific data types.
@@ -64,7 +63,7 @@ def create_reference_model(reference_values: Dict[str, Any], fields_config: List
 
     # Define validation functions dynamically
     def contains_check_factory(field_name, contains_value):
-        @validator(field_name, pre=True, allow_reuse=True)
+        @field_validator(field_name)
         def contains_check(cls, v):
             if not isinstance(v, list) or contains_value not in v:
                 raise ValueError(f"{field_name} must contain '{contains_value}'")
