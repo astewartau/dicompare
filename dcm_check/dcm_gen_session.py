@@ -13,7 +13,7 @@ class MissingFieldDict(dict):
     def __missing__(self, key):
         return "N/A"
 
-def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, reference_fields, name_template):
+def generate_json_ref(in_session_dir, acquisition_fields, reference_fields, name_template):
     acquisitions = {}
     dicom_data = []
 
@@ -134,10 +134,7 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
         "acquisitions": acquisitions
     }
 
-    # Write JSON to output file
-    with open(out_json_ref, "w") as f:
-        json.dump(output, f, indent=4)
-    print(f"JSON reference saved to {out_json_ref}")
+    return output
 
 
 def main():
@@ -149,7 +146,12 @@ def main():
     parser.add_argument("--name_template", default="{ProtocolName}-{SeriesDescription}", help="Naming template for each acquisition series.")
     args = parser.parse_args()
 
-    generate_json_ref(args.in_session_dir, args.out_json_ref, args.acquisition_fields, args.reference_fields, args.name_template)
+    output = generate_json_ref(args.in_session_dir, args.acquisition_fields, args.reference_fields, args.name_template)
+
+    # Write JSON to output file
+    with open(args.out_json_ref, "w") as f:
+        json.dump(output, f, indent=4)
+    print(f"JSON reference saved to {args.out_json_ref}")
 
 if __name__ == "__main__":
     main()
