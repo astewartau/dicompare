@@ -68,17 +68,29 @@ def get_compliance_summaries_json(json_ref: str, in_session: str, output_json: s
     with open(output_json, "w") as json_file:
         json.dump(grouped_compliance_list, json_file, indent=4)
 
-    # Convert the compliance summary to a DataFrame for tabulated output
-    compliance_df = pd.json_normalize(
+    # Step 6: Normalize into DataFrame
+    # Separate series and non-series data to handle them differently in json_normalize
+    df_with_series = pd.json_normalize(
         grouped_compliance_list,
         record_path=["Series", "Parameters"],
         meta=["Acquisition", ["Series", "Name"]],
         errors="ignore"
     )
+    df_with_series.rename(columns={"Series.Name": "Series"}, inplace=True)
+    df_with_series = df_with_series[["Acquisition", "Series", "Parameter", "Value", "Expected"]]
 
-    # Rename "Series.name" to "Series" and reorder columns
-    compliance_df.rename(columns={"Series.Name": "Series"}, inplace=True)
-    compliance_df = compliance_df[["Acquisition", "Series", "Parameter", "Value", "Expected"]]
+    # Normalize acquisitions without series directly
+    df_without_series = pd.json_normalize(
+        [acq for acq in grouped_compliance_list if "Parameters" in acq],
+        record_path="Parameters",
+        meta=["Acquisition"],
+        errors="ignore"
+    )
+    df_without_series.insert(1, "Series", None)  # Add Series column with None values
+    df_without_series = df_without_series[["Acquisition", "Series", "Parameter", "Value", "Expected"]]
+
+    # Combine both DataFrames
+    compliance_df = pd.concat([df_with_series, df_without_series], ignore_index=True)
 
     return compliance_df
 
