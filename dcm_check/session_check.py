@@ -68,8 +68,12 @@ def get_compliance_summaries_json(json_ref: str, in_session: str, output_json: s
     with open(output_json, "w") as json_file:
         json.dump(grouped_compliance_list, json_file, indent=4)
 
+    # Check if there are any compliance issues to report
+    if not any(compliance.get("Parameters") for compliance in grouped_compliance_list):
+        # Return an empty DataFrame with the expected columns if fully compliant
+        return pd.DataFrame(columns=["Acquisition", "Series", "Parameter", "Value", "Expected"])
+
     # Step 6: Normalize into DataFrame
-    # Separate series and non-series data to handle them differently in json_normalize
     df_with_series = pd.json_normalize(
         grouped_compliance_list,
         record_path=["Series", "Parameters"],
@@ -103,6 +107,11 @@ def main():
 
     # Generate compliance summaries
     compliance_df = get_compliance_summaries_json(args.json_ref, args.in_session, args.output_json)
+
+    # if compliance_df is empty, print message and exit
+    if compliance_df.empty:
+        print("Session is fully compliant with the reference model.")
+        return
     
     # Print formatted output with tabulate
     print(tabulate(compliance_df, headers="keys", tablefmt="simple"))
