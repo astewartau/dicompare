@@ -32,8 +32,8 @@ def main():
     parser = argparse.ArgumentParser(description="Check DICOM compliance against a reference model.")
     parser.add_argument("--ref", required=True, help="Reference JSON file, DICOM file, or Python module to use for compliance.")
     parser.add_argument("--type", choices=["json", "dicom", "pydantic"], help="Reference type: 'json', 'dicom', or 'pydantic'.")
-    parser.add_argument("--scan", required=False, help="Scan type when using a JSON or Pydantic reference.")
-    parser.add_argument("--group", required=False, help="Specific group name within the acquisition for JSON references.")
+    parser.add_argument("--acquisition", required=False, help="Acquisition name when using a JSON or Pydantic reference.")
+    parser.add_argument("--series", required=False, help="Specific series name within the acquisition for JSON references.")
     parser.add_argument("--in", dest="in_file", required=True, help="Path to the DICOM file to check.")
     parser.add_argument("--fields", nargs="*", help="Optional: List of DICOM fields to include in validation for DICOM reference.")
     parser.add_argument("--out", required=False, help="Path to save the compliance report in JSON format.")
@@ -43,34 +43,34 @@ def main():
     ref_type = args.type or infer_type_from_extension(args.ref)
 
     if ref_type == "json":
-        # Include group if specified
-        if args.group:
-            reference_model = load_ref_json(args.ref, args.scan, group_name=args.group)
+        # Include series if specified
+        if args.series:
+            reference_model = load_ref_json(args.ref, args.acquisition, series_name=args.series)
         else:
-            reference_model = load_ref_json(args.ref, args.scan)
+            reference_model = load_ref_json(args.ref, args.acquisition)
     elif ref_type == "dicom":
         ref_dicom_values = load_dicom(args.ref)
         reference_model = load_ref_dicom(ref_dicom_values, args.fields)
     elif ref_type == "pydantic":
-        # check if scan is provided
-        if not args.scan:
-            print("Error: Scan type is required (--scan) when using a Pydantic reference.", file=sys.stderr)
+        # check if acquisition is provided
+        if not args.acquisition:
+            print("Error: Acquisition type is required (--acquisition) when using a Pydantic reference.", file=sys.stderr)
             sys.exit(1)
-        reference_model = load_ref_pydantic(args.ref, args.scan)
+        reference_model = load_ref_pydantic(args.ref, args.acquisition)
     else:
         print(f"Error: Unsupported reference type '{ref_type}'", file=sys.stderr)
         sys.exit(1)
 
     in_dicom_values = load_dicom(args.in_file)
-    results = get_compliance_summary(reference_model, in_dicom_values, args.scan, args.group)
+    results = get_compliance_summary(reference_model, in_dicom_values, args.acquisition, args.series)
 
     df = pd.DataFrame(results)
 
-    # remove "Acquisition" and/or "Group" columns if they are empty
+    # remove "Acquisition" and/or "Series" columns if they are empty
     if "Acquisition" in df.columns and df["Acquisition"].isnull().all():
         df.drop(columns=["Acquisition"], inplace=True)
-    if "Group" in df.columns and df["Group"].isnull().all():
-        df.drop(columns=["Group"], inplace=True)
+    if "Series" in df.columns and df["Series"].isnull().all():
+        df.drop(columns=["Series"], inplace=True)
 
     if len(df) == 0:
         print("DICOM file is compliant with the reference model.")

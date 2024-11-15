@@ -33,9 +33,9 @@ def json_ref_no_dcm(tmp_path_factory):
                     {"field": "RepetitionTime", "value": 8.0},
                     {"field": "SeriesDescription", "value": "*T1*"}
                 ],
-                "groups": [
+                "series": [
                     {
-                        "name": "Group 1",
+                        "name": "Series 1",
                         "fields": [
                             {"field": "ImageType", "contains": "M"}
                         ]
@@ -63,9 +63,9 @@ def json_ref_with_dcm(tmp_path_factory, dicom_test_file):
                     {"field": "RepetitionTime"},
                     {"field": "SeriesDescription"}
                 ],
-                "groups": [
+                "series": [
                     {
-                        "name": "Group 1",
+                        "name": "Series 1",
                         "fields": [
                             {"field": "ImageType", "contains": "M"}
                         ]
@@ -83,7 +83,7 @@ def json_ref_with_dcm(tmp_path_factory, dicom_test_file):
 
 def test_load_ref_json(json_ref_no_dcm):
     """Test that JSON configuration can be loaded and generates a reference model."""
-    reference_model = dcm_check.load_ref_json(json_path=json_ref_no_dcm, scan_type="T1", group_name="Group 1")
+    reference_model = dcm_check.load_ref_json(json_path=json_ref_no_dcm, acquisition="T1", series_name="Series 1")
 
     # Verify that the model was created correctly with exact and pattern matching fields
     assert reference_model is not None
@@ -105,9 +105,9 @@ def test_load_ref_json(json_ref_no_dcm):
     assert reference_model.model_fields["SeriesDescription"].metadata[0].pattern == ".*T1.*"
 
 def test_json_compliance_within_tolerance_with_dcm(json_ref_with_dcm, dicom_test_file):
-    """Test compliance when values are within tolerance for JSON configuration with group."""
+    """Test compliance when values are within tolerance for JSON configuration with series."""
     t1_dicom_values = dcm_check.load_dicom(dicom_test_file)
-    reference_model = dcm_check.load_ref_json(json_path=json_ref_with_dcm, scan_type="T1", group_name="Group 1")
+    reference_model = dcm_check.load_ref_json(json_path=json_ref_with_dcm, acquisition="T1", series_name="Series 1")
 
     # Adjust EchoTime within tolerance (original value is 3.0, tolerance 0.1)
     t1_dicom_values["EchoTime"] = 3.05
@@ -117,9 +117,9 @@ def test_json_compliance_within_tolerance_with_dcm(json_ref_with_dcm, dicom_test
     assert len(compliance_summary) == 0
 
 def test_json_compliance_outside_tolerance_with_dcm(json_ref_with_dcm, dicom_test_file):
-    """Test compliance when values exceed tolerance for JSON configuration with group."""
+    """Test compliance when values exceed tolerance for JSON configuration with series."""
     t1_dicom_values = dcm_check.load_dicom(dicom_test_file)
-    reference_model = dcm_check.load_ref_json(json_path=json_ref_with_dcm, scan_type="T1", group_name="Group 1")
+    reference_model = dcm_check.load_ref_json(json_path=json_ref_with_dcm, acquisition="T1", series_name="Series 1")
 
     # Adjust EchoTime beyond tolerance (original value is 3.0, tolerance 0.1)
     t1_dicom_values["EchoTime"] = 3.2
@@ -130,9 +130,9 @@ def test_json_compliance_outside_tolerance_with_dcm(json_ref_with_dcm, dicom_tes
     assert compliance_summary[0]["Value"] == 3.2
 
 def test_json_compliance_pattern_match(json_ref_no_dcm, dicom_test_file):
-    """Test compliance with a pattern match for SeriesDescription within group."""
+    """Test compliance with a pattern match for SeriesDescription within series."""
     t1_dicom_values = dcm_check.load_dicom(dicom_test_file)
-    reference_model = dcm_check.load_ref_json(json_path=json_ref_no_dcm, scan_type="T1", group_name="Group 1")
+    reference_model = dcm_check.load_ref_json(json_path=json_ref_no_dcm, acquisition="T1", series_name="Series 1")
 
     # Change SeriesDescription to match pattern "*T1*"
     t1_dicom_values["SeriesDescription"] = "Another_T1_Sequence"

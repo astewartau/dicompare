@@ -103,13 +103,13 @@ def create_reference_model(reference_values: Dict[str, Any], fields_config: List
     # Create model with dynamically added validators
     return create_model("ReferenceModel", **model_fields, __validators__=validators)
 
-def load_ref_json(json_path: str, scan_type: str, group_name: Optional[str] = None) -> BaseModel:
-    """Load a JSON configuration file and create a reference model for a specified scan type and group.
+def load_ref_json(json_path: str, acquisition: str, series_name: Optional[str] = None) -> BaseModel:
+    """Load a JSON configuration file and create a reference model for a specified acquisition and series.
 
     Args:
         json_path (str): Path to the JSON configuration file.
-        scan_type (str): Acquisition scan type to load (e.g., "T1").
-        group_name (Optional[str]): Specific group name to validate within the acquisition.
+        acquisition (str): Acquisition to load (e.g., "T1").
+        series_name (Optional[str]): Specific series name to validate within the acquisition.
 
     Returns:
         reference_model (BaseModel): A Pydantic model based on the JSON configuration.
@@ -118,9 +118,9 @@ def load_ref_json(json_path: str, scan_type: str, group_name: Optional[str] = No
         config = json.load(f)
 
     # Load acquisition configuration
-    acquisition_config = config.get("acquisitions", {}).get(scan_type)
+    acquisition_config = config.get("acquisitions", {}).get(acquisition)
     if not acquisition_config:
-        raise ValueError(f"Scan type '{scan_type}' not found in JSON configuration.")
+        raise ValueError(f"Acquisition '{acquisition}' not found in JSON configuration.")
 
     # Load the reference DICOM if specified
     ref_file = acquisition_config.get("ref", None)
@@ -133,19 +133,19 @@ def load_ref_json(json_path: str, scan_type: str, group_name: Optional[str] = No
     # Always include acquisition-level fields
     reference_values.update(acquisition_reference)
 
-    # Check if a group_name is specified and retrieve its configuration
-    group_fields = []
-    if group_name:
-        group = next((grp for grp in acquisition_config.get("groups", []) if grp["name"] == group_name), None)
-        if not group:
-            raise ValueError(f"Group '{group_name}' not found in acquisition '{scan_type}'.")
+    # Check if a series_name is specified and retrieve its configuration
+    series_fields = []
+    if series_name:
+        series = next((grp for grp in acquisition_config.get("series", []) if grp["name"] == series_name), None)
+        if not series:
+            raise ValueError(f"Series '{series_name}' not found in acquisition '{acquisition}'.")
 
-        group_fields = group.get("fields", [])
-        group_reference = {field["field"]: field.get("value") for field in group_fields if "value" in field}
-        reference_values.update(group_reference)
+        series_fields = series.get("fields", [])
+        series_reference = {field["field"]: field.get("value") for field in series_fields if "value" in field}
+        reference_values.update(series_reference)
 
-    # Combine acquisition and group fields for the reference model creation
-    combined_fields_config = fields_config + group_fields
+    # Combine acquisition and series fields for the reference model creation
+    combined_fields_config = fields_config + series_fields
 
     return create_reference_model(reference_values, combined_fields_config)
 
@@ -165,34 +165,34 @@ def load_ref_dicom(dicom_values: Dict[str, Any], fields: Optional[List[str]] = N
     fields_config = [{"field": field} for field in fields] if fields else [{"field": key} for key in dicom_values]
     return create_reference_model(dicom_values, fields_config)
 
-def load_ref_pydantic(module_path: str, scan_type: str) -> BaseModel:
-    """Load a Pydantic model from a specified Python file for the given scan type.
+def load_ref_pydantic(module_path: str, acquisition: str) -> BaseModel:
+    """Load a Pydantic model from a specified Python file for the given acquisition.
 
     Args:
-        module_path (str): Path to the Python file containing the scan models.
-        scan_type (str): The scan type to retrieve (e.g., "T1_MPR").
+        module_path (str): Path to the Python file containing the acquisition models.
+        acquisition (str): The acquisition to retrieve (e.g., "T1_MPR").
 
     Returns:
-        reference_model (BaseModel): The Pydantic model for the specified scan type.
+        reference_model (BaseModel): The Pydantic model for the specified acquisition type.
     """
     # Load the module from the specified file path
     spec = importlib.util.spec_from_file_location("ref_module", module_path)
     ref_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(ref_module)
 
-    # Retrieve SCAN_MODELS from the loaded module
-    scan_models: Dict[str, Any] = getattr(ref_module, "SCAN_MODELS", None)
-    if not scan_models:
-        raise ValueError(f"No SCAN_MODELS found in the module '{module_path}'.")
+    # Retrieve ACQUISITION_MODELS from the loaded module
+    acquisition_models: Dict[str, Any] = getattr(ref_module, "ACQUISITION_MODELS", None)
+    if not acquisition_models:
+        raise ValueError(f"No ACQUISITION_MODELS found in the module '{module_path}'.")
 
-    # Retrieve the specific model for the given scan type
-    reference_model = scan_models.get(scan_type)
+    # Retrieve the specific model for the given acquisition
+    reference_model = acquisition_models.get(acquisition)
     if not reference_model:
-        raise ValueError(f"Scan type '{scan_type}' is not defined in SCAN_MODELS.")
+        raise ValueError(f"Acquisition '{acquisition}' is not defined in ACQUISITION_MODELS.")
 
     return reference_model
 
-def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, Any], acquisition: str = None, group: str = None, raise_errors: bool = False) -> List[Dict[str, Any]]:
+def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, Any], acquisition: str = None, series: str = None, raise_errors: bool = False) -> List[Dict[str, Any]]:
     """Validate a DICOM file against the reference model."""
     compliance_summary = []
 
@@ -209,7 +209,7 @@ def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, A
             actual = dicom_values.get(param, "N/A") if param != "Model-Level Error" else "N/A"
             compliance_summary.append({
                 "Acquisition": acquisition,
-                "Group": group,
+                "Series": series,
                 "Parameter": param,
                 "Value": actual,
                 "Expected": expected

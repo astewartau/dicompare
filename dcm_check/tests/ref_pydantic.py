@@ -75,8 +75,8 @@ class DiffusionConfig(BaseModel):
             raise ValueError("PixelSpacing must have exactly 2 values")
         return v
 
-# Dictionary to map scan types to their respective config models (without instantiation)
-SCAN_MODELS = {
+# Dictionary to map acquisitions to their respective config models (without instantiation)
+ACQUISITION_MODELS = {
     "T1_MPR": T1_MPR_Config,
     "T2w_SPC": T2w_SPC_Config,
     "Diff_1k": DiffusionConfig,

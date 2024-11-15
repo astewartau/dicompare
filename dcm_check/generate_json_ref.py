@@ -90,7 +90,7 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
             ]
             if group_fields:
                 groups.append({
-                    "name": f"Group {group_number}",  # Assign default name
+                    "name": f"Series {group_number}",  # Assign default name
                     "fields": group_fields,
                     "ref": ref_path
                 })
@@ -120,7 +120,7 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
             acquisitions[final_series_name] = {
                 "ref": unique_row['dicom_path'],
                 "fields": acquisition_fields_list,
-                "groups": groups
+                "series": groups
             }
         else:
             # No changing groups, so we store only the acquisition-level fields

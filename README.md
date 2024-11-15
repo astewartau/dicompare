@@ -27,14 +27,14 @@ The CLI provides options to specify a reference model and validate a DICOM file.
 Command Syntax
 
 ```bash
-dcm-check --ref <reference-file> --type <json|dicom|pydantic> --scan <scan-type> --in <dicom-file> [--fields <field1 field2 ...>] [--out <output-file>]
+dcm-check --ref <reference-file> --type <json|dicom|pydantic> --acquisition <acquisition-type> --in <dicom-file> [--fields <field1 field2 ...>] [--out <output-file>]
 ```
 
 **Arguments:**
 
 - `--ref`: Path to the reference file (JSON, DICOM, or Python module).
 - `--type`: Type of reference model (json, dicom, or pydantic).
-- `--scan`: Scan type (e.g., T1, T2w, etc.) when using JSON or Pydantic references; inferred if not given.
+- `--acquisition`: Acquisition type (e.g., T1, T2w, etc.) when using JSON or Pydantic references; inferred if not given.
 - `--in`: Path to the DICOM file to validate.
 - `--fields`: (Optional) List of specific DICOM fields to include in validation for DICOM reference types.
 - `--out`: (Optional) Path to save the compliance report as a JSON file.
@@ -44,7 +44,7 @@ dcm-check --ref <reference-file> --type <json|dicom|pydantic> --scan <scan-type>
 Validate a DICOM file using a JSON reference model:
 
 ```bash
-dcm-check --ref reference.json --scan T1 --in dicom_file.dcm
+dcm-check --ref reference.json --acquisition T1 --in dicom_file.dcm
 ```
 
 Validate a DICOM file using another DICOM as a reference:
@@ -56,7 +56,7 @@ dcm-check --ref reference.dcm --in dicom_file.dcm --fields EchoTime RepetitionTi
 Validate a DICOM file using a Pydantic model in a Python module:
 
 ```bash
-dcm-check --ref reference.py --scan T1_MPR --in dicom_file.dcm
+dcm-check --ref reference.py --acquisition T1_MPR --in dicom_file.dcm
 ```
 
 **Output**

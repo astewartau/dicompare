@@ -70,16 +70,16 @@ def find_closest_matches(session_df, acquisitions_info):
             acq_name = acq_info["name"]
             acq_diff_score = calculate_total_difference(acq_info, row)
 
-            if not acq_info["groups"]:  # Acquisitions without groups (assign group as None)
+            if not acq_info["series"]:  # Acquisitions without groups (assign group as None)
                 row_costs.append(acq_diff_score)
                 row_assignments.append((i, acq_name, None, acq_diff_score))
             else:
-                for group in acq_info["groups"]:
-                    group_name = group["name"]
-                    group_diff_score = calculate_total_difference(group, row)
-                    total_score = acq_diff_score + group_diff_score
+                for series in acq_info["series"]:
+                    series_name = series["name"]
+                    series_diff_score = calculate_total_difference(series, row)
+                    total_score = acq_diff_score + series_diff_score
                     row_costs.append(total_score)
-                    row_assignments.append((i, acq_name, group_name, total_score))
+                    row_assignments.append((i, acq_name, series_name, total_score))
 
         cost_matrix.append(row_costs)
         possible_assignments.append(row_assignments)
@@ -88,16 +88,16 @@ def find_closest_matches(session_df, acquisitions_info):
     row_indices, col_indices = linear_sum_assignment(cost_matrix)
 
     best_acquisitions = [None] * len(session_df)
-    best_groups = [None] * len(session_df)
+    best_series = [None] * len(session_df)
     best_scores = [None] * len(session_df)  # Use NaN for unmatched scores
 
     for row_idx, col_idx in zip(row_indices, col_indices):
-        _, acq_name, group_name, score = possible_assignments[row_idx][col_idx]
+        _, acq_name, series_name, score = possible_assignments[row_idx][col_idx]
         best_acquisitions[row_idx] = acq_name
-        best_groups[row_idx] = group_name
+        best_series[row_idx] = series_name
         best_scores[row_idx] = score if acq_name else None  # Only assign score if acquisition is matched
 
-    return best_acquisitions, best_groups, best_scores
+    return best_acquisitions, best_series, best_scores
 
 
 def read_session(reference_json, session_dir):
@@ -110,21 +110,21 @@ def read_session(reference_json, session_dir):
             "fields": {field["field"]: field.get("value", field.get("contains")) for field in acquisition.get("fields", [])},
             "tolerance": {field["field"]: field["tolerance"] for field in acquisition.get("fields", []) if "tolerance" in field},
             "contains": {field["field"]: field["contains"] for field in acquisition.get("fields", []) if "contains" in field},
-            "groups": [
+            "series": [
                 {
-                    "name": group["name"], 
-                    "fields": {field["field"]: field.get("value", field.get("contains")) for field in group.get("fields", [])},
-                    "tolerance": {field["field"]: field["tolerance"] for field in group.get("fields", []) if "tolerance" in field},
-                    "contains": {field["field"]: field["contains"] for field in group.get("fields", []) if "contains" in field}
+                    "name": series["name"], 
+                    "fields": {field["field"]: field.get("value", field.get("contains")) for field in series.get("fields", [])},
+                    "tolerance": {field["field"]: field["tolerance"] for field in series.get("fields", []) if "tolerance" in field},
+                    "contains": {field["field"]: field["contains"] for field in series.get("fields", []) if "contains" in field}
                 } 
-                for group in acquisition.get("groups", [])
+                for series in acquisition.get("series", [])
             ]
         }
         for acq_name, acquisition in reference_data.get("acquisitions", {}).items()
     ]
     
     all_fields = {field for acq in acquisitions_info for field in acq["fields"].keys()}
-    all_fields.update({field for acq in acquisitions_info for group in acq["groups"] for field in group["fields"].keys()})
+    all_fields.update({field for acq in acquisitions_info for series in acq["series"] for field in series["fields"].keys()})
 
     session_data = []
     for root, _, files in os.walk(session_dir):
@@ -160,18 +160,18 @@ def read_session(reference_json, session_dir):
         .reset_index()
     )
 
-    acquisitions, groups, scores = find_closest_matches(series_count_df, acquisitions_info)
+    acquisitions, series, scores = find_closest_matches(series_count_df, acquisitions_info)
 
     series_count_df["Acquisition"] = acquisitions
-    series_count_df["Group"] = groups
+    series_count_df["Series"] = series
     series_count_df["Match_Score"] = scores
 
-    series_count_df.sort_values(["Acquisition", "Group", "Match_Score"], inplace=True)
+    series_count_df.sort_values(["Acquisition", "Series", "Match_Score"], inplace=True)
 
     return series_count_df
 
 def main():
-    parser = argparse.ArgumentParser(description="Map a DICOM session directory to a JSON reference file and print the closest acquisition and group matches.")
+    parser = argparse.ArgumentParser(description="Map a DICOM session directory to a JSON reference file and print the closest acquisition and series matches.")
     parser.add_argument("--ref", required=True, help="Path to the reference JSON file.")
     parser.add_argument("--session_dir", required=True, help="Directory containing DICOM files for the session.")
     args = parser.parse_args()

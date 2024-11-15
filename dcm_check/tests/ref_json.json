@@ -6,9 +6,9 @@
                 {"field": "RepetitionTime", "value": 8.0},
                 {"field": "SeriesDescription", "value": "*T1*"}
             ],
-            "groups": [
+            "series": [
                 {
-                    "name": "Group 1",
+                    "name": "Series 1",
                     "fields": [
                         {"field": "ImageType", "contains": "M"}
                     ]

@@ -18,49 +18,48 @@ def get_compliance_summaries_json(json_ref: str, in_session: str, output_json: s
     Returns:
         pd.DataFrame: Compliance summary DataFrame.
     """
-    # Step 1: Identify matched acquisitions and groups in the session
+    # Step 1: Identify matched acquisitions and series in the session
     session_df = read_session(json_ref, in_session)
     grouped_compliance = {}
 
-    # Step 2: Iterate over each matched acquisition-group pair
+    # Step 2: Iterate over each matched acquisition-series pair
     for _, row in session_df.dropna(subset=["Acquisition"]).iterrows():
         acquisition = row["Acquisition"]
-        group = row["Group"]
+        series = row["Series"]
         first_dicom_path = row["First_DICOM"]
         
         try:
-            # Step 3: Load the reference model for the matched acquisition and group
-            reference_model = load_ref_json(json_ref, acquisition, group)
+            # Step 3: Load the reference model for the matched acquisition and series
+            reference_model = load_ref_json(json_ref, acquisition, series)
 
             # Step 4: Load DICOM values for the first DICOM in the series
             dicom_values = load_dicom(first_dicom_path)
 
             # Step 5: Run compliance check and gather results
-            compliance_summary = get_compliance_summary(reference_model, dicom_values, acquisition, group)
-            print(compliance_summary)
+            compliance_summary = get_compliance_summary(reference_model, dicom_values, acquisition, series)
 
             # Organize results in nested format without "Model_Name"
             if acquisition not in grouped_compliance:
-                grouped_compliance[acquisition] = {"Acquisition": acquisition, "Groups": []}
+                grouped_compliance[acquisition] = {"Acquisition": acquisition, "Series": []}
             
-            if group:
-                group_entry = next((g for g in grouped_compliance[acquisition]["Groups"] if g["Name"] == group), None)
-                if not group_entry:
-                    group_entry = {"Name": group, "Parameters": []}
-                    grouped_compliance[acquisition]["Groups"].append(group_entry)
+            if series:
+                series_entry = next((g for g in grouped_compliance[acquisition]["Series"] if g["Name"] == series), None)
+                if not series_entry:
+                    series_entry = {"Name": series, "Parameters": []}
+                    grouped_compliance[acquisition]["Series"].append(series_entry)
                 for entry in compliance_summary:
                     entry.pop("Acquisition", None)
-                    entry.pop("Group", None)
-                group_entry["Parameters"].extend(compliance_summary)
+                    entry.pop("Series", None)
+                series_entry["Parameters"].extend(compliance_summary)
             else:
-                # If no group, add parameters directly under acquisition
+                # If no series, add parameters directly under acquisition
                 for entry in compliance_summary:
                     entry.pop("Acquisition", None)
-                    entry.pop("Group", None)
+                    entry.pop("Series", None)
                 grouped_compliance[acquisition]["Parameters"] = compliance_summary
 
         except Exception as e:
-            print(f"Error processing acquisition '{acquisition}' and group '{group}': {e}")
+            print(f"Error processing acquisition '{acquisition}' and series '{series}': {e}")
 
     # Convert the grouped data to a list for JSON serialization
     grouped_compliance_list = list(grouped_compliance.values())
@@ -72,14 +71,14 @@ def get_compliance_summaries_json(json_ref: str, in_session: str, output_json: s
     # Convert the compliance summary to a DataFrame for tabulated output
     compliance_df = pd.json_normalize(
         grouped_compliance_list,
-        record_path=["Groups", "Parameters"],
-        meta=["Acquisition", ["Groups", "Name"]],
+        record_path=["Series", "Parameters"],
+        meta=["Acquisition", ["Series", "Name"]],
         errors="ignore"
     )
 
-    # Rename "Groups.name" to "Group" and reorder columns
-    compliance_df.rename(columns={"Groups.Name": "Group"}, inplace=True)
-    compliance_df = compliance_df[["Acquisition", "Group", "Parameter", "Value", "Expected"]]
+    # Rename "Series.name" to "Series" and reorder columns
+    compliance_df.rename(columns={"Series.Name": "Series"}, inplace=True)
+    compliance_df = compliance_df[["Acquisition", "Series", "Parameter", "Value", "Expected"]]
 
     return compliance_df
 

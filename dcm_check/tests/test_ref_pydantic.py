@@ -1,6 +1,6 @@
 import pytest
 import dcm_check.dcm_check as dcm_check
-from dcm_check.tests.ref_pydantic import SCAN_MODELS  # Import the SCAN_MODELS dictionary from the ref_pydantic module
+from dcm_check.tests.ref_pydantic import ACQUISITION_MODELS  # Import the ACQUISITION_MODELS dictionary from the ref_pydantic module
 from pydantic import ValidationError
 
 @pytest.fixture
@@ -39,13 +39,13 @@ def test_load_ref_pydantic_models(t1_mpr_dicom_values):
 def test_load_ref_pydantic_invalid_module():
     """Test loading a Pydantic model from an invalid module."""
     module_path = "dcm_check/tests/ref_pydantic.py"
-    with pytest.raises(ValueError, match="Scan type 'FAKE' is not defined in SCAN_MODELS."):
+    with pytest.raises(ValueError, match="Acquisition 'FAKE' is not defined in ACQUISITION_MODELS."):
         dcm_check.load_ref_pydantic(module_path, "FAKE")
 
-def test_load_ref_pydantic_no_scan_models():
-    """Test loading a Pydantic model from a module without SCAN_MODELS."""
+def test_load_ref_pydantic_no_acquisition_models():
+    """Test loading a Pydantic model from a module without ACQUISITION_MODELS."""
     module_path = "dcm_check/tests/ref_pydantic_no_models.py"
-    with pytest.raises(ValueError, match="No SCAN_MODELS found in the module 'dcm_check/tests/ref_pydantic_no_models.py'."):
+    with pytest.raises(ValueError, match="No ACQUISITION_MODELS found in the module 'dcm_check/tests/ref_pydantic_no_models.py'."):
         dcm_check.load_ref_pydantic(module_path, "T1_MPR")
 
 def test_t1_mpr_compliance(t1_mpr_dicom_values):
@@ -104,7 +104,7 @@ def test_t1_mpr_repetition_vs_echo_rule(t1_mpr_dicom_values):
     assert compliance_summary[0]["Value"] == "N/A"
 
 def test_diffusion_config_compliance():
-    """Test DiffusionConfig compliance for a sample diffusion scan."""
+    """Test DiffusionConfig compliance for a sample diffusion acquisition."""
     module_path = "dcm_check/tests/ref_pydantic.py"
     diffusion_model = dcm_check.load_ref_pydantic(module_path, "Diff_1k")
 

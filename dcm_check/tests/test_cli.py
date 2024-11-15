@@ -16,13 +16,13 @@ OUTPUT_JSON = "compliance_output.json"  # Output file for tests
 COMPLIANT_MESSAGE = "DICOM file is compliant with the reference model."
 SAVED_MESSAGE = "Compliance report saved to compliance_output.json"
 
-def test_cli_json_reference_with_group():
+def test_cli_json_reference_with_series():
     command = [
         CLI_SCRIPT,
         "--ref", JSON_REF,
         "--type", "json",
-        "--scan", "T1",
-        "--group", "Group 1",
+        "--acquisition", "T1",
+        "--series", "Series 1",
         "--in", DICOM_FILE
     ]
 
@@ -35,8 +35,8 @@ def test_cli_json_reference_with_group():
     assert expected_output in result.stdout
 
 
-def test_cli_json_reference_compliant_no_group():
-    command = [CLI_SCRIPT, "--ref", JSON_REF, "--type", "json", "--scan", "T1", "--in", DICOM_FILE]
+def test_cli_json_reference_compliant_no_series():
+    command = [CLI_SCRIPT, "--ref", JSON_REF, "--type", "json", "--acquisition", "T1", "--in", DICOM_FILE]
     
     print(f"Running command: {' '.join(command)}")
     result = subprocess.run(command, capture_output=True, text=True)
@@ -44,13 +44,13 @@ def test_cli_json_reference_compliant_no_group():
     assert result.returncode == 0
     assert COMPLIANT_MESSAGE in result.stdout
 
-def test_cli_output_file_compliant_with_group():
+def test_cli_output_file_compliant_with_series():
     command = [
         CLI_SCRIPT,
         "--ref", JSON_REF,
         "--type", "json",
-        "--scan", "T1",
-        "--group", "Group 1",
+        "--acquisition", "T1",
+        "--series", "Series 1",
         "--in", DICOM_FILE,
         "--out", OUTPUT_JSON
     ]
@@ -71,7 +71,7 @@ def test_cli_output_file_compliant_with_group():
 
     os.remove(OUTPUT_JSON)
 
-def test_cli_output_file_not_compliant_with_group():
+def test_cli_output_file_not_compliant_with_series():
     # Modify the DICOM file to make it non-compliant
     dicom = pydicom.dcmread(DICOM_FILE)
     dicom.ImageType = ["ORIGINAL", "PRIMARY", "P", "N"]
@@ -82,8 +82,8 @@ def test_cli_output_file_not_compliant_with_group():
         CLI_SCRIPT,
         "--ref", JSON_REF,
         "--type", "json",
-        "--scan", "T1",
-        "--group", "Group 1",
+        "--acquisition", "T1",
+        "--series", "Series 1",
         "--in", non_compliant_dicom,
         "--out", OUTPUT_JSON
     ]
@@ -93,7 +93,7 @@ def test_cli_output_file_not_compliant_with_group():
 
     expected_output = tabulate(pd.DataFrame({ # as above
         "Acquisition": ["T1"],
-        "Group": ["Group 1"],
+        "Series": ["Series 1"],
         "Parameter": ["ImageType"],
         "Value": [['ORIGINAL', 'PRIMARY', 'P', 'N']],
         "Expected": ["Value error, ImageType must contain 'M'"]
@@ -116,7 +116,7 @@ def test_cli_output_file_not_compliant_with_group():
     os.remove(non_compliant_dicom)
 
 def test_cli_json_reference():
-    command = [CLI_SCRIPT, "--ref", JSON_REF, "--type", "json", "--scan", "T1", "--in", DICOM_FILE]
+    command = [CLI_SCRIPT, "--ref", JSON_REF, "--type", "json", "--acquisition", "T1", "--in", DICOM_FILE]
 
     print(f"Running command: {' '.join(command)}")
     result = subprocess.run(command, capture_output=True, text=True)
@@ -125,7 +125,7 @@ def test_cli_json_reference():
     assert COMPLIANT_MESSAGE in result.stdout
 
 def test_cli_json_reference_inferred_type():
-    command = [CLI_SCRIPT, "--ref", JSON_REF, "--scan", "T1", "--in", DICOM_FILE]
+    command = [CLI_SCRIPT, "--ref", JSON_REF, "--acquisition", "T1", "--in", DICOM_FILE]
 
     print(f"Running command: {' '.join(command)}")
     result = subprocess.run(command, capture_output=True, text=True)
@@ -172,7 +172,7 @@ def test_cli_dicom_reference_non_compliant():
     assert expected_output in result.stdout
 
 def test_cli_pydantic_reference():
-    command = [CLI_SCRIPT, "--ref", PYDANTIC_REF, "--type", "pydantic", "--scan", "T1_MPR", "--in", DICOM_FILE]
+    command = [CLI_SCRIPT, "--ref", PYDANTIC_REF, "--type", "pydantic", "--acquisition", "T1_MPR", "--in", DICOM_FILE]
     print(f"Running command: {' '.join(command)}")
     result = subprocess.run(command, capture_output=True, text=True)
 
@@ -187,7 +187,7 @@ def test_cli_pydantic_reference():
     assert expected_output in result.stdout  # Validate that output includes compliance info
 
 def test_cli_pydantic_reference_inferred_type():
-    command = [CLI_SCRIPT, "--ref", PYDANTIC_REF, "--scan", "T1_MPR", "--in", DICOM_FILE]
+    command = [CLI_SCRIPT, "--ref", PYDANTIC_REF, "--acquisition", "T1_MPR", "--in", DICOM_FILE]
     print(f"Running command: {' '.join(command)}")
     result = subprocess.run(command, capture_output=True, text=True)
 
@@ -201,11 +201,11 @@ def test_cli_pydantic_reference_inferred_type():
     assert result.returncode == 0
     assert expected_output in result.stdout  # Validate that output includes compliance info
 
-@pytest.mark.parametrize("ref_type,scan", [("json", "T1"), ("pydantic", "T1_MPR"), ("dicom", DICOM_FILE)])
-def test_cli_output_file_creation(ref_type, scan):
+@pytest.mark.parametrize("ref_type,acquisition", [("json", "T1"), ("pydantic", "T1_MPR"), ("dicom", DICOM_FILE)])
+def test_cli_output_file_creation(ref_type, acquisition):
     ref_path = JSON_REF if ref_type == "json" else PYDANTIC_REF if ref_type == "pydantic" else DICOM_FILE
     subprocess.run(
-        [CLI_SCRIPT, "--ref", ref_path, "--type", ref_type, "--scan", scan, "--in", DICOM_FILE, "--out", OUTPUT_JSON],
+        [CLI_SCRIPT, "--ref", ref_path, "--type", ref_type, "--acquisition", acquisition, "--in", DICOM_FILE, "--out", OUTPUT_JSON],
         check=True
     )
     assert os.path.isfile(OUTPUT_JSON)
