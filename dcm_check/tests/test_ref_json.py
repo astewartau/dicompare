@@ -127,8 +127,7 @@ def test_json_compliance_outside_tolerance_with_dcm(json_ref_with_dcm, dicom_tes
     assert len(compliance_summary) == 1
     assert compliance_summary[0]["Parameter"] == "EchoTime"
     assert compliance_summary[0]["Expected"] == "Input should be less than or equal to 3.1"
-    assert compliance_summary[0]["Actual"] == 3.2
-    assert not compliance_summary[0]["Pass"]
+    assert compliance_summary[0]["Value"] == 3.2
 
 def test_json_compliance_pattern_match(json_ref_no_dcm, dicom_test_file):
     """Test compliance with a pattern match for SeriesDescription within group."""

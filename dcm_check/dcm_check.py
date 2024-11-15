@@ -192,7 +192,7 @@ def load_ref_pydantic(module_path: str, scan_type: str) -> BaseModel:
 
     return reference_model
 
-def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, Any], model_name: str = "Reference Model", raise_errors: bool = False) -> List[Dict[str, Any]]:
+def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, Any], acquisition: str = None, group: str = None, raise_errors: bool = False) -> List[Dict[str, Any]]:
     """Validate a DICOM file against the reference model."""
     compliance_summary = []
 
@@ -204,13 +204,15 @@ def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, A
         for error in e.errors():
             param = error['loc'][0] if error['loc'] else "Model-Level Error"
             expected = (error['ctx'].get('expected') if 'ctx' in error else None) or error['msg']
+            if isinstance(expected, str) and expected.startswith("'") and expected.endswith("'"):
+                expected = expected[1:-1]
             actual = dicom_values.get(param, "N/A") if param != "Model-Level Error" else "N/A"
             compliance_summary.append({
-                "Model_Name": model_name,
+                "Acquisition": acquisition,
+                "Group": group,
                 "Parameter": param,
-                "Expected": expected,
-                "Actual": actual,
-                "Pass": False
+                "Value": actual,
+                "Expected": expected
             })
 
     return compliance_summary

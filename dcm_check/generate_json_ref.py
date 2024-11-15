@@ -83,7 +83,7 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
         # Remove constant fields from the groups and only include changing fields
         groups = []
         group_number = 1
-        for group, example_path in unique_groups.items():
+        for group, ref_path in unique_groups.items():
             group_fields = [
                 {"field": field, "value": value}
                 for field, value in group if field not in constant_reference_fields
@@ -92,7 +92,7 @@ def generate_json_ref(in_session_dir, out_json_ref, acquisition_fields, referenc
                 groups.append({
                     "name": f"Group {group_number}",  # Assign default name
                     "fields": group_fields,
-                    "example": example_path
+                    "ref": ref_path
                 })
                 group_number += 1
 

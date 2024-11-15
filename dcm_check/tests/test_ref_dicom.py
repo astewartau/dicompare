@@ -87,8 +87,7 @@ def test_dicom_compliance_specific_fields_non_compliant(t1):
     assert len(compliance_summary) == 1
     assert compliance_summary[0]["Parameter"] == "RepetitionTime"
     assert compliance_summary[0]["Expected"] == "8.0"
-    assert compliance_summary[0]["Actual"] == 8.1
-    assert not compliance_summary[0]["Pass"]
+    assert compliance_summary[0]["Value"] == 8.1
 
 def test_dicom_compliance_small_change(t1):
     t1_values = dcm_check.get_dicom_values(t1)
@@ -102,8 +101,7 @@ def test_dicom_compliance_small_change(t1):
     assert len(compliance_summary) == 1
     assert compliance_summary[0]["Parameter"] == "RepetitionTime"
     assert compliance_summary[0]["Expected"] == "8.0"
-    assert compliance_summary[0]["Actual"] == 8.1
-    assert not compliance_summary[0]["Pass"]
+    assert compliance_summary[0]["Value"] == 8.1
 
 def test_dicom_compliance_num_errors(t1):
     t1_values = dcm_check.get_dicom_values(t1)
@@ -131,12 +129,9 @@ def test_dicom_compliance_error_message(t1):
     assert errors[0]["Expected"] == "8.0"
     assert errors[1]["Expected"] == "3.0"
     assert errors[2]["Expected"] == "400.0"
-    assert errors[0]["Actual"] == 8.1
-    assert errors[1]["Actual"] == 3.1
-    assert errors[2]["Actual"] == 400.1
-    assert not errors[0]["Pass"]
-    assert not errors[1]["Pass"]
-    assert not errors[2]["Pass"]
+    assert errors[0]["Value"] == 8.1
+    assert errors[1]["Value"] == 3.1
+    assert errors[2]["Value"] == 400.1
 
 def test_dicom_compliance_error_message_missing_field(t1):
     t1_values = dcm_check.get_dicom_values(t1)
@@ -151,8 +146,7 @@ def test_dicom_compliance_error_message_missing_field(t1):
     assert len(errors) == 1
     assert errors[0]["Parameter"] == "RepetitionTime"
     assert errors[0]["Expected"] == "Field required"
-    assert errors[0]["Actual"] == "N/A"
-    assert not errors[0]["Pass"]
+    assert errors[0]["Value"] == "N/A"
 
 def test_dicom_compliance_error_raise(t1):
     t1_values = dcm_check.get_dicom_values(t1)

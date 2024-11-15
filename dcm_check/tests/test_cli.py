@@ -92,14 +92,12 @@ def test_cli_output_file_not_compliant_with_group():
     result = subprocess.run(command, capture_output=True, text=True)
 
     expected_output = tabulate(pd.DataFrame({ # as above
-        "Model_Name": ["Reference Model"],
+        "Acquisition": ["T1"],
+        "Group": ["Group 1"],
         "Parameter": ["ImageType"],
-        "Expected": ["Value error, ImageType must contain 'M'"],
-        "Actual": [['ORIGINAL', 'PRIMARY', 'P', 'N']],
-        "Pass": [False]
+        "Value": [['ORIGINAL', 'PRIMARY', 'P', 'N']],
+        "Expected": ["Value error, ImageType must contain 'M'"]
     }), headers="keys", tablefmt="simple")
-        
-    print(expected_output)
     
     assert result.returncode == 0
     assert expected_output in result.stdout
@@ -162,11 +160,9 @@ def test_cli_dicom_reference_non_compliant():
     result = subprocess.run(command, capture_output=True, text=True)
 
     expected_output = tabulate(pd.DataFrame({
-        "Model_Name": ["Reference Model"],
         "Parameter": ["FlipAngle"],
-        "Expected": [15],
-        "Actual": [45],
-        "Pass": [False]
+        "Value": [45],
+        "Expected": [15]
     }), headers="keys", tablefmt="simple")
 
     # delete the non-compliant DICOM file
@@ -181,11 +177,10 @@ def test_cli_pydantic_reference():
     result = subprocess.run(command, capture_output=True, text=True)
 
     expected_output = tabulate(pd.DataFrame({
-        "Model_Name": ["Reference Model", "Reference Model", "Reference Model", "Reference Model"],
+        "Acquisition": ["T1_MPR", "T1_MPR", "T1_MPR", "T1_MPR"],
         "Parameter": ["MagneticFieldStrength", "RepetitionTime", "PixelSpacing", "SliceThickness"],
-        "Expected": ["Field required", "Input should be greater than or equal to 2300", "Value error, Each value in PixelSpacing must be between 0.75 and 0.85", "Input should be less than or equal to 0.85"],
-        "Actual": ["N/A", 8.0, ['0.5', '0.5'], 1.0],
-        "Pass": [False, False, False, False]
+        "Value": ["N/A", 8.0, ['0.5', '0.5'], 1.0],
+        "Expected": ["Field required", "Input should be greater than or equal to 2300", "Value error, Each value in PixelSpacing must be between 0.75 and 0.85", "Input should be less than or equal to 0.85"]
     }), headers="keys", tablefmt="simple")
 
     assert result.returncode == 0
@@ -197,11 +192,10 @@ def test_cli_pydantic_reference_inferred_type():
     result = subprocess.run(command, capture_output=True, text=True)
 
     expected_output = tabulate(pd.DataFrame({
-        "Model_Name": ["Reference Model", "Reference Model", "Reference Model", "Reference Model"],
+        "Acquisition": ["T1_MPR", "T1_MPR", "T1_MPR", "T1_MPR"],
         "Parameter": ["MagneticFieldStrength", "RepetitionTime", "PixelSpacing", "SliceThickness"],
-        "Expected": ["Field required", "Input should be greater than or equal to 2300", "Value error, Each value in PixelSpacing must be between 0.75 and 0.85", "Input should be less than or equal to 0.85"],
-        "Actual": ["N/A", 8.0, ['0.5', '0.5'], 1.0],
-        "Pass": [False, False, False, False]
+        "Value": ["N/A", 8.0, ['0.5', '0.5'], 1.0],
+        "Expected": ["Field required", "Input should be greater than or equal to 2300", "Value error, Each value in PixelSpacing must be between 0.75 and 0.85", "Input should be less than or equal to 0.85"]
     }), headers="keys", tablefmt="simple")
 
     assert result.returncode == 0

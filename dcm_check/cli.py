@@ -62,9 +62,15 @@ def main():
         sys.exit(1)
 
     in_dicom_values = load_dicom(args.in_file)
-    results = get_compliance_summary(reference_model, in_dicom_values)
+    results = get_compliance_summary(reference_model, in_dicom_values, args.scan, args.group)
 
     df = pd.DataFrame(results)
+
+    # remove "Acquisition" and/or "Group" columns if they are empty
+    if "Acquisition" in df.columns and df["Acquisition"].isnull().all():
+        df.drop(columns=["Acquisition"], inplace=True)
+    if "Group" in df.columns and df["Group"].isnull().all():
+        df.drop(columns=["Group"], inplace=True)
 
     if len(df) == 0:
         print("DICOM file is compliant with the reference model.")
