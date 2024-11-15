@@ -1,3 +1,3 @@
-from .dcm_check import *
-from .generate_json_ref import *
-from .read_session import *
+from .compliance_check import *
+from .dcm_gen_session import *
+from .dcm_read_session import *

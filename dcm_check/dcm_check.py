@@ -1,248 +1,86 @@
 #!/usr/bin/env python
 
-import pydicom
+import argparse
+import pandas as pd
 import json
-import importlib.util
-from pydantic import ValidationError, create_model, BaseModel, Field, confloat, field_validator
-from typing import Literal, List, Optional, Dict, Any, Union
-from pydicom.multival import MultiValue
-from pydicom.uid import UID
-from pydicom.valuerep import PersonName, DSfloat, IS
-from pydantic_core import PydanticUndefined
+import sys
+import os
 
-def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
-    """Convert a DICOM dataset to a dictionary, handling sequences and DICOM-specific data types.
+from tabulate import tabulate
+from dcm_check.compliance_check import (
+    load_ref_json,
+    load_ref_dicom,
+    load_ref_pydantic,
+    get_compliance_summary,
+    load_dicom
+)
 
-    Args:
-        ds (pydicom.dataset.FileDataset): The DICOM dataset to process.
+def infer_type_from_extension(ref_path):
+    """Infer the reference type based on the file extension."""
+    _, ext = os.path.splitext(ref_path.lower())
+    if ext == ".json":
+        return "json"
+    elif ext in [".dcm", ".IMA"]:
+        return "dicom"
+    elif ext == ".py":
+        return "pydantic"
+    else:
+        print("Error: Could not determine the reference type. Please specify '--type'.", file=sys.stderr)
+        sys.exit(1)
 
-    Returns:
-        dicom_dict (Dict[str, Any]): A dictionary of DICOM values.
-    """
-    dicom_dict = {}
+def main():
+    parser = argparse.ArgumentParser(description="Check DICOM compliance against a reference model.")
+    parser.add_argument("--ref", required=True, help="Reference JSON file, DICOM file, or Python module to use for compliance.")
+    parser.add_argument("--type", choices=["json", "dicom", "pydantic"], help="Reference type: 'json', 'dicom', or 'pydantic'.")
+    parser.add_argument("--acquisition", required=False, help="Acquisition name when using a JSON or Pydantic reference.")
+    parser.add_argument("--series", required=False, help="Specific series name within the acquisition for JSON references.")
+    parser.add_argument("--in", dest="in_file", required=True, help="Path to the DICOM file to check.")
+    parser.add_argument("--fields", nargs="*", help="Optional: List of DICOM fields to include in validation for DICOM reference.")
+    parser.add_argument("--out", required=False, help="Path to save the compliance report in JSON format.")
+    args = parser.parse_args()
 
-    def process_element(element):
-        if element.VR == 'SQ':
-            return [get_dicom_values(item) for item in element] # TODO TEST THIS
-        elif isinstance(element.value, MultiValue):
-            return list(element.value)
-        elif isinstance(element.value, (UID, PersonName)):
-            return str(element.value)
-        elif isinstance(element.value, DSfloat):
-            return float(element.value)
-        elif isinstance(element.value, IS):
-            return int(element.value)
-        elif isinstance(element.value, (int, float)):
-            return element.value
+    # Determine the reference type if not provided
+    ref_type = args.type or infer_type_from_extension(args.ref)
+
+    if ref_type == "json":
+        # Include series if specified
+        if args.series:
+            reference_model = load_ref_json(args.ref, args.acquisition, series_name=args.series)
         else:
-            return str(element.value[:50])
+            reference_model = load_ref_json(args.ref, args.acquisition)
+    elif ref_type == "dicom":
+        ref_dicom_values = load_dicom(args.ref)
+        reference_model = load_ref_dicom(ref_dicom_values, args.fields)
+    elif ref_type == "pydantic":
+        # check if acquisition is provided
+        if not args.acquisition:
+            print("Error: Acquisition type is required (--acquisition) when using a Pydantic reference.", file=sys.stderr)
+            sys.exit(1)
+        reference_model = load_ref_pydantic(args.ref, args.acquisition)
+    else:
+        print(f"Error: Unsupported reference type '{ref_type}'", file=sys.stderr)
+        sys.exit(1)
 
-    for element in ds:
-        # skip pixel data
-        if element.tag == 0x7fe00010:
-            continue
-        dicom_dict[element.keyword] = process_element(element)
-        
-    return dicom_dict
+    in_dicom_values = load_dicom(args.in_file)
+    results = get_compliance_summary(reference_model, in_dicom_values, args.acquisition, args.series)
 
-def load_dicom(dicom_file: str) -> Dict[str, Any]:
-    """Load a DICOM file and extract the values as a dictionary.
+    df = pd.DataFrame(results)
 
-    Args:
-        dicom_file (str): Path to the DICOM file to load.
+    # remove "Acquisition" and/or "Series" columns if they are empty
+    if "Acquisition" in df.columns and df["Acquisition"].isnull().all():
+        df.drop(columns=["Acquisition"], inplace=True)
+    if "Series" in df.columns and df["Series"].isnull().all():
+        df.drop(columns=["Series"], inplace=True)
 
-    Returns:
-        dicom_values (Dict[str, Any]): A dictionary of DICOM values.
-    """
-    ds = pydicom.dcmread(dicom_file)
-    return get_dicom_values(ds)
+    if len(df) == 0:
+        print("DICOM file is compliant with the reference model.")
+    else:
+        print(tabulate(df, headers="keys", tablefmt="simple"))
 
-def create_reference_model(reference_values: Dict[str, Any], fields_config: List[Union[str, Dict[str, Any]]]) -> BaseModel:
-    model_fields = {}
-    validators = {}
+    if args.out:
+        with open(args.out, 'w') as outfile:
+            json.dump(results, outfile, indent=4)
+        print(f"Compliance report saved to {args.out}")
 
-    # Define validation functions dynamically
-    def contains_check_factory(field_name, contains_value):
-        @field_validator(field_name)
-        def contains_check(cls, v):
-            if not isinstance(v, list) or contains_value not in v:
-                raise ValueError(f"{field_name} must contain '{contains_value}'")
-            return v
-        return contains_check
-
-    for field in fields_config:
-        field_name = field["field"]
-        tolerance = field.get("tolerance")
-        pattern = field.get("value") if isinstance(field.get("value"), str) and "*" in field["value"] else None
-        contains = field.get("contains")
-        ref_value = reference_values.get(field_name, field.get("value"))
-
-        if pattern:
-            # Pattern matching
-            model_fields[field_name] = (
-                str,
-                Field(default=PydanticUndefined, pattern=pattern.replace("*", ".*"))
-            )
-        elif tolerance is not None:
-            # Numeric tolerance
-            model_fields[field_name] = (
-                confloat(ge=ref_value - tolerance, le=ref_value + tolerance),
-                Field(default=ref_value)
-            )
-        elif contains:
-            # Add a field expecting a list and register a custom validator for "contains"
-            model_fields[field_name] = (List[str], Field(default=PydanticUndefined))
-            validators[f"{field_name}_contains"] = contains_check_factory(field_name, contains)
-        else:
-            # Exact match
-            model_fields[field_name] = (
-                Literal[ref_value],
-                Field(default=PydanticUndefined)
-            )
-
-    # Create model with dynamically added validators
-    return create_model("ReferenceModel", **model_fields, __validators__=validators)
-
-def load_ref_json(json_path: str, acquisition: str, series_name: Optional[str] = None) -> BaseModel:
-    """Load a JSON configuration file and create a reference model for a specified acquisition and series.
-
-    Args:
-        json_path (str): Path to the JSON configuration file.
-        acquisition (str): Acquisition to load (e.g., "T1").
-        series_name (Optional[str]): Specific series name to validate within the acquisition.
-
-    Returns:
-        reference_model (BaseModel): A Pydantic model based on the JSON configuration.
-    """
-    with open(json_path, 'r') as f:
-        config = json.load(f)
-
-    # Load acquisition configuration
-    acquisition_config = config.get("acquisitions", {}).get(acquisition)
-    if not acquisition_config:
-        raise ValueError(f"Acquisition '{acquisition}' not found in JSON configuration.")
-
-    # Load the reference DICOM if specified
-    ref_file = acquisition_config.get("ref", None)
-    reference_values = load_dicom(ref_file) if ref_file else {}
-
-    # Add acquisition-level fields to the reference model configuration
-    fields_config = acquisition_config.get("fields", [])
-    acquisition_reference = {field["field"]: field.get("value") for field in fields_config if "value" in field}
-
-    # Always include acquisition-level fields
-    reference_values.update(acquisition_reference)
-
-    # Check if a series_name is specified and retrieve its configuration
-    series_fields = []
-    if series_name:
-        series = next((grp for grp in acquisition_config.get("series", []) if grp["name"] == series_name), None)
-        if not series:
-            raise ValueError(f"Series '{series_name}' not found in acquisition '{acquisition}'.")
-
-        series_fields = series.get("fields", [])
-        series_reference = {field["field"]: field.get("value") for field in series_fields if "value" in field}
-        reference_values.update(series_reference)
-
-    # Combine acquisition and series fields for the reference model creation
-    combined_fields_config = fields_config + series_fields
-
-    return create_reference_model(reference_values, combined_fields_config)
-
-def load_ref_dicom(dicom_values: Dict[str, Any], fields: Optional[List[str]] = None) -> BaseModel:
-    """Create a reference model based on DICOM values.
-
-    Args:
-        dicom_values (Dict[str, Any]): DICOM values to use for the reference model.
-        fields (Optional[List[str]]): Specific fields to include in validation (default is all fields).
-
-    Returns:
-        reference_model (BaseModel): A Pydantic model based on DICOM values.
-    """
-    if fields:
-        dicom_values = {field: dicom_values[field] for field in fields if field in dicom_values}
-
-    fields_config = [{"field": field} for field in fields] if fields else [{"field": key} for key in dicom_values]
-    return create_reference_model(dicom_values, fields_config)
-
-def load_ref_pydantic(module_path: str, acquisition: str) -> BaseModel:
-    """Load a Pydantic model from a specified Python file for the given acquisition.
-
-    Args:
-        module_path (str): Path to the Python file containing the acquisition models.
-        acquisition (str): The acquisition to retrieve (e.g., "T1_MPR").
-
-    Returns:
-        reference_model (BaseModel): The Pydantic model for the specified acquisition type.
-    """
-    # Load the module from the specified file path
-    spec = importlib.util.spec_from_file_location("ref_module", module_path)
-    ref_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(ref_module)
-
-    # Retrieve ACQUISITION_MODELS from the loaded module
-    acquisition_models: Dict[str, Any] = getattr(ref_module, "ACQUISITION_MODELS", None)
-    if not acquisition_models:
-        raise ValueError(f"No ACQUISITION_MODELS found in the module '{module_path}'.")
-
-    # Retrieve the specific model for the given acquisition
-    reference_model = acquisition_models.get(acquisition)
-    if not reference_model:
-        raise ValueError(f"Acquisition '{acquisition}' is not defined in ACQUISITION_MODELS.")
-
-    return reference_model
-
-def get_compliance_summary(reference_model: BaseModel, dicom_values: Dict[str, Any], acquisition: str = None, series: str = None, raise_errors: bool = False) -> List[Dict[str, Any]]:
-    """Validate a DICOM file against the reference model."""
-    compliance_summary = []
-
-    try:
-        model_instance = reference_model(**dicom_values)
-    except ValidationError as e:
-        if raise_errors:
-            raise e
-        for error in e.errors():
-            param = error['loc'][0] if error['loc'] else "Model-Level Error"
-            expected = (error['ctx'].get('expected') if 'ctx' in error else None) or error['msg']
-            if isinstance(expected, str) and expected.startswith("'") and expected.endswith("'"):
-                expected = expected[1:-1]
-            actual = dicom_values.get(param, "N/A") if param != "Model-Level Error" else "N/A"
-            compliance_summary.append({
-                "Acquisition": acquisition,
-                "Series": series,
-                "Parameter": param,
-                "Value": actual,
-                "Expected": expected
-            })
-
-    return compliance_summary
-
-def get_compliance_summaries(dicom_series: List[Dict[str, Any]], reference_models: List[BaseModel], model_names: List[str]) -> List[Dict[str, Any]]:
-    """Compare a series of dicom_values against a series of reference_model objects."""
-    compliance_summaries = []
-    
-    for dicom_values, reference_model, model_name in zip(dicom_series, reference_models, model_names):
-        summary = get_compliance_summary(reference_model, dicom_values, model_name=model_name)
-        compliance_summaries.extend(summary)
-
-    return compliance_summaries
-
-def is_compliant(reference_model: BaseModel, dicom_values: Dict[str, Any]) -> bool:
-    """Validate a DICOM file against the reference model.
-
-    Args:
-        reference_model (BaseModel): The reference model for validation.
-        dicom_values (Dict[str, Any]): The DICOM values to validate.
-
-    Returns:
-        is_compliant (bool): True if the DICOM values are compliant with the reference model.
-    """
-    is_compliant = True
-
-    try:
-        model_instance = reference_model(**dicom_values)
-    except ValidationError as e:
-        is_compliant = False
-
-    return is_compliant
-
+if __name__ == "__main__":
+    main()

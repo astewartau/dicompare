@@ -3,7 +3,7 @@
 import pytest
 import json
 
-import dcm_check.dcm_check as dcm_check
+import dcm_check.compliance_check as compliance_check
 from dcm_check.tests.utils import create_empty_dicom
 from pydantic_core import PydanticUndefined
 from typing import Literal
@@ -83,7 +83,7 @@ def json_ref_with_dcm(tmp_path_factory, dicom_test_file):
 
 def test_load_ref_json(json_ref_no_dcm):
     """Test that JSON configuration can be loaded and generates a reference model."""
-    reference_model = dcm_check.load_ref_json(json_path=json_ref_no_dcm, acquisition="T1", series_name="Series 1")
+    reference_model = compliance_check.load_ref_json(json_path=json_ref_no_dcm, acquisition="T1", series_name="Series 1")
 
     # Verify that the model was created correctly with exact and pattern matching fields
     assert reference_model is not None
@@ -106,24 +106,24 @@ def test_load_ref_json(json_ref_no_dcm):
 
 def test_json_compliance_within_tolerance_with_dcm(json_ref_with_dcm, dicom_test_file):
     """Test compliance when values are within tolerance for JSON configuration with series."""
-    t1_dicom_values = dcm_check.load_dicom(dicom_test_file)
-    reference_model = dcm_check.load_ref_json(json_path=json_ref_with_dcm, acquisition="T1", series_name="Series 1")
+    t1_dicom_values = compliance_check.load_dicom(dicom_test_file)
+    reference_model = compliance_check.load_ref_json(json_path=json_ref_with_dcm, acquisition="T1", series_name="Series 1")
 
     # Adjust EchoTime within tolerance (original value is 3.0, tolerance 0.1)
     t1_dicom_values["EchoTime"] = 3.05
-    compliance_summary = dcm_check.get_compliance_summary(reference_model, t1_dicom_values)
+    compliance_summary = compliance_check.get_compliance_summary(reference_model, t1_dicom_values)
 
-    assert dcm_check.is_compliant(reference_model, t1_dicom_values)
+    assert compliance_check.is_compliant(reference_model, t1_dicom_values)
     assert len(compliance_summary) == 0
 
 def test_json_compliance_outside_tolerance_with_dcm(json_ref_with_dcm, dicom_test_file):
     """Test compliance when values exceed tolerance for JSON configuration with series."""
-    t1_dicom_values = dcm_check.load_dicom(dicom_test_file)
-    reference_model = dcm_check.load_ref_json(json_path=json_ref_with_dcm, acquisition="T1", series_name="Series 1")
+    t1_dicom_values = compliance_check.load_dicom(dicom_test_file)
+    reference_model = compliance_check.load_ref_json(json_path=json_ref_with_dcm, acquisition="T1", series_name="Series 1")
 
     # Adjust EchoTime beyond tolerance (original value is 3.0, tolerance 0.1)
     t1_dicom_values["EchoTime"] = 3.2
-    compliance_summary = dcm_check.get_compliance_summary(reference_model, t1_dicom_values)
+    compliance_summary = compliance_check.get_compliance_summary(reference_model, t1_dicom_values)
     assert len(compliance_summary) == 1
     assert compliance_summary[0]["Parameter"] == "EchoTime"
     assert compliance_summary[0]["Expected"] == "Input should be less than or equal to 3.1"
@@ -131,12 +131,12 @@ def test_json_compliance_outside_tolerance_with_dcm(json_ref_with_dcm, dicom_tes
 
 def test_json_compliance_pattern_match(json_ref_no_dcm, dicom_test_file):
     """Test compliance with a pattern match for SeriesDescription within series."""
-    t1_dicom_values = dcm_check.load_dicom(dicom_test_file)
-    reference_model = dcm_check.load_ref_json(json_path=json_ref_no_dcm, acquisition="T1", series_name="Series 1")
+    t1_dicom_values = compliance_check.load_dicom(dicom_test_file)
+    reference_model = compliance_check.load_ref_json(json_path=json_ref_no_dcm, acquisition="T1", series_name="Series 1")
 
     # Change SeriesDescription to match pattern "*T1*"
     t1_dicom_values["SeriesDescription"] = "Another_T1_Sequence"
-    compliance_summary = dcm_check.get_compliance_summary(reference_model, t1_dicom_values)
+    compliance_summary = compliance_check.get_compliance_summary(reference_model, t1_dicom_values)
     assert len(compliance_summary) == 0  # Should pass pattern match
 
 if __name__ == "__main__":

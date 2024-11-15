@@ -10,10 +10,10 @@ setup(
     py_modules=["dcm_check"],
     entry_points={
         "console_scripts": [
-            "dcm-check=dcm_check.cli:main",
-            "dcm-gen-session=dcm_check.generate_json_ref:main",
-            "dcm-read-session=dcm_check.read_session:main",
-            "dcm-check-session=dcm_check.session_check:main",
+            "dcm-check=dcm_check.dcm_check:main",
+            "dcm-gen-session=dcm_check.dcm_gen_session:main",
+            "dcm-read-session=dcm_check.dcm_read_session:main",
+            "dcm-check-session=dcm_check.dcm_check_session:main",
         ]
     },
     install_requires=[

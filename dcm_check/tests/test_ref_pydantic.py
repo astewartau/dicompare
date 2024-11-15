@@ -1,5 +1,5 @@
 import pytest
-import dcm_check.dcm_check as dcm_check
+import dcm_check.compliance_check as compliance_check
 from dcm_check.tests.ref_pydantic import ACQUISITION_MODELS  # Import the ACQUISITION_MODELS dictionary from the ref_pydantic module
 from pydantic import ValidationError
 
@@ -32,48 +32,48 @@ def test_load_ref_pydantic_models(t1_mpr_dicom_values):
     module_path = "dcm_check/tests/ref_pydantic.py"
 
     # Load all the models from the module
-    dcm_check.load_ref_pydantic(module_path, "T1_MPR")
-    dcm_check.load_ref_pydantic(module_path, "T2w_SPC")
-    dcm_check.load_ref_pydantic(module_path, "Diff_1k")
+    compliance_check.load_ref_pydantic(module_path, "T1_MPR")
+    compliance_check.load_ref_pydantic(module_path, "T2w_SPC")
+    compliance_check.load_ref_pydantic(module_path, "Diff_1k")
 
 def test_load_ref_pydantic_invalid_module():
     """Test loading a Pydantic model from an invalid module."""
     module_path = "dcm_check/tests/ref_pydantic.py"
     with pytest.raises(ValueError, match="Acquisition 'FAKE' is not defined in ACQUISITION_MODELS."):
-        dcm_check.load_ref_pydantic(module_path, "FAKE")
+        compliance_check.load_ref_pydantic(module_path, "FAKE")
 
 def test_load_ref_pydantic_no_acquisition_models():
     """Test loading a Pydantic model from a module without ACQUISITION_MODELS."""
     module_path = "dcm_check/tests/ref_pydantic_no_models.py"
     with pytest.raises(ValueError, match="No ACQUISITION_MODELS found in the module 'dcm_check/tests/ref_pydantic_no_models.py'."):
-        dcm_check.load_ref_pydantic(module_path, "T1_MPR")
+        compliance_check.load_ref_pydantic(module_path, "T1_MPR")
 
 def test_t1_mpr_compliance(t1_mpr_dicom_values):
     """Test compliance for valid T1_MPR values."""
     module_path = "dcm_check/tests/ref_pydantic.py"
-    t1_mpr_model = dcm_check.load_ref_pydantic(module_path, "T1_MPR")
+    t1_mpr_model = compliance_check.load_ref_pydantic(module_path, "T1_MPR")
 
     # Verify that the model was loaded correctly
     assert t1_mpr_model is not None
     assert t1_mpr_model.__name__ == "T1_MPR_Config"
 
     # Validate compliance
-    assert dcm_check.is_compliant(t1_mpr_model, t1_mpr_dicom_values)
+    assert compliance_check.is_compliant(t1_mpr_model, t1_mpr_dicom_values)
 
     # Test get_compliance_summary
-    compliance_summary = dcm_check.get_compliance_summary(t1_mpr_model, t1_mpr_dicom_values)
+    compliance_summary = compliance_check.get_compliance_summary(t1_mpr_model, t1_mpr_dicom_values)
     assert len(compliance_summary) == 0  # Should be no errors if values are valid
 
 def test_t1_mpr_compliance_summary_invalid(invalid_t1_mpr_dicom_values):
     """Test compliance summary for invalid T1_MPR values."""
     module_path = "dcm_check/tests/ref_pydantic.py"
-    t1_mpr_model = dcm_check.load_ref_pydantic(module_path, "T1_MPR")
+    t1_mpr_model = compliance_check.load_ref_pydantic(module_path, "T1_MPR")
     
     # Validate non-compliance
-    assert not dcm_check.is_compliant(t1_mpr_model, invalid_t1_mpr_dicom_values)
+    assert not compliance_check.is_compliant(t1_mpr_model, invalid_t1_mpr_dicom_values)
 
     # Get compliance summary for errors
-    compliance_summary = dcm_check.get_compliance_summary(t1_mpr_model, invalid_t1_mpr_dicom_values)
+    compliance_summary = compliance_check.get_compliance_summary(t1_mpr_model, invalid_t1_mpr_dicom_values)
     assert len(compliance_summary) > 0  # Expect some errors
 
     # Example check for specific errors
@@ -87,16 +87,16 @@ def test_t1_mpr_compliance_summary_invalid(invalid_t1_mpr_dicom_values):
 def test_t1_mpr_repetition_vs_echo_rule(t1_mpr_dicom_values):
     """Test that the RepetitionTime and EchoTime rule is enforced."""
     module_path = "dcm_check/tests/ref_pydantic.py"
-    t1_mpr_model = dcm_check.load_ref_pydantic(module_path, "T1_MPR")
+    t1_mpr_model = compliance_check.load_ref_pydantic(module_path, "T1_MPR")
     
     # Modify RepetitionTime to break the 2x EchoTime rule
     t1_mpr_dicom_values["EchoTime"] = 3000  # Too low
     
     # Validate non-compliance
-    assert not dcm_check.is_compliant(t1_mpr_model, t1_mpr_dicom_values)
+    assert not compliance_check.is_compliant(t1_mpr_model, t1_mpr_dicom_values)
 
     # Check compliance summary
-    compliance_summary = dcm_check.get_compliance_summary(t1_mpr_model, t1_mpr_dicom_values)
+    compliance_summary = compliance_check.get_compliance_summary(t1_mpr_model, t1_mpr_dicom_values)
 
     assert len(compliance_summary) > 0
     assert compliance_summary[0]["Parameter"] == "Model-Level Error"
@@ -106,7 +106,7 @@ def test_t1_mpr_repetition_vs_echo_rule(t1_mpr_dicom_values):
 def test_diffusion_config_compliance():
     """Test DiffusionConfig compliance for a sample diffusion acquisition."""
     module_path = "dcm_check/tests/ref_pydantic.py"
-    diffusion_model = dcm_check.load_ref_pydantic(module_path, "Diff_1k")
+    diffusion_model = compliance_check.load_ref_pydantic(module_path, "Diff_1k")
 
     valid_diffusion_values = {
         "SeriesDescription": "Diff_1k",
@@ -117,12 +117,12 @@ def test_diffusion_config_compliance():
     }
     
     # Validate compliance
-    assert dcm_check.is_compliant(diffusion_model, valid_diffusion_values)
+    assert compliance_check.is_compliant(diffusion_model, valid_diffusion_values)
 
 def test_diffusion_config_non_compliance():
     """Test non-compliance for DiffusionConfig."""
     module_path = "dcm_check/tests/ref_pydantic.py"
-    diffusion_model = dcm_check.load_ref_pydantic(module_path, "Diff_1k")
+    diffusion_model = compliance_check.load_ref_pydantic(module_path, "Diff_1k")
 
     invalid_diffusion_values = {
         "SeriesDescription": "wrong",  # Wrong prefix
@@ -133,10 +133,10 @@ def test_diffusion_config_non_compliance():
     }
     
     # Validate non-compliance
-    assert not dcm_check.is_compliant(diffusion_model, invalid_diffusion_values)
+    assert not compliance_check.is_compliant(diffusion_model, invalid_diffusion_values)
 
     # Check compliance summary
-    compliance_summary = dcm_check.get_compliance_summary(diffusion_model, invalid_diffusion_values)
+    compliance_summary = compliance_check.get_compliance_summary(diffusion_model, invalid_diffusion_values)
     print(compliance_summary)
     assert len(compliance_summary) == 6
     error_params = [error["Parameter"] for error in compliance_summary]
