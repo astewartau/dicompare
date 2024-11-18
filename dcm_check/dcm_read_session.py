@@ -3,10 +3,14 @@ import json
 import pandas as pd
 import argparse
 import re
-import curses
-from curses import wrapper
-from dcm_check import load_dicom
+
 from scipy.optimize import linear_sum_assignment
+from dcm_check import load_dicom
+
+try:
+    import curses
+except ImportError:
+    curses = None
 
 MAX_DIFF_SCORE = 10  # Maximum allowed difference score for each field to avoid unmanageably large values
 
@@ -214,6 +218,9 @@ def interactive_mapping(df, acquisitions_info):
     """
     Launch an interactive CLI for adjusting acquisition mappings with dynamic match score updates.
     """
+    if not curses:
+        raise ImportError("curses module is not available. Please install it to use interactive mode.")
+    
     def calculate_column_widths(df, padding=2):
         column_widths = {}
         for col in df.columns:
@@ -333,7 +340,7 @@ def interactive_mapping(df, acquisitions_info):
                 # Exit the interactive loop
                 break
 
-    wrapper(interactive_loop, df)
+    curses.wrapper(interactive_loop, df)
     return df
 
 def main():

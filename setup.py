@@ -23,6 +23,9 @@ setup(
         "tabulate",
         "scipy"
     ],
+    extras_require={
+        "interactive": ["curses"]
+    },
     python_requires=">=3.10",
     classifiers=[
         "Programming Language :: Python :: 3",
