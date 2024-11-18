@@ -1,8 +1,17 @@
+import os
 from setuptools import setup, find_packages
+
+# Read the version from the package __init__.py file
+version = {}
+with open(os.path.join("dcm_check", "__init__.py")) as f:
+    for line in f:
+        if line.startswith("__version__"):
+            exec(line, version)
+            break
 
 setup(
     name="dcm-check",
-    version="0.1.2",
+    version=version["__version__"],
     description="A tool for checking DICOM compliance against a reference model using Pydantic",
     author="Ashley Stewart",
     url="https://github.com/astewartau/BrainBench",
