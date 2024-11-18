@@ -4,8 +4,8 @@ import argparse
 import json
 import os
 import sys
+from typing import Optional, Dict
 from dcm_check import load_dicom
-from collections import defaultdict
 import pandas as pd
 
 class MissingFieldDict(dict):
@@ -13,27 +13,49 @@ class MissingFieldDict(dict):
     def __missing__(self, key):
         return "N/A"
 
-def generate_json_ref(in_session_dir, acquisition_fields, reference_fields, name_template):
+def generate_json_ref(
+    in_session_dir: Optional[str] = None,
+    acquisition_fields=None,
+    reference_fields=None,
+    name_template="{ProtocolName}-{SeriesDescription}",
+    dicom_files: Optional[Dict[str, bytes]] = None
+):
+    """Generate a JSON reference for DICOM compliance.
+
+    Args:
+        in_session_dir (Optional[str]): Directory containing DICOM files for the session.
+        acquisition_fields (list): Fields to uniquely identify each acquisition.
+        reference_fields (list): Fields to include in JSON reference with their values.
+        name_template (str): Naming template for each acquisition series.
+        dicom_files (Optional[Dict[str, bytes]]): In-memory dictionary of DICOM files.
+
+    Returns:
+        output (dict): JSON structure with acquisition data.
+    """
     acquisitions = {}
     dicom_data = []
 
-    print(f"Generating JSON reference for DICOM files in {in_session_dir}")
+    # Process either in_session_dir or dicom_files
+    if dicom_files is not None:
+        print(f"Generating JSON reference for provided DICOM files")
+        files_to_process = dicom_files.items()
+    elif in_session_dir:
+        print(f"Generating JSON reference for DICOM files in {in_session_dir}")
+        files_to_process = [
+            (os.path.join(root, file), None) for root, _, files in os.walk(in_session_dir)
+            for file in files if file.endswith((".dcm", ".IMA"))
+        ]
+    else:
+        raise ValueError("Either in_session_dir or dicom_files must be provided.")
 
-    # Walk through all files in the specified session directory
-    for root, _, files in os.walk(in_session_dir):
-        for file in files:
-            if not (file.endswith(".dcm") or file.endswith(".IMA")):
-                continue  # Skip non-DICOM files
+    # Load and process each DICOM file
+    for dicom_path, dicom_content in files_to_process:
+        dicom_values = load_dicom(dicom_content or dicom_path)
+        dicom_entry = {field: dicom_values.get(field, "N/A") for field in acquisition_fields + reference_fields}
+        dicom_entry['dicom_path'] = dicom_path
+        dicom_data.append(dicom_entry)
 
-            dicom_path = os.path.join(root, file)
-            dicom_values = load_dicom(dicom_path)
-
-            # Store the data for easier handling with pandas
-            dicom_entry = {field: dicom_values.get(field, "N/A") for field in acquisition_fields + reference_fields}
-            dicom_entry['dicom_path'] = dicom_path
-            dicom_data.append(dicom_entry)
-
-    # Convert collected DICOM data to a DataFrame
+    # Convert collected DICOM data to a DataFrame and proceed as before
     dicom_df = pd.DataFrame(dicom_data)
 
     # Handle list-type entries for duplicate detection

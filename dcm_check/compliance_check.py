@@ -9,6 +9,7 @@ from pydicom.multival import MultiValue
 from pydicom.uid import UID
 from pydicom.valuerep import PersonName, DSfloat, IS
 from pydantic_core import PydanticUndefined
+from io import BytesIO
 
 def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
     """Convert a DICOM dataset to a dictionary, handling sequences and DICOM-specific data types.
@@ -23,7 +24,7 @@ def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
 
     def process_element(element):
         if element.VR == 'SQ':
-            return [get_dicom_values(item) for item in element] # TODO TEST THIS
+            return [get_dicom_values(item) for item in element]
         elif isinstance(element.value, MultiValue):
             return list(element.value)
         elif isinstance(element.value, (UID, PersonName)):
@@ -35,26 +36,29 @@ def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
         elif isinstance(element.value, (int, float)):
             return element.value
         else:
-            return str(element.value[:50])
+            return str(element.value)[:50]
 
     for element in ds:
-        # skip pixel data
-        if element.tag == 0x7fe00010:
+        if element.tag == 0x7fe00010:  # skip pixel data
             continue
         dicom_dict[element.keyword] = process_element(element)
-        
+
     return dicom_dict
 
-def load_dicom(dicom_file: str) -> Dict[str, Any]:
-    """Load a DICOM file and extract the values as a dictionary.
+def load_dicom(dicom_file: Union[str, bytes]) -> Dict[str, Any]:
+    """Load a DICOM file from a path or bytes and extract values as a dictionary.
 
     Args:
-        dicom_file (str): Path to the DICOM file to load.
+        dicom_file (Union[str, bytes]): Path to the DICOM file or file content as bytes.
 
     Returns:
         dicom_values (Dict[str, Any]): A dictionary of DICOM values.
     """
-    ds = pydicom.dcmread(dicom_file)
+    if isinstance(dicom_file, bytes):
+        ds = pydicom.dcmread(BytesIO(dicom_file))
+    else:
+        ds = pydicom.dcmread(dicom_file)
+    
     return get_dicom_values(ds)
 
 def create_reference_model(reference_values: Dict[str, Any], fields_config: List[Union[str, Dict[str, Any]]]) -> BaseModel:
