@@ -141,9 +141,9 @@ def test_dicom_compliance_error_message_missing_field(t1):
     del t1_values["RepetitionTime"]
 
     errors = get_compliance_summary(reference_model=reference, dicom_values=t1_values)
-    is_compliant = is_compliant(reference_model=reference, dicom_values=t1_values)
+    compliant = is_compliant(reference_model=reference, dicom_values=t1_values)
 
-    assert not is_compliant
+    assert not compliant
     assert len(errors) == 1
     assert errors[0]["Parameter"] == "RepetitionTime"
     assert errors[0]["Expected"] == "Field required"
