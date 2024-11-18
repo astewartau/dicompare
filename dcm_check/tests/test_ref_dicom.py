@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from pydantic import ValidationError
 from pydicom.dataset import Dataset
 
 from dcm_check import load_dicom, is_compliant, get_compliance_summary, load_ref_dicom, get_dicom_values

@@ -1,7 +1,5 @@
 import pytest
 from dcm_check import load_ref_pydantic, is_compliant, get_compliance_summary
-from dcm_check.tests.ref_pydantic import ACQUISITION_MODELS  # Import the ACQUISITION_MODELS dictionary from the ref_pydantic module
-from pydantic import ValidationError
 
 @pytest.fixture
 def t1_mpr_dicom_values():
