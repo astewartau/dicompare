@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="dcm-check",
-    version="0.1.0",
+    version="0.1.1",
     description="A tool for checking DICOM compliance against a reference model using Pydantic",
     author="Ashley Stewart",
     url="https://github.com/astewartau/BrainBench",
