@@ -1,4 +1,4 @@
-from compliance_check import \
+from .compliance_check import \
     get_dicom_values, \
     load_dicom, \
     create_reference_model, \
