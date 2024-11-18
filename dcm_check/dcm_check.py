@@ -7,7 +7,7 @@ import sys
 import os
 
 from tabulate import tabulate
-from dcm_check.compliance_check import (
+from dcm_check import (
     load_ref_json,
     load_ref_dicom,
     load_ref_pydantic,
