@@ -2,3 +2,5 @@
 *__pycache__/
 .coverage
 dcm_check.egg-info
+build/
+dist/

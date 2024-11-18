@@ -21,7 +21,6 @@ setup(
         "pydantic",
         "pandas",
         "tabulate",
-        "Levenshtein",
         "scipy"
     ],
     python_requires=">=3.10",

@@ -6,10 +6,30 @@ import re
 import curses
 from curses import wrapper
 from dcm_check import load_dicom
-from Levenshtein import distance as levenshtein_distance
 from scipy.optimize import linear_sum_assignment
 
 MAX_DIFF_SCORE = 10  # Maximum allowed difference score for each field to avoid unmanageably large values
+
+def levenshtein_distance(s1, s2):
+    """
+    Calculate the Levenshtein distance between two strings.
+    """
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    # Initialize a row with incremental values [0, 1, 2, ..., len(s2)]
+    previous_row = range(len(s2) + 1)
+
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
 
 def calculate_field_score(expected, actual, tolerance=None, contains=None):
     """Calculate the difference between expected and actual values, with caps for large scores."""
