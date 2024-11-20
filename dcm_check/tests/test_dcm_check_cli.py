@@ -73,7 +73,7 @@ def test_cli_output_file_compliant_with_series():
 
 def test_cli_output_file_not_compliant_with_series():
     # Modify the DICOM file to make it non-compliant
-    dicom = pydicom.dcmread(DICOM_FILE)
+    dicom = pydicom.dcmread(DICOM_FILE, stop_before_pixels=True)
     dicom.ImageType = ["ORIGINAL", "PRIMARY", "P", "N"]
     non_compliant_dicom = "dcm_check/tests/non_compliant_dicom.dcm"
     dicom.save_as(non_compliant_dicom)
@@ -150,7 +150,7 @@ def test_cli_dicom_reference_inferred_type():
 
 def test_cli_dicom_reference_non_compliant():
     # Modify the DICOM file to make it non-compliant
-    dicom = pydicom.dcmread(DICOM_FILE)
+    dicom = pydicom.dcmread(DICOM_FILE, stop_before_pixels=True)
     dicom.FlipAngle = 45
     non_compliant_dicom = "dcm_check/tests/non_compliant_dicom.dcm"
     dicom.save_as(non_compliant_dicom)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import pydicom
 import json
 import importlib.util
@@ -54,10 +55,11 @@ def load_dicom(dicom_file: Union[str, bytes]) -> Dict[str, Any]:
     Returns:
         dicom_values (Dict[str, Any]): A dictionary of DICOM values.
     """
-    if isinstance(dicom_file, bytes):
-        ds = pydicom.dcmread(BytesIO(dicom_file))
+    if isinstance(dicom_file, (bytes, memoryview)):
+        # Convert dicom_file to BytesIO if it's in bytes or memoryview format
+        ds = pydicom.dcmread(BytesIO(dicom_file), stop_before_pixels=True)
     else:
-        ds = pydicom.dcmread(dicom_file)
+        ds = pydicom.dcmread(dicom_file, stop_before_pixels=True)
     
     return get_dicom_values(ds)
 
@@ -107,7 +109,7 @@ def create_reference_model(reference_values: Dict[str, Any], fields_config: List
     # Create model with dynamically added validators
     return create_model("ReferenceModel", **model_fields, __validators__=validators)
 
-def load_ref_json(json_path: str, acquisition: str, series_name: Optional[str] = None) -> BaseModel:
+def load_ref_json(json_path: str, acquisition: str, series_name: Optional[str] = None, dicom_bytes = None) -> BaseModel:
     """Load a JSON configuration file and create a reference model for a specified acquisition and series.
 
     Args:
@@ -128,10 +130,15 @@ def load_ref_json(json_path: str, acquisition: str, series_name: Optional[str] =
 
     # Load the reference DICOM if specified
     ref_file = acquisition_config.get("ref", None)
-    reference_values = load_dicom(ref_file) if ref_file else {}
-
-    # Add acquisition-level fields to the reference model configuration
     fields_config = acquisition_config.get("fields", [])
+
+    reference_values = {}
+    if ref_file and os.path.exists(ref_file):
+        reference_values = load_dicom(ref_file) if ref_file else {}
+    elif dicom_bytes:
+        reference_values = load_dicom(dicom_bytes[ref_file])
+    
+    # Add acquisition-level fields to the reference model configuration
     acquisition_reference = {field["field"]: field.get("value") for field in fields_config if "value" in field}
 
     # Always include acquisition-level fields

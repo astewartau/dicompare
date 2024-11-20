@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+from typing import Optional, Union, Dict
 import sys
 import json
 import argparse
@@ -7,102 +6,116 @@ import pandas as pd
 from tabulate import tabulate
 from dcm_check import load_ref_json, load_dicom, get_compliance_summary, read_session, interactive_mapping
 
-def get_compliance_summaries_json(json_ref: str, in_session: str, output_json: str = "compliance_report.json", interactive=True) -> pd.DataFrame:
+def get_compliance_summaries_json(
+    json_ref: str,
+    in_session: Optional[str] = None,
+    output_json: str = "compliance_report.json",
+    interactive=True,
+    dicom_bytes: Optional[Union[Dict[str, bytes], "JsProxy"]] = None
+) -> pd.DataFrame:
     """
     Generate a compliance summary for each matched acquisition in an input DICOM session.
 
     Args:
         json_ref (str): Path to the JSON reference file.
-        in_session (str): Directory path for the DICOM session.
+        in_session (Optional[str]): Directory path for the DICOM session.
         output_json (str): Path to save the JSON compliance summary report.
+        interactive (bool): Flag to enable interactive mapping.
+        dicom_bytes (Optional[Union[Dict[str, bytes], "JsProxy"]]): Dictionary of DICOM byte content for processing.
 
     Returns:
         pd.DataFrame: Compliance summary DataFrame.
     """
-    # Step 1: Identify matched acquisitions and series in the session
-    session_df, acquisitions_info = read_session(json_ref, in_session, return_acquisitions_info=True)
+    if dicom_bytes is not None:
+        # Adjusted read_session to accept dicom_files instead of a directory path.
+        session_df, acquisitions_info = read_session(json_ref, dicom_bytes=dicom_bytes, return_acquisitions_info=True)
+    elif in_session is not None:
+        session_df, acquisitions_info = read_session(json_ref, session_dir=in_session, return_acquisitions_info=True)
+    else:
+        raise ValueError("Either in_session or dicom_files must be provided.")
+
     grouped_compliance = {}
 
-    # Step 2: Interactive mapping adjustment (if enabled by the user)
     if sys.stdin.isatty() and interactive:
         print("Entering interactive mapping mode. Use arrow keys to navigate, Enter to select and move, and Esc to finish.")
         session_df = interactive_mapping(session_df, acquisitions_info)
 
-    # Step 3: Iterate over each matched acquisition-series pair
     for _, row in session_df.dropna(subset=["Acquisition"]).iterrows():
         acquisition = row["Acquisition"]
         series = row["Series"]
         first_dicom_path = row["First_DICOM"]
-        
-        try:
-            # Load the reference model for the matched acquisition and series
-            reference_model = load_ref_json(json_ref, acquisition, series)
-            # Load DICOM values for the first DICOM in the series
+        dicom_binary = row["DICOM_Binary"]
+        reference_model = load_ref_json(json_ref, acquisition, series)
+
+        # If using dicom_files, use the dictionary content
+        if dicom_binary:
+            dicom_values = load_dicom(dicom_binary)
+        else:
             dicom_values = load_dicom(first_dicom_path)
-            # Run compliance check and gather results
-            compliance_summary = get_compliance_summary(reference_model, dicom_values, acquisition, series)
 
-            # Organize results in nested format without "Model_Name"
-            if acquisition not in grouped_compliance:
-                grouped_compliance[acquisition] = {"Acquisition": acquisition, "Series": []}
-            
-            if series:
-                series_entry = next((g for g in grouped_compliance[acquisition]["Series"] if g["Name"] == series), None)
-                if not series_entry:
-                    series_entry = {"Name": series, "Parameters": []}
-                    grouped_compliance[acquisition]["Series"].append(series_entry)
-                for entry in compliance_summary:
-                    entry.pop("Acquisition", None)
-                    entry.pop("Series", None)
-                series_entry["Parameters"].extend(compliance_summary)
-            else:
-                # If no series, add parameters directly under acquisition
-                for entry in compliance_summary:
-                    entry.pop("Acquisition", None)
-                    entry.pop("Series", None)
-                grouped_compliance[acquisition]["Parameters"] = compliance_summary
+        compliance_summary = get_compliance_summary(reference_model, dicom_values, acquisition, series)
 
-        except Exception as e:
-            print(f"Error processing acquisition '{acquisition}' and series '{series}': {e}")
+        if acquisition not in grouped_compliance:
+            grouped_compliance[acquisition] = {"Acquisition": acquisition, "Series": []}
 
-    # Convert the grouped data to a list for JSON serialization
+        if series:
+            series_entry = next((g for g in grouped_compliance[acquisition]["Series"] if g["Name"] == series), None)
+            if not series_entry:
+                series_entry = {"Name": series, "Parameters": []}
+                grouped_compliance[acquisition]["Series"].append(series_entry)
+            for entry in compliance_summary:
+                entry.pop("Acquisition", None)
+                entry.pop("Series", None)
+            series_entry["Parameters"].extend(compliance_summary)
+        else:
+            for entry in compliance_summary:
+                entry.pop("Acquisition", None)
+                entry.pop("Series", None)
+            grouped_compliance[acquisition]["Parameters"] = compliance_summary
+
     grouped_compliance_list = list(grouped_compliance.values())
 
-    # Save grouped compliance summary to JSON
     with open(output_json, "w") as json_file:
         json.dump(grouped_compliance_list, json_file, indent=4)
 
-    # Check if there are any compliance issues to report (ie. if the 'Parameters' list is empty for all acquisitions)
     compliance_issues = any(acq.get("Parameters") or any(series.get("Parameters") for series in acq.get("Series", [])) for acq in grouped_compliance_list)
-    print(compliance_issues)
     if not compliance_issues:
         return pd.DataFrame(columns=["Acquisition", "Series", "Parameter", "Value", "Expected"])
     
-    # Step 6: Normalize into DataFrame
-    df_with_series = pd.json_normalize(
-        grouped_compliance_list,
-        record_path=["Series", "Parameters"],
-        meta=["Acquisition", ["Series", "Name"]],
-        errors="ignore"
-    )
-    df_with_series.rename(columns={"Series.Name": "Series"}, inplace=True)
-    df_with_series = df_with_series[["Acquisition", "Series", "Parameter", "Value", "Expected"]]
+    # Processing compliance summary results
+    compliance_rows = []
+    for acquisition in grouped_compliance_list:
+        acq_name = acquisition["Acquisition"]
+        
+        # Handle parameters without a series
+        for param in acquisition.get("Parameters", []):
+            compliance_rows.append({
+                "Acquisition": acq_name,
+                "Series": None,
+                "Parameter": param["Parameter"],
+                "Value": param.get("Value"),
+                "Expected": param.get("Expected"),
+            })
+        
+        # Handle parameters within each series
+        for series in acquisition.get("Series", []):
+            series_name = series["Name"]
+            for param in series.get("Parameters", []):
+                compliance_rows.append({
+                    "Acquisition": acq_name,
+                    "Series": series_name,
+                    "Parameter": param["Parameter"],
+                    "Value": param.get("Value"),
+                    "Expected": param.get("Expected"),
+                })
 
-    # Normalize acquisitions without series directly
-    df_without_series = pd.json_normalize(
-        [acq for acq in grouped_compliance_list if "Parameters" in acq],
-        record_path="Parameters",
-        meta=["Acquisition"],
-        errors="ignore"
-    )
-    df_without_series.insert(1, "Series", None)  # Add Series column with None values
-    df_without_series = df_without_series[["Acquisition", "Series", "Parameter", "Value", "Expected"]]
+    # Create DataFrame directly from constructed rows
+    compliance_df = pd.DataFrame(compliance_rows, columns=["Acquisition", "Series", "Parameter", "Value", "Expected"])
 
-    # Combine both DataFrames
-    compliance_df = pd.concat([df_with_series, df_without_series], ignore_index=True)
-
+    # Save to JSON file
+    compliance_df.to_json(output_json, orient="records", indent=4)
+    
     return compliance_df
-
 def main():
     parser = argparse.ArgumentParser(description="Generate compliance summaries for a DICOM session based on JSON reference.")
     parser.add_argument("--json_ref", required=True, help="Path to the JSON reference file.")

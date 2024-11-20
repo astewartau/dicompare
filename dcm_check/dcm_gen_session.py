@@ -4,7 +4,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Optional, Dict
+from typing import Optional, Dict, Union
 from dcm_check import load_dicom
 import pandas as pd
 
@@ -13,12 +13,13 @@ class MissingFieldDict(dict):
     def __missing__(self, key):
         return "N/A"
 
+
 def generate_json_ref(
     in_session_dir: Optional[str] = None,
     acquisition_fields=None,
     reference_fields=None,
     name_template="{ProtocolName}-{SeriesDescription}",
-    dicom_files: Optional[Dict[str, bytes]] = None
+    dicom_files: Optional[Union[Dict[str, bytes], "JsProxy"]] = None
 ):
     """Generate a JSON reference for DICOM compliance.
 
@@ -34,6 +35,22 @@ def generate_json_ref(
     """
     acquisitions = {}
     dicom_data = []
+
+    # Ensure acquisition_fields and reference_fields are lists
+    if isinstance(acquisition_fields, str):
+        acquisition_fields = acquisition_fields.split(",")
+    elif not isinstance(acquisition_fields, list):
+        acquisition_fields = list(acquisition_fields)
+
+    if isinstance(reference_fields, str):
+        reference_fields = reference_fields.split(",")
+    elif not isinstance(reference_fields, list):
+        reference_fields = list(reference_fields)
+
+    # If dicom_files is provided as a JsProxy, convert it to a dictionary
+    if dicom_files is not None:
+        if hasattr(dicom_files, "to_py"):
+            dicom_files = dicom_files.to_py()  # Convert JsProxy to Python dict
 
     # Process either in_session_dir or dicom_files
     if dicom_files is not None:

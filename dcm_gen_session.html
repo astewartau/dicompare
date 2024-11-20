@@ -1,0 +1,348 @@
+<!doctype html>
+<html>
+  <head>
+    <!-- Load Tagify first -->
+    <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+    <style>
+      /* General Layout */
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f9f9f9;
+        display: flex;
+        justify-content: center;
+      }
+
+      h1 {
+        font-size: 1.5em;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      /* Form Container */
+      .form-container {
+        min-width: 500px;
+        max-width: 90vw; /* Set maximum width to 90% of the viewport width */
+        background-color: #fff;
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        box-sizing: border-box;
+        overflow-x: auto; /* Allow horizontal scrolling if the content exceeds max width */
+      }
+
+      .form-container label {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 3px;
+      }
+
+      /* Consistent padding and margin for form elements */
+      .form-container input[type="text"],
+      .form-container input[type="file"],
+      .form-container button {
+        width: 100%; /* Full width of the container */
+        padding: 8px;
+        margin-bottom: 12px;
+        font-size: 1em;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box; /* Ensures padding doesn’t expand element width */
+      }
+
+      .tagify {
+        width: 100%; /* Consistent width for Tagify fields */
+        box-sizing: border-box;
+        margin-bottom: 12px;
+      }
+
+      .form-container input[type="file"] {
+        padding: 4px;
+      }
+
+      /* Button styling and state styles */
+      .form-container button {
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+        transition: background-color 0.3s;
+      }
+
+      .form-container button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        color: white;
+      }
+
+      .form-container button.ready {
+        background-color: #4CAF50;
+        color: white;
+      }
+
+      .form-container button:hover:not(:disabled) {
+        background-color: #45a049;
+      }
+
+      /* Table Output Styling */
+      #tableOutput {
+        max-width: 100%; /* Prevent the table from exceeding the form-container's width */
+        overflow-x: auto; /* Add horizontal scrolling if necessary */
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+
+      #tableOutput table {
+        width: 100%; /* Ensures table fits within container padding */
+        border-collapse: collapse;
+      }
+
+      #tableOutput th, #tableOutput td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+
+      #tableOutput th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+        position: sticky; /* Keep table headers sticky */
+        top: 0;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="form-container">
+      <h1>Generate JSON Reference</h1>
+
+      <!-- File input for selecting a directory -->
+      <label for="sessionFiles">Select a DICOM directory:</label>
+      <input type="file" id="sessionFiles" multiple webkitdirectory />
+
+      <!-- Tagify inputs for acquisition fields and reference fields -->
+      <label for="acquisitionFields">Acquisition Fields:</label>
+      <input type="text" id="acquisitionFields" placeholder="e.g., SeriesInstanceUID, StudyInstanceUID" />
+
+      <label for="referenceFields">Reference Fields:</label>
+      <input type="text" id="referenceFields" placeholder="e.g., ProtocolName, SeriesDescription" />
+
+      <!-- Input for name template -->
+      <label for="nameTemplate">Name Template:</label>
+      <input type="text" id="nameTemplate" placeholder="{ProtocolName}-{SeriesDescription}" />
+
+      <!-- Button to trigger JSON reference generation -->
+      <button id="generateButton" onclick="generateJsonReference()" disabled>Initializing...</button>
+
+      <!-- Download JSON button -->
+      <button id="downloadButton" onclick="downloadJson()" disabled>Download JSON</button>
+
+      <!-- Output area -->
+      <div id="tableOutput"></div>
+    </div>
+
+    <script type="text/javascript">
+      let pyodide;
+      let acquisitionFieldInput, referenceFieldInput;
+      let generatedJsonData = null; // Store the generated JSON data
+      const generateButton = document.getElementById("generateButton");
+      const downloadButton = document.getElementById("downloadButton");
+
+      async function initTagify() {
+        // Fetch the list of valid field names for autocomplete
+        const response = await fetch('http://localhost:8000/valid_fields.json');
+        const validFields = await response.json();
+
+        // Pre-fill Acquisition Fields with default values
+        acquisitionFieldInput = new Tagify(document.getElementById("acquisitionFields"), {
+          whitelist: validFields,
+          enforceWhitelist: true,
+          dropdown: { enabled: 0, position: "all" },
+        });
+
+        // Add default values to Acquisition Fields
+        if (acquisitionFieldInput.value.length === 0) {
+          acquisitionFieldInput.addTags(["ProtocolName", "SeriesDescription"]);
+        }
+
+        // Initialize Reference Fields
+        referenceFieldInput = new Tagify(document.getElementById("referenceFields"), {
+          whitelist: validFields,
+          enforceWhitelist: true,
+          dropdown: { enabled: 0, position: "all" }
+        });
+
+        updateButtonStatus("Loading backend...", false);
+        loadPyodideInBackground();  // Start loading Pyodide after Tagify setup
+      }
+
+      function updateButtonStatus(statusText, isReady) {
+        generateButton.innerHTML = statusText;
+        generateButton.disabled = !isReady;
+        generateButton.classList.toggle("ready", isReady);
+      }
+
+      async function loadPyodideInBackground() {
+        pyodide = await loadPyodide();
+        updateButtonStatus("Loading micropip...", false);
+
+        await pyodide.loadPackage("micropip");
+        updateButtonStatus("Installing dcm-check...", false);
+
+        await pyodide.runPythonAsync(`
+          import micropip
+          await micropip.install("http://localhost:8000/dist/dcm_check-0.1.4-py3-none-any.whl")
+        `);
+
+        updateButtonStatus("Generate JSON Reference", true);  // Button now active and ready
+      }
+
+      async function gatherDicomFiles() {
+        const files = document.getElementById("sessionFiles").files;
+        const dicomFiles = {};
+        const bytesToRead = 2048;
+
+        for (let file of files) {
+          if (file.name.endsWith(".dcm") || file.name.endsWith(".IMA")) {
+            const slice = file.slice(0, bytesToRead);
+            const fileContent = new Uint8Array(await slice.arrayBuffer());
+            dicomFiles[file.webkitRelativePath] = fileContent;
+          }
+        }
+
+        return dicomFiles;
+      }
+
+      async function generateJsonReference() {
+        updateButtonStatus("Gathering DICOM files...", false);
+        const dicomFiles = await gatherDicomFiles();
+
+        // Parse acquisition and reference fields from Tagify inputs
+        const acquisitionFields = acquisitionFieldInput.value.map(tag => tag.value);
+        const referenceFields = referenceFieldInput.value.map(tag => tag.value);
+
+        const nameTemplate = document.getElementById("nameTemplate").value;
+
+        pyodide.globals.set("dicom_files", dicomFiles);
+        pyodide.globals.set("acquisition_fields", acquisitionFields);
+        pyodide.globals.set("reference_fields", referenceFields);
+        pyodide.globals.set("name_template", nameTemplate);
+
+        updateButtonStatus("Generating JSON...", false);
+
+        const output = await pyodide.runPythonAsync(`
+          import json
+          from dcm_check import generate_json_ref
+
+          output = generate_json_ref(
+            acquisition_fields=acquisition_fields,
+            reference_fields=reference_fields,
+            name_template=name_template,
+            dicom_files=dicom_files
+          )
+          json.dumps(output, indent=4)
+        `);
+
+        generatedJsonData = output; // Store the JSON data for download
+        const parsedOutput = JSON.parse(output);
+        displayTable(parsedOutput.acquisitions);
+
+        updateButtonStatus("Generate JSON Reference", true); // Reactivate the button
+        enableDownloadButton(); // Enable the download button
+      }
+
+      function displayTable(acquisitions) {
+        const tableContainer = document.getElementById("tableOutput");
+        tableContainer.innerHTML = "";  // Clear any previous table
+
+        const table = document.createElement("table");
+        const headerRow = document.createElement("tr");
+
+        // Set up header columns
+        const headers = new Set(["Acquisition", "Series"]);
+        Object.values(acquisitions).forEach(acquisition => {
+          acquisition.fields.forEach(field => headers.add(field.field));
+          if (acquisition.series) {
+            acquisition.series.forEach(series => {
+              series.fields.forEach(field => headers.add(field.field));
+            });
+          }
+        });
+
+        // Create table headers
+        headers.forEach(header => {
+          const th = document.createElement("th");
+          th.textContent = header;
+          headerRow.appendChild(th);
+        });
+        table.appendChild(headerRow);
+
+        // Populate table rows
+        Object.entries(acquisitions).forEach(([acquisitionName, acquisitionData]) => {
+          if (acquisitionData.series && acquisitionData.series.length > 0) {
+            acquisitionData.series.forEach(seriesData => {
+              const row = document.createElement("tr");
+              addCell(row, acquisitionName);  // Acquisition
+              addCell(row, seriesData.name);  // Series
+
+              headers.forEach(header => {
+                if (header === "Acquisition" || header === "Series") return;
+
+                const acquisitionField = acquisitionData.fields.find(f => f.field === header);
+                const seriesField = seriesData.fields.find(f => f.field === header);
+                const value = seriesField ? seriesField.value : (acquisitionField ? acquisitionField.value : "");
+                addCell(row, Array.isArray(value) ? JSON.stringify(value) : value);
+              });
+
+              table.appendChild(row);
+            });
+          } else {
+            const row = document.createElement("tr");
+            addCell(row, acquisitionName);
+            addCell(row, "None");
+
+            headers.forEach(header => {
+              if (header === "Acquisition" || header === "Series") return;
+
+              const acquisitionField = acquisitionData.fields.find(f => f.field === header);
+              const value = acquisitionField ? acquisitionField.value : "";
+              addCell(row, Array.isArray(value) ? JSON.stringify(value) : value);
+            });
+
+            table.appendChild(row);
+          }
+        });
+
+        tableContainer.appendChild(table);
+      }
+
+      function addCell(row, text) {
+        const cell = document.createElement("td");
+        cell.textContent = text;
+        row.appendChild(cell);
+      }
+
+      function enableDownloadButton() {
+        downloadButton.disabled = false;
+        downloadButton.classList.add("ready");
+      }
+
+      function downloadJson() {
+        const blob = new Blob([generatedJsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "generated_json_reference.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      initTagify();  // Start Tagify setup immediately on page load
+    </script>
+  </body>
+</html>

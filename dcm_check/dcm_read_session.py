@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import argparse
 import re
-
+from typing import Optional, Union, Dict
 from scipy.optimize import linear_sum_assignment
 from dcm_check import load_dicom
 
@@ -122,23 +122,31 @@ def find_closest_matches(session_df, acquisitions_info):
 
     return best_acquisitions, best_series, best_scores
 
-def read_session(reference_json, session_dir, return_acquisitions_info=False):
+def read_session(
+    reference_json: str,
+    session_dir: Optional[str] = None,
+    dicom_bytes: Optional[Union[Dict[str, bytes], "JsProxy"]] = None,
+    return_acquisitions_info: bool = False
+):
     """
-    Read a DICOM session directory and map it to the closest acquisitions and series in a reference JSON file.
+    Read a DICOM session directory or DICOM files dictionary and map it to the closest acquisitions and series in a reference JSON file.
 
     Args:
         reference_json (str): Path to the JSON reference file.
-        session_dir (str): Directory path containing DICOM files for the session.
+        session_dir (Optional[str]): Directory path containing DICOM files for the session.
+        dicom_bytes (Optional[Union[Dict[str, bytes], "JsProxy"]]): Dictionary of DICOM files as byte content.
         return_acquisitions_info (bool): If True, returns acquisitions_info for dynamic score recalculation.
 
     Returns:
         pd.DataFrame: DataFrame containing matched acquisitions and series with scores.
         acquisitions_info (optional): List of acquisitions and series info, used for score recalculation.
     """
+    if session_dir is None and dicom_bytes is None:
+        raise ValueError("Either session_dir or dicom_bytes must be provided.")
+
     with open(reference_json, 'r') as f:
         reference_data = json.load(f)
-    
-    # Load acquisition and series configurations from JSON
+
     acquisitions_info = [
         {
             "name": acq_name,
@@ -147,69 +155,80 @@ def read_session(reference_json, session_dir, return_acquisitions_info=False):
             "contains": {field["field"]: field["contains"] for field in acquisition.get("fields", []) if "contains" in field},
             "series": [
                 {
-                    "name": series["name"], 
+                    "name": series["name"],
                     "fields": {field["field"]: field.get("value", field.get("contains")) for field in series.get("fields", [])},
                     "tolerance": {field["field"]: field["tolerance"] for field in series.get("fields", []) if "tolerance" in field},
                     "contains": {field["field"]: field["contains"] for field in series.get("fields", []) if "contains" in field}
-                } 
+                }
                 for series in acquisition.get("series", [])
             ]
         }
         for acq_name, acquisition in reference_data.get("acquisitions", {}).items()
     ]
-    
-    # Collect all unique fields across acquisitions and series
+
     all_fields = {field for acq in acquisitions_info for field in acq["fields"].keys()}
     all_fields.update({field for acq in acquisitions_info for series in acq["series"] for field in series["fields"].keys()})
 
     session_data = []
-    for root, _, files in os.walk(session_dir):
-        for file in files:
-            if file.endswith((".dcm", ".IMA")):
-                dicom_path = os.path.join(root, file)
-                dicom_values = load_dicom(dicom_path)
-                
-                dicom_entry = {field: tuple(dicom_values[field]) if isinstance(dicom_values.get(field), list) 
-                               else dicom_values.get(field, "N/A") 
-                               for field in all_fields}
-                
-                dicom_entry["DICOM_Path"] = dicom_path  # Store the DICOM path
-                dicom_entry["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))  # Add InstanceNumber if available
 
-                session_data.append(dicom_entry)
+    # Convert JsProxy to a Python dictionary if necessary
+    if dicom_bytes is not None:
+        if hasattr(dicom_bytes, "to_py"):  # Check if it's a JsProxy object
+            dicom_bytes = dicom_bytes.to_py()
+            
+        for dicom_path, dicom_content in dicom_bytes.items():
+            dicom_values = load_dicom(dicom_content)
+            dicom_entry = {
+                field: tuple(dicom_values[field]) if isinstance(dicom_values.get(field), list)
+                else dicom_values.get(field, "N/A")
+                for field in all_fields
+            }
+            dicom_entry["DICOM_Path"] = dicom_path
+            dicom_entry["DICOM_Binary"] = dicom_content  # Store DICOM content as binary
+            dicom_entry["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
+            session_data.append(dicom_entry)
+    else:
+        for root, _, files in os.walk(session_dir):
+            for file in files:
+                if file.endswith((".dcm", ".IMA")):
+                    dicom_path = os.path.join(root, file)
+                    dicom_values = load_dicom(dicom_path)
+                    dicom_entry = {
+                        field: tuple(dicom_values[field]) if isinstance(dicom_values.get(field), list)
+                        else dicom_values.get(field, "N/A")
+                        for field in all_fields
+                    }
+                    dicom_entry["DICOM_Path"] = dicom_path
+                    dicom_entry["DICOM_Binary"] = None
+                    dicom_entry["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
+                    session_data.append(dicom_entry)
 
     session_df = pd.DataFrame(session_data)
 
-    # Sort by InstanceNumber or DICOM_Path
     if "InstanceNumber" in session_df.columns:
         session_df.sort_values("InstanceNumber", inplace=True)
     else:
         session_df.sort_values("DICOM_Path", inplace=True)
-    
-    # Group by unique series fields and calculate 'First_DICOM' and 'Count'
+
     dedup_fields = all_fields
     series_count_df = (
         session_df.groupby(list(dedup_fields))
-        .agg(First_DICOM=('DICOM_Path', 'first'), Count=('DICOM_Path', 'size'))
+        .agg(First_DICOM=('DICOM_Path', 'first'), DICOM_Binary=('DICOM_Binary', 'first'), Count=('DICOM_Path', 'size'))
         .reset_index()
     )
 
-    # Find closest matches for each series and calculate scores
+    # Assuming `find_closest_matches` is defined elsewhere
     acquisitions, series, scores = find_closest_matches(series_count_df, acquisitions_info)
 
     series_count_df["Acquisition"] = acquisitions
     series_count_df["Series"] = series
     series_count_df["Match_Score"] = scores
 
-
-    # Order headers with fields associated with acquisition_info first, then fields associated with series
     acquisition_fields = {field for acq in acquisitions_info for field in acq["fields"].keys()}
     series_fields = {field for acq in acquisitions_info for series in acq["series"] for field in series["fields"].keys() if field not in acquisition_fields}
-    ordered_headers = list(acquisition_fields) + list(series_fields) + ["First_DICOM", "Count", "Acquisition", "Series", "Match_Score"]
+    ordered_headers = list(acquisition_fields) + list(series_fields) + ["First_DICOM", "DICOM_Binary", "Count", "Acquisition", "Series", "Match_Score"]
     series_count_df = series_count_df[ordered_headers]
     series_count_df.sort_values(["Acquisition", "Series", "Match_Score"], inplace=True)
-
-    # Return the DataFrame and optionally acquisitions_info
     if return_acquisitions_info:
         return series_count_df, acquisitions_info
     return series_count_df
