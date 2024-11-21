@@ -195,7 +195,7 @@
 
         await pyodide.runPythonAsync(`
           import micropip
-          await micropip.install("https://github.com/astewartau/dcm-check/releases/download/v0.1.6/dcm_check-0.1.6-py3-none-any.whl")
+          await micropip.install("dcm-check==0.1.6")
         `);
 
         updateButtonStatus("Generate JSON Reference", true);  // Button now active and ready
