@@ -1,4 +1,4 @@
-__version__ = "0.1.5"
+__version__ = "0.1.6"
 
 from .compliance_check import \
     get_dicom_values, \
