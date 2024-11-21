@@ -4,7 +4,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Optional, Dict, Union
+from typing import Optional, Dict, Union, Any
 from dcm_check import load_dicom
 import pandas as pd
 
@@ -19,7 +19,7 @@ def generate_json_ref(
     acquisition_fields=None,
     reference_fields=None,
     name_template="{ProtocolName}-{SeriesDescription}",
-    dicom_files: Optional[Union[Dict[str, bytes], "JsProxy"]] = None
+    dicom_files: Optional[Union[Dict[str, bytes], Any]] = None
 ):
     """Generate a JSON reference for DICOM compliance.
 

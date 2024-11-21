@@ -1,4 +1,4 @@
-from typing import Optional, Union, Dict
+from typing import Optional, Union, Dict, Any
 import sys
 import json
 import argparse
@@ -11,7 +11,7 @@ def get_compliance_summaries_json(
     in_session: Optional[str] = None,
     output_json: str = "compliance_report.json",
     interactive=True,
-    dicom_bytes: Optional[Union[Dict[str, bytes], "JsProxy"]] = None
+    dicom_bytes: Optional[Union[Dict[str, bytes], Any]] = None
 ) -> pd.DataFrame:
     """
     Generate a compliance summary for each matched acquisition in an input DICOM session.
@@ -21,7 +21,7 @@ def get_compliance_summaries_json(
         in_session (Optional[str]): Directory path for the DICOM session.
         output_json (str): Path to save the JSON compliance summary report.
         interactive (bool): Flag to enable interactive mapping.
-        dicom_bytes (Optional[Union[Dict[str, bytes], "JsProxy"]]): Dictionary of DICOM byte content for processing.
+        dicom_bytes (Optional[Union[Dict[str, bytes], Any]]): Dictionary of DICOM byte content for processing.
 
     Returns:
         pd.DataFrame: Compliance summary DataFrame.

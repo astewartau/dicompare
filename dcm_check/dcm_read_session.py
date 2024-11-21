@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import argparse
 import re
-from typing import Optional, Union, Dict
+from typing import Optional, Union, Dict, Any
 from scipy.optimize import linear_sum_assignment
 from dcm_check import load_dicom
 
@@ -125,7 +125,7 @@ def find_closest_matches(session_df, acquisitions_info):
 def read_session(
     reference_json: str,
     session_dir: Optional[str] = None,
-    dicom_bytes: Optional[Union[Dict[str, bytes], "JsProxy"]] = None,
+    dicom_bytes: Optional[Union[Dict[str, bytes], Any]] = None,
     return_acquisitions_info: bool = False
 ):
     """
@@ -134,7 +134,7 @@ def read_session(
     Args:
         reference_json (str): Path to the JSON reference file.
         session_dir (Optional[str]): Directory path containing DICOM files for the session.
-        dicom_bytes (Optional[Union[Dict[str, bytes], "JsProxy"]]): Dictionary of DICOM files as byte content.
+        dicom_bytes (Optional[Union[Dict[str, bytes], Any]]): Dictionary of DICOM files as byte content.
         return_acquisitions_info (bool): If True, returns acquisitions_info for dynamic score recalculation.
 
     Returns:
