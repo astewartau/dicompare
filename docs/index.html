@@ -5,6 +5,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
     <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+    <link rel="icon" href="https://example.com/favicon.ico" type="image/x-icon">
     <style>
       /* General Layout */
       body {
@@ -153,7 +154,7 @@
 
       async function initTagify() {
         // Fetch the list of valid field names for autocomplete
-        const response = await fetch('https://github.com/astewartau/dcm-check/blob/v0.1.6/valid_fields.json');
+        const response = await fetch('https://raw.githubusercontent.com/astewartau/dcm-check/v0.1.6/valid_fields.json');
         const validFields = await response.json();
 
         // Pre-fill Acquisition Fields with default values
