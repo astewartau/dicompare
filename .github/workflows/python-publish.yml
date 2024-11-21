@@ -13,7 +13,7 @@ on:
     types: [published]
 
 permissions:
-  contents: read
+  contents: write  # Required to upload assets to releases
 
 jobs:
   deploy:
@@ -37,3 +37,10 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
+    - name: Upload wheel to GitHub release
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: dist/*.whl
+        asset_name: dcm_check-${{ github.event.release.tag_name }}.whl
+        asset_content_type: application/octet-stream

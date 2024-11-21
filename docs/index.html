@@ -153,7 +153,7 @@
 
       async function initTagify() {
         // Fetch the list of valid field names for autocomplete
-        const response = await fetch('http://localhost:8000/valid_fields.json');
+        const response = await fetch('https://github.com/astewartau/dcm-check/blob/v0.1.5/valid_fields.json');
         const validFields = await response.json();
 
         // Pre-fill Acquisition Fields with default values
@@ -194,7 +194,7 @@
 
         await pyodide.runPythonAsync(`
           import micropip
-          await micropip.install("http://localhost:8000/dist/dcm_check-0.1.4-py3-none-any.whl")
+          await micropip.install("https://github.com/astewartau/dcm-check/releases/download/v0.1.5/dcm_check-v0.1.5.whl")
         `);
 
         updateButtonStatus("Generate JSON Reference", true);  // Button now active and ready

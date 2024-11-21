@@ -144,7 +144,7 @@
 
         await pyodide.runPythonAsync(`
           import micropip
-          await micropip.install("http://localhost:8000/dist/dcm_check-0.1.4-py3-none-any.whl")
+          await micropip.install("https://github.com/astewartau/dcm-check/releases/download/v0.1.5/dcm_check-v0.1.5.whl")
         `);
 
         updateButtonStatus("Generate Compliance Report", true);  // Button now active and ready
