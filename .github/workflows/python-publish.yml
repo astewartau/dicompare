@@ -34,14 +34,17 @@ jobs:
       - name: Capture Wheel Filename
         id: wheel_filename
         run: |
-          echo "WHEEL_FILE=$(ls dist/*.whl)" >> $GITHUB_ENV
+          WHEEL_FILE=$(ls dist/*.whl)
+          BASENAME=$(basename "$WHEEL_FILE")
+          echo "WHEEL_FILE=$WHEEL_FILE" >> $GITHUB_ENV
+          echo "WHEEL_BASENAME=$BASENAME" >> $GITHUB_ENV
 
       - name: Upload wheel to GitHub Release
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ${{ env.WHEEL_FILE }}
-          asset_name: dcm_check-${{ github.event.release.tag_name }}.whl
+          asset_name: ${{ env.WHEEL_BASENAME }}
           asset_content_type: application/octet-stream
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
