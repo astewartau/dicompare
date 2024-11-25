@@ -17,333 +17,526 @@
         justify-content: center;
       }
 
-      h1 {
-        font-size: 1.5em;
-        text-align: center;
-        margin-bottom: 20px;
-      }
+    .form-container {
+      width: 90%;
+      max-width: 800px;
+      background-color: #fff;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
 
-      /* Form Container */
-      .form-container {
-        min-width: 500px;
-        max-width: 90vw; /* Set maximum width to 90% of the viewport width */
-        background-color: #fff;
-        border: 1px solid #ddd;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        box-sizing: border-box;
-        overflow-x: auto; /* Allow horizontal scrolling if the content exceeds max width */
-      }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
 
-      .form-container label {
-        font-weight: bold;
-        display: block;
-        margin-bottom: 3px;
-      }
+    /* Grid Layout for Rows */
+    .row {
+      display: grid;
+      grid-template-columns: 200px auto;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
 
-      /* Consistent padding and margin for form elements */
-      .form-container input[type="text"],
-      .form-container input[type="file"],
-      .form-container button {
-        width: 100%; /* Full width of the container */
-        padding: 8px;
-        margin-bottom: 12px;
-        font-size: 1em;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        box-sizing: border-box; /* Ensures padding doesn’t expand element width */
-      }
+    .row .tagify {
+      font-weight: normal;
+    }
 
-      .tagify {
-        width: 100%; /* Consistent width for Tagify fields */
-        box-sizing: border-box;
-        margin-bottom: 12px;
-      }
+    .row input[type="text"],
+    .row input[type="file"] {
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
 
-      .form-container input[type="file"] {
-        padding: 4px;
-      }
+    .row.grid {
+      display: grid;
+      grid-template-columns: auto auto 50px;
+      /* Label, Input, Button */
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
 
-      /* Button styling and state styles */
-      .form-container button {
-        font-weight: bold;
-        cursor: pointer;
-        border: none;
-        transition: background-color 0.3s;
-      }
+    .row label {
+      text-align: right;
+    }
 
-      .form-container button:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
-        color: white;
-      }
+    button {
+      padding: 8px 12px;
+      font-size: 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
 
-      .form-container button.ready {
-        background-color: #4CAF50;
-        color: white;
-      }
+    button.add {
+      background-color: #2196F3;
+      color: white;
+    }
 
-      .form-container button:hover:not(:disabled) {
-        background-color: #45a049;
-      }
+    button.delete {
+      background-color: #f44336;
+      color: white;
+    }
 
-      /* Table Output Styling */
-      #tableOutput {
-        max-width: 100%; /* Prevent the table from exceeding the form-container's width */
-        overflow-x: auto; /* Add horizontal scrolling if necessary */
-        border-radius: 4px;
-        box-sizing: border-box;
-      }
+    button.green {
+      background-color: #4CAF50;
+      color: white;
+    }
 
-      #tableOutput table {
-        width: 100%; /* Ensures table fits within container padding */
-        border-collapse: collapse;
-      }
+    /* disabled button */
+    button:disabled {
+      background-color: #ccc;
+      color: #666;
+      cursor: not-allowed;
+    }
 
-      #tableOutput th, #tableOutput td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-      }
+    /* Containers for Acquisitions and Series */
+    .acquisition-container,
+    .series-container {
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 4px;
+      background-color: #fdfdfd;
+      margin-bottom: 15px;
+      margin-top: 15px;
+    }
 
-      #tableOutput th {
-        background-color: #f2f2f2;
-        font-weight: bold;
-        position: sticky; /* Keep table headers sticky */
-        top: 0;
-        z-index: 1;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="form-container">
-      <h1>Generate JSON Reference</h1>
+    .series-container {
+      margin-left: 20px;
+      background-color: #f7f7f7;
+    }
 
-      <!-- File input for selecting a directory -->
-      <label for="sessionFiles">Select DICOMs:</label>
+    /* Fields Layout */
+    .fields-container {
+      margin-top: 10px;
+    }
+
+    .fields-container .field-row.header {
+      display: grid;
+      grid-template-columns: 0fr 1fr 0fr 1fr 50px;
+      /* Empty space, Field, Empty space, Value, Button */
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .fields-container .field-row {
+      display: grid;
+      grid-template-columns: 0fr 1fr 0fr 1fr 50px;
+      /* Label, Input, Label, Input, Button */
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .fields-container .field-row input {
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    .fields-container .field-row button {
+      background-color: #f44336;
+      color: white;
+    }
+
+    button.add {
+      margin-top: 10px;
+      background-color: #2196F3;
+      color: white;
+    }
+  </style>
+
+</head>
+
+<body>
+  <div class="form-container">
+    <h1>Session reference generator</h1>
+
+    <!-- DICOM Directory Selection -->
+    <div class="row">
+      <label for="sessionFiles">Session DICOMs:</label>
       <input type="file" id="sessionFiles" multiple webkitdirectory />
-
-      <!-- Tagify inputs for acquisition fields and reference fields -->
-      <label for="acquisitionFields">Acquisition Fields:</label>
-      <input type="text" id="acquisitionFields" placeholder="e.g., SeriesInstanceUID, StudyInstanceUID" />
-
-      <label for="referenceFields">Reference Fields:</label>
-      <input type="text" id="referenceFields" placeholder="e.g., ProtocolName, SeriesDescription" />
-
-      <!-- Input for name template -->
-      <label for="nameTemplate">Name Template:</label>
-      <input type="text" id="nameTemplate" placeholder="{ProtocolName}-{SeriesDescription}" />
-
-      <!-- Button to trigger JSON reference generation -->
-      <button id="generateButton" onclick="generateJsonReference()" disabled>Initializing...</button>
-
-      <!-- Download JSON button -->
-      <button id="downloadButton" onclick="downloadJson()" disabled>Download JSON</button>
-
-      <!-- Output area -->
-      <div id="tableOutput"></div>
     </div>
 
-    <script type="text/javascript">
-      let pyodide;
-      let acquisitionFieldInput, referenceFieldInput;
-      let generatedJsonData = null; // Store the generated JSON data
-      const generateButton = document.getElementById("generateButton");
-      const downloadButton = document.getElementById("downloadButton");
+    <!-- Acquisition and Reference Fields -->
+    <div class="row">
+      <label for="acquisitionFields">Acquisition Fields:</label>
+      <input type="text" id="acquisitionFields" placeholder="e.g., ProtocolName, SeriesInstanceUID" />
+    </div>
+    
+    <div class="row">
+      <label for="referenceFields">Reference Fields:</label>
+      <input type="text" id="referenceFields" placeholder="e.g., SeriesDescription, ImageType" />
+    </div>
 
-      async function initTagify() {
-        // Fetch the list of valid field names for autocomplete
-        const response = await fetch('https://raw.githubusercontent.com/astewartau/dcm-check/v0.1.6/valid_fields.json');
-        const validFields = await response.json();
+    <!-- Input for name template -->
+    <div class="row">
+      <label for="nameTemplate">Acquisition name template:</label>
+      <input type="text" id="nameTemplate" placeholder="{ProtocolName}-{SeriesDescription}"
+        value="{ProtocolName}-{SeriesDescription}" />
+    </div>
 
-        // Pre-fill Acquisition Fields with default values
-        acquisitionFieldInput = new Tagify(document.getElementById("acquisitionFields"), {
-          whitelist: validFields,
-          enforceWhitelist: true,
-          dropdown: { enabled: 0, position: "all" },
-        });
+    <!-- Generate JSON Button -->
+    <div class="row">
+      <button id="generateButton" class="green" onclick="generateJsonReference()" style="grid-column: span 2;"
+        disabled>Generate JSON Reference</button>
+    </div>
 
-        // Add default values to Acquisition Fields
-        if (acquisitionFieldInput.value.length === 0) {
-          acquisitionFieldInput.addTags(["ProtocolName", "SeriesDescription"]);
-        }
+    <!-- Editor -->
+    <div id="jsonEditor" class="editor"></div>
 
-        // Initialize Reference Fields
-        referenceFieldInput = new Tagify(document.getElementById("referenceFields"), {
-          whitelist: validFields,
-          enforceWhitelist: true,
-          dropdown: { enabled: 0, position: "all" }
-        });
+    <!-- Add Acquisition and Download JSON -->
+    <div class="actions">
+      <button id="addAcquisition" class="add">Add Acquisition</button>
+      <button id="downloadJson" class="green" onclick="downloadJson()" disabled>Download JSON</button>
+    </div>
+  </div>
 
-        updateButtonStatus("Loading backend...", false);
-        loadPyodideInBackground();  // Start loading Pyodide after Tagify setup
+  <script>
+    let pyodide;
+    let acquisitionFieldInput, referenceFieldInput;
+    let jsonData = { acquisitions: {} };
+    const generateButton = document.getElementById("generateButton");
+    const downloadButton = document.getElementById("downloadJson");
+
+    async function validateForm() {
+      valid = true;
+      if (!document.getElementById("sessionFiles").files.length) {
+        valid = false;
       }
 
-      function updateButtonStatus(statusText, isReady) {
-        generateButton.innerHTML = statusText;
-        generateButton.disabled = !isReady;
-        generateButton.classList.toggle("ready", isReady);
+      // acquisitionFieldInput is a tagify object, so check getTagElms
+      if (acquisitionFieldInput.getTagElms().length === 0) {
+        valid = false;
       }
 
-      async function loadPyodideInBackground() {
-        pyodide = await loadPyodide();
-        updateButtonStatus("Loading micropip...", false);
+      if (referenceFieldInput.getTagElms().length === 0) {
+        valid = false;
+      }
 
-        await pyodide.loadPackage("micropip");
-        updateButtonStatus("Installing dcm-check...", false);
+      generateButton.disabled = !valid;
 
-        await pyodide.runPythonAsync(`
-          import micropip
-          await micropip.install("dcm-check==0.1.6")
+      return valid;
+    }
+
+    async function initTagify() {
+      // Fetch the list of valid fields for Tagify
+      const response = await fetch('http://localhost:8000/valid_fields.json');
+      const validFields = await response.json();
+
+      // Set up acquisition fields
+      acquisitionFieldInput = new Tagify(document.getElementById("acquisitionFields"), {
+        whitelist: validFields,
+        enforceWhitelist: true,
+        dropdown: { enabled: 0, position: "all" },
+      });
+
+      // Add default values to Acquisition Fields
+      if (acquisitionFieldInput.value.length === 0) {
+        acquisitionFieldInput.addTags(["ProtocolName", "SeriesDescription"]);
+      }
+
+      // Set up reference fields
+      referenceFieldInput = new Tagify(document.getElementById("referenceFields"), {
+        whitelist: validFields,
+        enforceWhitelist: true,
+        dropdown: { enabled: 0, position: "all" },
+      });
+    }
+
+    async function initPyodide() {
+      const pyodideInstance = await loadPyodide(); // Use the library's `loadPyodide`
+      await pyodideInstance.loadPackage("micropip");
+
+      // Install `dcm-check` using micropip
+      await pyodideInstance.runPythonAsync(`
+            import micropip
+            await micropip.install("http://localhost:8000/dist/dcm_check-0.1.4-py3-none-any.whl")
         `);
 
-        updateButtonStatus("Generate JSON Reference", true);  // Button now active and ready
-      }
+      return pyodideInstance;
+    }
 
-      async function gatherDicomFiles() {
-        const files = document.getElementById("sessionFiles").files;
-        const dicomFiles = {};
-        const bytesToRead = 2048;
+    async function loadDICOMs() {
+      const files = document.getElementById("sessionFiles").files;
+      const dicomFiles = {};
 
-        for (let file of files) {
-          if (file.name.endsWith(".dcm") || file.name.endsWith(".IMA")) {
-            const slice = file.slice(0, bytesToRead);
-            const fileContent = new Uint8Array(await slice.arrayBuffer());
-            dicomFiles[file.webkitRelativePath] = fileContent;
-          }
+      for (let file of files) {
+        if (file.name.endsWith(".dcm") || file.name.endsWith(".IMA")) {
+          const slice = file.slice(0, 2048);
+          const fileContent = new Uint8Array(await slice.arrayBuffer());
+          dicomFiles[file.webkitRelativePath] = fileContent;
         }
-
-        return dicomFiles;
       }
 
-      async function generateJsonReference() {
-        updateButtonStatus("Gathering DICOM files...", false);
-        const dicomFiles = await gatherDicomFiles();
+      return dicomFiles;
+    }
 
-        // Parse acquisition and reference fields from Tagify inputs
-        const acquisitionFields = acquisitionFieldInput.value.map(tag => tag.value);
-        const referenceFields = referenceFieldInput.value.map(tag => tag.value);
+    async function generateJsonReference() {
+      generateButton.disabled = true;
 
-        const nameTemplate = document.getElementById("nameTemplate").value;
-
-        pyodide.globals.set("dicom_files", dicomFiles);
-        pyodide.globals.set("acquisition_fields", acquisitionFields);
-        pyodide.globals.set("reference_fields", referenceFields);
-        pyodide.globals.set("name_template", nameTemplate);
-
-        updateButtonStatus("Generating JSON...", false);
-
-        const output = await pyodide.runPythonAsync(`
-          import json
-          from dcm_check import generate_json_ref
-
-          output = generate_json_ref(
-            acquisition_fields=acquisition_fields,
-            reference_fields=reference_fields,
-            name_template=name_template,
-            dicom_files=dicom_files
-          )
-          json.dumps(output, indent=4)
-        `);
-
-        generatedJsonData = output; // Store the JSON data for download
-        const parsedOutput = JSON.parse(output);
-        displayTable(parsedOutput.acquisitions);
-
-        updateButtonStatus("Generate JSON Reference", true); // Reactivate the button
-        enableDownloadButton(); // Enable the download button
+      if (!pyodide) {
+        generateButton.textContent = "Loading Pyodide...";
+        pyodide = await initPyodide(); // Call the corrected initialization function
       }
 
-      function displayTable(acquisitions) {
-        const tableContainer = document.getElementById("tableOutput");
-        tableContainer.innerHTML = "";  // Clear any previous table
+      generateButton.textContent = "Loading DICOMs...";
+      const dicomFiles = await loadDICOMs();
+      const acquisitionFields = acquisitionFieldInput.value.map(tag => tag.value);
+      const referenceFields = referenceFieldInput.value.map(tag => tag.value);
 
-        const table = document.createElement("table");
-        const headerRow = document.createElement("tr");
+      pyodide.globals.set("dicom_files", dicomFiles);
+      pyodide.globals.set("acquisition_fields", acquisitionFields);
+      pyodide.globals.set("reference_fields", referenceFields);
 
-        // Set up header columns
-        const headers = new Set(["Acquisition", "Series"]);
-        Object.values(acquisitions).forEach(acquisition => {
-          acquisition.fields.forEach(field => headers.add(field.field));
-          if (acquisition.series) {
-            acquisition.series.forEach(series => {
-              series.fields.forEach(field => headers.add(field.field));
-            });
-          }
+      generateButton.textContent = "Generating JSON...";
+      const output = await pyodide.runPythonAsync(`
+        import json
+        from dcm_check import generate_json_ref
+
+        output = generate_json_ref(
+          acquisition_fields=acquisition_fields,
+          reference_fields=reference_fields,
+          name_template="{ProtocolName}-{SeriesDescription}",
+          dicom_files=dicom_files
+        )
+        json.dumps(output, indent=4)
+      `);
+
+      generateButton.textContent = "Parse JSON...";
+      jsonData = JSON.parse(output);
+      renderEditor(); // Render all acquisitions and their contents
+      downloadButton.disabled = false; // Enable the Download JSON button
+      generateButton.disabled = false;
+      generateButton.textContent = "Generate JSON Reference";
+    }
+
+    function renderEditor() {
+      const editor = document.getElementById("jsonEditor");
+      editor.innerHTML = ""; // Clear the editor
+
+      Object.entries(jsonData.acquisitions).forEach(([acqKey, acqData]) => {
+        const acqDiv = document.createElement("div");
+        acqDiv.className = "acquisition-container";
+
+        const readableName = acqKey.split('-')[0]; // Extract a human-readable name
+
+        // Acquisition Name and Delete Button
+        acqDiv.innerHTML = `
+          <div class="row grid">
+            <label>Acquisition:</label>
+            <input type="text" value="${readableName}" onchange="updateAcquisitionName('${acqKey}', this.value)">
+            <button class="delete" onclick="deleteAcquisition('${acqKey}')">🗑</button>
+          </div>
+        `;
+
+
+        // Acquisition Fields with Headers
+        const fieldsContainer = document.createElement("div");
+        fieldsContainer.className = "fields-container";
+
+        fieldsContainer.innerHTML = `
+          <div class="field-row header">
+            <span></span>
+            <span>Field</span>
+            <span></span>
+            <span>Value</span>
+            <span></span>
+          </div>
+        `;
+
+        acqData.fields.forEach((field, index) => {
+          const fieldValue = Array.isArray(field.value) ? JSON.stringify(field.value) : field.value;
+
+          fieldsContainer.innerHTML += `
+            <div class="field-row">
+              <label></label>
+              <input type="text" class="tagify" value="${field.field}" onchange="updateAcquisitionFieldName('${acqKey}', ${index}, this.value)">
+              <label></label>
+              <input type="text" value='${fieldValue}' onchange="updateAcquisitionFieldValue('${acqKey}', ${index}, this.value)">
+              <button class="delete" onclick="deleteAcquisitionField('${acqKey}', ${index})">🗑</button>
+            </div>
+          `;
         });
 
-        // Create table headers
-        headers.forEach(header => {
-          const th = document.createElement("th");
-          th.textContent = header;
-          headerRow.appendChild(th);
+        fieldsContainer.innerHTML += `<button class="add" onclick="addAcquisitionField('${acqKey}')">Add Field</button>`;
+        acqDiv.appendChild(fieldsContainer);
+
+        // Series Section
+        const seriesContainer = document.createElement("div");
+        const seriesData = acqData.series || [];
+        seriesData.forEach((series, seriesIndex) => {
+          const seriesDiv = document.createElement("div");
+          seriesDiv.className = "series-container";
+
+          seriesDiv.innerHTML = `
+            <div class="row grid">
+              <label>Series:</label>
+              <input type="text" value="${series.name}" onchange="updateSeriesName('${acqKey}', ${seriesIndex}, this.value)">
+              <button class="delete" onclick="deleteSeries('${acqKey}', ${seriesIndex})">🗑</button>
+            </div>
+          `;
+
+
+          const seriesFieldsContainer = document.createElement("div");
+          seriesFieldsContainer.className = "fields-container";
+
+          seriesFieldsContainer.innerHTML = `
+            <div class="field-row header">
+              <span></span>
+              <span>Field</span>
+              <span></span>
+              <span>Value</span>
+              <span></span>
+            </div>
+          `;
+
+          series.fields.forEach((field, fieldIndex) => {
+            const fieldValue = Array.isArray(field.value) ? JSON.stringify(field.value) : field.value;
+
+            seriesFieldsContainer.innerHTML += `
+              <div class="field-row">
+                <label></label>
+                <input type="text" class="tagify" value="${field.field}" onchange="updateSeriesFieldName('${acqKey}', ${seriesIndex}, ${fieldIndex}, this.value)">
+                <label></label>
+                <input type="text" value='${fieldValue}' onchange="updateSeriesFieldValue('${acqKey}', ${seriesIndex}, ${fieldIndex}, this.value)">
+                <button class="delete" onclick="deleteSeriesField('${acqKey}', ${seriesIndex}, ${fieldIndex})">🗑</button>
+              </div>
+            `;
+          });
+
+          seriesFieldsContainer.innerHTML += `<button class="add" onclick="addSeriesField('${acqKey}', ${seriesIndex})">Add Field</button>`;
+          seriesDiv.appendChild(seriesFieldsContainer);
+
+          seriesContainer.appendChild(seriesDiv);
         });
-        table.appendChild(headerRow);
 
-        // Populate table rows
-        Object.entries(acquisitions).forEach(([acquisitionName, acquisitionData]) => {
-          if (acquisitionData.series && acquisitionData.series.length > 0) {
-            acquisitionData.series.forEach(seriesData => {
-              const row = document.createElement("tr");
-              addCell(row, acquisitionName);  // Acquisition
-              addCell(row, seriesData.name);  // Series
+        seriesContainer.innerHTML += `<button class="add" onclick="addSeries('${acqKey}')">Add Series</button>`;
+        acqDiv.appendChild(seriesContainer);
 
-              headers.forEach(header => {
-                if (header === "Acquisition" || header === "Series") return;
+        editor.appendChild(acqDiv);
+      });
+    }
 
-                const acquisitionField = acquisitionData.fields.find(f => f.field === header);
-                const seriesField = seriesData.fields.find(f => f.field === header);
-                const value = seriesField ? seriesField.value : (acquisitionField ? acquisitionField.value : "");
-                addCell(row, Array.isArray(value) ? JSON.stringify(value) : value);
-              });
+    function initializeTagify(inputElement) {
+      const validFields = acquisitionFieldInput.settings.whitelist; // Use whitelist from Tagify
+      new Tagify(inputElement, {
+        whitelist: validFields,
+        enforceWhitelist: true,
+        dropdown: { enabled: 0, position: "all" }
+      });
+    }
 
-              table.appendChild(row);
-            });
-          } else {
-            const row = document.createElement("tr");
-            addCell(row, acquisitionName);
-            addCell(row, "None");
+    function updateAcquisitionFieldName(acqName, fieldIndex, newName) {
+      jsonData.acquisitions[acqName].fields[fieldIndex].field = newName;
+    }
 
-            headers.forEach(header => {
-              if (header === "Acquisition" || header === "Series") return;
+    function updateAcquisitionFieldValue(acqName, fieldIndex, newValue) {
+      jsonData.acquisitions[acqName].fields[fieldIndex].value = newValue;
+    }
 
-              const acquisitionField = acquisitionData.fields.find(f => f.field === header);
-              const value = acquisitionField ? acquisitionField.value : "";
-              addCell(row, Array.isArray(value) ? JSON.stringify(value) : value);
-            });
+    function updateSeriesFieldName(acqName, seriesIndex, fieldIndex, newName) {
+      jsonData.acquisitions[acqName].series[seriesIndex].fields[fieldIndex].field = newName;
+    }
 
-            table.appendChild(row);
-          }
-        });
+    function updateSeriesFieldValue(acqName, seriesIndex, fieldIndex, newValue) {
+      jsonData.acquisitions[acqName].series[seriesIndex].fields[fieldIndex].value = newValue;
+    }
 
-        tableContainer.appendChild(table);
+    function deleteAcquisition(acqName) {
+      delete jsonData.acquisitions[acqName];
+      renderEditor();
+    }
+
+    function deleteAcquisitionField(acqName, fieldIndex) {
+      jsonData.acquisitions[acqName].fields.splice(fieldIndex, 1);
+      renderEditor();
+    }
+
+    function addAcquisitionField(acqName) {
+      jsonData.acquisitions[acqName].fields.push({ field: "", value: "" });
+      renderEditor();
+    }
+
+    function deleteSeries(acqName, seriesIndex) {
+      jsonData.acquisitions[acqName].series.splice(seriesIndex, 1);
+      renderEditor();
+    }
+
+    function addSeries(acqName) {
+      jsonData.acquisitions[acqName].series.push({ name: "", fields: [] });
+      renderEditor();
+    }
+
+    function deleteSeriesField(acqName, seriesIndex, fieldIndex) {
+      jsonData.acquisitions[acqName].series[seriesIndex].fields.splice(fieldIndex, 1);
+      renderEditor();
+    }
+
+    function addSeriesField(acqName, seriesIndex) {
+      jsonData.acquisitions[acqName].series[seriesIndex].fields.push({ field: "", value: "" });
+      renderEditor();
+    }
+
+    function updateAcquisitionName(oldName, newName) {
+      if (newName && !jsonData.acquisitions[newName]) {
+        jsonData.acquisitions[newName] = jsonData.acquisitions[oldName];
+        delete jsonData.acquisitions[oldName];
+        renderEditor();
       }
+    }
 
-      function addCell(row, text) {
-        const cell = document.createElement("td");
-        cell.textContent = text;
-        row.appendChild(cell);
-      }
+    function updateSeriesName(acqName, seriesIndex, newName) {
+      jsonData.acquisitions[acqName].series[seriesIndex].name = newName;
+    }
 
-      function enableDownloadButton() {
-        downloadButton.disabled = false;
-        downloadButton.classList.add("ready");
-      }
+    function downloadJson() {
+      const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "edited_json.json";
+      a.click();
+    }
 
-      function downloadJson() {
-        const blob = new Blob([generatedJsonData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "generated_json_reference.json";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
+    document.getElementById("addAcquisition").addEventListener("click", () => {
+      // Generate a unique acquisition name
+      const newAcqName = `Acquisition${Object.keys(jsonData.acquisitions).length + 1}`;
+      jsonData.acquisitions[newAcqName] = { fields: [], series: [] };
+      renderEditor(); // Re-render the editor
+    });
 
-      initTagify();  // Start Tagify setup immediately on page load
-    </script>
-  </body>
+    // disable Generate JSON Reference button if no DICOM files are selected
+    document.getElementById("sessionFiles").addEventListener("change", () => {
+      validateForm();
+    });
+
+    // check if form is ready whene the DICOM selector, Acquisition Fields, or Reference Fields change
+    document.getElementById("acquisitionFields").addEventListener("change", () => {
+      setTimeout(() => {
+        validateForm();
+      }, 300);
+    });
+
+    // check if form is ready whene the DICOM selector, Acquisition Fields, or Reference Fields change
+    document.getElementById("referenceFields").addEventListener("change", () => {
+      setTimeout(() => {
+        validateForm();
+      }, 300);
+    });
+    initTagify();
+  </script>
+</body>
+
 </html>
