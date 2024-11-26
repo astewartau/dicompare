@@ -33,6 +33,10 @@ def generate_json_ref(
     Returns:
         output (dict): JSON structure with acquisition data.
     """
+
+    # === Initialisation ===
+    # =======================
+
     acquisitions = {}
     dicom_data = []
 
@@ -65,15 +69,30 @@ def generate_json_ref(
     else:
         raise ValueError("Either in_session_dir or dicom_files must be provided.")
 
+    # === Create a DataFrame from DICOM data ===
+    # ==========================================
+
     # Load and process each DICOM file
     for dicom_path, dicom_content in files_to_process:
+
+        # Load DICOM
         dicom_values = load_dicom(dicom_content or dicom_path)
-        dicom_entry = {field: dicom_values.get(field, "N/A") for field in acquisition_fields + reference_fields}
+
+        # Check required fields
+        for field in acquisition_fields + reference_fields:
+            if field not in dicom_values:
+                print(f"Warning: Field '{field}' not found in DICOM data.", file=sys.stderr)
+        
+        # Store DICOM data
+        dicom_entry = {field: dicom_values.get(field, "N/A") for field in acquisition_fields + reference_fields if field in dicom_values}
         dicom_entry['dicom_path'] = dicom_path
         dicom_data.append(dicom_entry)
 
     # Convert collected DICOM data to a DataFrame and proceed as before
     dicom_df = pd.DataFrame(dicom_data)
+
+    # === Process the DataFrame to generate JSON reference ===
+    # ========================================================
 
     # Handle list-type entries for duplicate detection
     for field in acquisition_fields + reference_fields:

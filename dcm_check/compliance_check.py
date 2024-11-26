@@ -30,12 +30,10 @@ def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
             return list(element.value)
         elif isinstance(element.value, (UID, PersonName)):
             return str(element.value)
-        elif isinstance(element.value, DSfloat):
+        elif isinstance(element.value, (DSfloat, float)):
             return float(element.value)
-        elif isinstance(element.value, IS):
+        elif isinstance(element.value, (IS, int)):
             return int(element.value)
-        elif isinstance(element.value, (int, float)):
-            return element.value
         else:
             return str(element.value)[:50]
 

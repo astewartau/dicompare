@@ -91,7 +91,8 @@ body {
 
 .form-container button,
 .form-container input[type=file],
-.form-container input[type=text] {
+.form-container input[type=text],
+.form-container select {
     width: 100%;
     padding: 8px;
     margin-bottom: 12px;
@@ -99,6 +100,10 @@ body {
     border: 1px solid #ddd;
     border-radius: 4px;
     box-sizing: border-box
+}
+
+.form-container select {
+    font-size: 0.9em;
 }
 
 .form-container button {
