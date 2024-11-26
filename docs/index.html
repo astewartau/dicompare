@@ -1,195 +1,58 @@
 <!doctype html>
 <html>
-  <head>
-    <!-- Load Tagify first -->
-    <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
-    <link rel="icon" href="https://example.com/favicon.ico" type="image/x-icon">
-    <style>
-      /* General Layout */
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 20px;
-        background-color: #f9f9f9;
-        display: flex;
-        justify-content: center;
-      }
 
-    .form-container {
-      width: 90%;
-      max-width: 800px;
-      background-color: #fff;
-      padding: 20px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    /* Grid Layout for Rows */
-    .row {
-      display: grid;
-      grid-template-columns: 200px auto;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 15px;
-      font-weight: bold;
-    }
-
-    .row .tagify {
-      font-weight: normal;
-    }
-
-    .row input[type="text"],
-    .row input[type="file"] {
-      padding: 8px;
-      font-size: 14px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-
-    .row.grid {
-      display: grid;
-      grid-template-columns: auto auto 50px;
-      /* Label, Input, Button */
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 15px;
-    }
-
-    .row label {
-      text-align: right;
-    }
-
-    button {
-      padding: 8px 12px;
-      font-size: 14px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-
-    button.add {
-      background-color: #2196F3;
-      color: white;
-    }
-
-    button.delete {
-      background-color: #f44336;
-      color: white;
-    }
-
-    button.green {
-      background-color: #4CAF50;
-      color: white;
-    }
-
-    /* disabled button */
-    button:disabled {
-      background-color: #ccc;
-      color: #666;
-      cursor: not-allowed;
-    }
-
-    /* Containers for Acquisitions and Series */
-    .acquisition-container,
-    .series-container {
-      border: 1px solid #ddd;
-      padding: 15px;
-      border-radius: 4px;
-      background-color: #fdfdfd;
-      margin-bottom: 15px;
-      margin-top: 15px;
-    }
-
-    .series-container {
-      margin-left: 20px;
-      background-color: #f7f7f7;
-    }
-
-    /* Fields Layout */
-    .fields-container {
-      margin-top: 10px;
-    }
-
-    .fields-container .field-row.header {
-      display: grid;
-      grid-template-columns: 0fr 1fr 0fr 1fr 50px;
-      /* Empty space, Field, Empty space, Value, Button */
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-
-    .fields-container .field-row {
-      display: grid;
-      grid-template-columns: 0fr 1fr 0fr 1fr 50px;
-      /* Label, Input, Label, Input, Button */
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-
-    .fields-container .field-row input {
-      padding: 8px;
-      font-size: 14px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-
-    .fields-container .field-row button {
-      background-color: #f44336;
-      color: white;
-    }
-
-    button.add {
-      margin-top: 10px;
-      background-color: #2196F3;
-      color: white;
-    }
+<head>
+  <title>Session Reference & Compliance Generator</title>
+  <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+  <script src="https://unpkg.com/@popperjs/core@2"></script>
+  <script src="https://unpkg.com/tippy.js@6"></script>
+  <link rel="stylesheet" href="styles.css">
+  <style>
   </style>
-
 </head>
 
 <body>
-  <div class="form-container">
-    <h1>Session reference generator</h1>
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('sessionReferenceTab')">Generate Reference</div>
+    <div class="tab" onclick="switchTab('complianceReportTab')">Check Compliance</div>
+  </div>
+
+  <div id="sessionReferenceTab" class="form-container active">
+    <h1>Session Reference Generator</h1>
 
     <!-- DICOM Directory Selection -->
     <div class="row">
-      <label for="sessionFiles">Session DICOMs:</label>
-      <input type="file" id="sessionFiles" multiple webkitdirectory />
+      <label for="fmGenRef_DICOMs">Session DICOMs: <span class="info-icon"
+          data-tippy-content="The DICOMs that represent the reference session (ie. the session that subsequent sessions should be validated against).">ℹ️</span></label>
+      <input type="file" id="fmGenRef_DICOMs" multiple webkitdirectory />
     </div>
 
     <!-- Acquisition and Reference Fields -->
     <div class="row">
-      <label for="acquisitionFields">Acquisition Fields:</label>
-      <input type="text" id="acquisitionFields" placeholder="e.g., ProtocolName, SeriesInstanceUID" />
-    </div>
-    
-    <div class="row">
-      <label for="referenceFields">Reference Fields:</label>
-      <input type="text" id="referenceFields" placeholder="e.g., SeriesDescription, ImageType" />
+      <label for="fmGenRef_acquisitionFields">Acquisition fields: <span class="info-icon"
+          data-tippy-content="The combination of DICOM fields that uniquely identify an acquisition. These typically include ProtocolName and possibly SeriesDescription.">ℹ️</span></label>
+      <input type="text" id="fmGenRef_acquisitionFields" placeholder="e.g., ProtocolName, SeriesInstanceUID" />
     </div>
 
     <!-- Input for name template -->
     <div class="row">
-      <label for="nameTemplate">Acquisition name template:</label>
-      <input type="text" id="nameTemplate" placeholder="{ProtocolName}-{SeriesDescription}"
+      <label for="fmGenRef_acquisitionName">Acquisition name: <span class="info-icon"
+          data-tippy-content="The template that will be automatically used as the initial name for each acquisition. The names can be changed later.">ℹ️</span></label>
+      <input type="text" id="fmGenRef_acquisitionName" placeholder="{ProtocolName}-{SeriesDescription}"
         value="{ProtocolName}-{SeriesDescription}" />
+    </div>
+
+    <div class="row">
+      <label for="fmGenRef_referenceFields">Reference fields: <span class="info-icon"
+          data-tippy-content="The DICOM fields that should be validated in future acquisitions using the Compliance Checker.">ℹ️</span></label>
+      <input type="text" id="fmGenRef_referenceFields" placeholder="e.g., EchoTime, ImageType" />
     </div>
 
     <!-- Generate JSON Button -->
     <div class="row">
-      <button id="generateButton" class="green" onclick="generateJsonReference()" style="grid-column: span 2;"
+      <button id="fmGenRef_btnGenJSON" class="green" onclick="fmGenRef_genRef()" style="grid-column: span 2;"
         disabled>Generate JSON Reference</button>
     </div>
 
@@ -198,345 +61,65 @@
 
     <!-- Add Acquisition and Download JSON -->
     <div class="actions">
-      <button id="addAcquisition" class="add">Add Acquisition</button>
-      <button id="downloadJson" class="green" onclick="downloadJson()" disabled>Download JSON</button>
+      <button id="fmGenRef_btnAddAcquisition" class="add">Add Acquisition</button>
+      <button id="fmGenRef_btnDownloadJSON" class="green" onclick="fmGenRef_downloadJson()" disabled>Download
+        JSON</button>
     </div>
   </div>
 
+  <div id="complianceReportTab" class="form-container">
+    <h1>Compliance Report</h1>
+
+    <!-- Upload JSON and Compliance Report -->
+    <!-- <label for="fmCheck_selectJsonReference">Upload JSON Reference:</label>
+    <input type="file" id="fmCheck_selectJsonReference" accept=".json" />
+
+    <label for="fmCheck_selectDICOMs">Select DICOMs:</label>
+    <input type="file" id="fmCheck_selectDICOMs" multiple webkitdirectory />
+
+    <button id="fmCheck_btnGenCompliance" class="green" onclick="fmCheck_generateComplianceReport()" disabled>Generate Compliance
+      Report</button>
+    <div id="tableOutput"></div> -->
+
+    <!-- Switch to use rows etc. -->
+    <div class="row">
+      <label for="fmCheck_selectJsonReference">Session reference: <span class="info-icon" 
+          data-tippy-content="The JSON file that contains the reference session information.">ℹ️</span></label>
+      <input type="file" id="fmCheck_selectJsonReference" accept=".json" />
+    </div>
+
+    <div class="row">
+      <label for="fmCheck_selectDICOMs">Select DICOMs: <span class="info-icon"
+          data-tippy-content="The DICOMs that represent the session to be checked for compliance.">ℹ️</span></label>
+      <input type="file" id="fmCheck_selectDICOMs" multiple webkitdirectory />
+    </div>
+
+    <div class="row">
+      <button id="fmCheck_btnGenCompliance" class="green" onclick="fmCheck_generateComplianceReport()" disabled style="grid-column: span 2;">Generate
+        Compliance
+        Report</button>
+    </div>
+
+    <div id="tableOutput"></div>
+
+  </div>
+
   <script>
-    let pyodide;
-    let acquisitionFieldInput, referenceFieldInput;
-    let jsonData = { acquisitions: {} };
-    const generateButton = document.getElementById("generateButton");
-    const downloadButton = document.getElementById("downloadJson");
+    function switchTab(tabId) {
+      const tabs = document.querySelectorAll('.tab');
+      const containers = document.querySelectorAll('.form-container');
 
-    async function validateForm() {
-      valid = true;
-      if (!document.getElementById("sessionFiles").files.length) {
-        valid = false;
-      }
+      tabs.forEach(tab => tab.classList.remove('active'));
+      containers.forEach(container => container.classList.remove('active'));
 
-      // acquisitionFieldInput is a tagify object, so check getTagElms
-      if (acquisitionFieldInput.getTagElms().length === 0) {
-        valid = false;
-      }
-
-      if (referenceFieldInput.getTagElms().length === 0) {
-        valid = false;
-      }
-
-      generateButton.disabled = !valid;
-
-      return valid;
+      document.querySelector(`#${tabId}`).classList.add('active');
+      document.querySelector(`.tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
     }
-
-    async function initTagify() {
-      // Fetch the list of valid fields for Tagify
-      const response = await fetch('http://localhost:8000/valid_fields.json');
-      const validFields = await response.json();
-
-      // Set up acquisition fields
-      acquisitionFieldInput = new Tagify(document.getElementById("acquisitionFields"), {
-        whitelist: validFields,
-        enforceWhitelist: true,
-        dropdown: { enabled: 0, position: "all" },
-      });
-
-      // Add default values to Acquisition Fields
-      if (acquisitionFieldInput.value.length === 0) {
-        acquisitionFieldInput.addTags(["ProtocolName", "SeriesDescription"]);
-      }
-
-      // Set up reference fields
-      referenceFieldInput = new Tagify(document.getElementById("referenceFields"), {
-        whitelist: validFields,
-        enforceWhitelist: true,
-        dropdown: { enabled: 0, position: "all" },
-      });
-    }
-
-    async function initPyodide() {
-      const pyodideInstance = await loadPyodide(); // Use the library's `loadPyodide`
-      await pyodideInstance.loadPackage("micropip");
-
-      // Install `dcm-check` using micropip
-      await pyodideInstance.runPythonAsync(`
-            import micropip
-            await micropip.install("http://localhost:8000/dist/dcm_check-0.1.4-py3-none-any.whl")
-        `);
-
-      return pyodideInstance;
-    }
-
-    async function loadDICOMs() {
-      const files = document.getElementById("sessionFiles").files;
-      const dicomFiles = {};
-
-      for (let file of files) {
-        if (file.name.endsWith(".dcm") || file.name.endsWith(".IMA")) {
-          const slice = file.slice(0, 2048);
-          const fileContent = new Uint8Array(await slice.arrayBuffer());
-          dicomFiles[file.webkitRelativePath] = fileContent;
-        }
-      }
-
-      return dicomFiles;
-    }
-
-    async function generateJsonReference() {
-      generateButton.disabled = true;
-
-      if (!pyodide) {
-        generateButton.textContent = "Loading Pyodide...";
-        pyodide = await initPyodide(); // Call the corrected initialization function
-      }
-
-      generateButton.textContent = "Loading DICOMs...";
-      const dicomFiles = await loadDICOMs();
-      const acquisitionFields = acquisitionFieldInput.value.map(tag => tag.value);
-      const referenceFields = referenceFieldInput.value.map(tag => tag.value);
-
-      pyodide.globals.set("dicom_files", dicomFiles);
-      pyodide.globals.set("acquisition_fields", acquisitionFields);
-      pyodide.globals.set("reference_fields", referenceFields);
-
-      generateButton.textContent = "Generating JSON...";
-      const output = await pyodide.runPythonAsync(`
-        import json
-        from dcm_check import generate_json_ref
-
-        output = generate_json_ref(
-          acquisition_fields=acquisition_fields,
-          reference_fields=reference_fields,
-          name_template="{ProtocolName}-{SeriesDescription}",
-          dicom_files=dicom_files
-        )
-        json.dumps(output, indent=4)
-      `);
-
-      generateButton.textContent = "Parse JSON...";
-      jsonData = JSON.parse(output);
-      renderEditor(); // Render all acquisitions and their contents
-      downloadButton.disabled = false; // Enable the Download JSON button
-      generateButton.disabled = false;
-      generateButton.textContent = "Generate JSON Reference";
-    }
-
-    function renderEditor() {
-      const editor = document.getElementById("jsonEditor");
-      editor.innerHTML = ""; // Clear the editor
-
-      Object.entries(jsonData.acquisitions).forEach(([acqKey, acqData]) => {
-        const acqDiv = document.createElement("div");
-        acqDiv.className = "acquisition-container";
-
-        const readableName = acqKey.split('-')[0]; // Extract a human-readable name
-
-        // Acquisition Name and Delete Button
-        acqDiv.innerHTML = `
-          <div class="row grid">
-            <label>Acquisition:</label>
-            <input type="text" value="${readableName}" onchange="updateAcquisitionName('${acqKey}', this.value)">
-            <button class="delete" onclick="deleteAcquisition('${acqKey}')">🗑</button>
-          </div>
-        `;
-
-
-        // Acquisition Fields with Headers
-        const fieldsContainer = document.createElement("div");
-        fieldsContainer.className = "fields-container";
-
-        fieldsContainer.innerHTML = `
-          <div class="field-row header">
-            <span></span>
-            <span>Field</span>
-            <span></span>
-            <span>Value</span>
-            <span></span>
-          </div>
-        `;
-
-        acqData.fields.forEach((field, index) => {
-          const fieldValue = Array.isArray(field.value) ? JSON.stringify(field.value) : field.value;
-
-          fieldsContainer.innerHTML += `
-            <div class="field-row">
-              <label></label>
-              <input type="text" class="tagify" value="${field.field}" onchange="updateAcquisitionFieldName('${acqKey}', ${index}, this.value)">
-              <label></label>
-              <input type="text" value='${fieldValue}' onchange="updateAcquisitionFieldValue('${acqKey}', ${index}, this.value)">
-              <button class="delete" onclick="deleteAcquisitionField('${acqKey}', ${index})">🗑</button>
-            </div>
-          `;
-        });
-
-        fieldsContainer.innerHTML += `<button class="add" onclick="addAcquisitionField('${acqKey}')">Add Field</button>`;
-        acqDiv.appendChild(fieldsContainer);
-
-        // Series Section
-        const seriesContainer = document.createElement("div");
-        const seriesData = acqData.series || [];
-        seriesData.forEach((series, seriesIndex) => {
-          const seriesDiv = document.createElement("div");
-          seriesDiv.className = "series-container";
-
-          seriesDiv.innerHTML = `
-            <div class="row grid">
-              <label>Series:</label>
-              <input type="text" value="${series.name}" onchange="updateSeriesName('${acqKey}', ${seriesIndex}, this.value)">
-              <button class="delete" onclick="deleteSeries('${acqKey}', ${seriesIndex})">🗑</button>
-            </div>
-          `;
-
-
-          const seriesFieldsContainer = document.createElement("div");
-          seriesFieldsContainer.className = "fields-container";
-
-          seriesFieldsContainer.innerHTML = `
-            <div class="field-row header">
-              <span></span>
-              <span>Field</span>
-              <span></span>
-              <span>Value</span>
-              <span></span>
-            </div>
-          `;
-
-          series.fields.forEach((field, fieldIndex) => {
-            const fieldValue = Array.isArray(field.value) ? JSON.stringify(field.value) : field.value;
-
-            seriesFieldsContainer.innerHTML += `
-              <div class="field-row">
-                <label></label>
-                <input type="text" class="tagify" value="${field.field}" onchange="updateSeriesFieldName('${acqKey}', ${seriesIndex}, ${fieldIndex}, this.value)">
-                <label></label>
-                <input type="text" value='${fieldValue}' onchange="updateSeriesFieldValue('${acqKey}', ${seriesIndex}, ${fieldIndex}, this.value)">
-                <button class="delete" onclick="deleteSeriesField('${acqKey}', ${seriesIndex}, ${fieldIndex})">🗑</button>
-              </div>
-            `;
-          });
-
-          seriesFieldsContainer.innerHTML += `<button class="add" onclick="addSeriesField('${acqKey}', ${seriesIndex})">Add Field</button>`;
-          seriesDiv.appendChild(seriesFieldsContainer);
-
-          seriesContainer.appendChild(seriesDiv);
-        });
-
-        seriesContainer.innerHTML += `<button class="add" onclick="addSeries('${acqKey}')">Add Series</button>`;
-        acqDiv.appendChild(seriesContainer);
-
-        editor.appendChild(acqDiv);
-      });
-    }
-
-    function initializeTagify(inputElement) {
-      const validFields = acquisitionFieldInput.settings.whitelist; // Use whitelist from Tagify
-      new Tagify(inputElement, {
-        whitelist: validFields,
-        enforceWhitelist: true,
-        dropdown: { enabled: 0, position: "all" }
-      });
-    }
-
-    function updateAcquisitionFieldName(acqName, fieldIndex, newName) {
-      jsonData.acquisitions[acqName].fields[fieldIndex].field = newName;
-    }
-
-    function updateAcquisitionFieldValue(acqName, fieldIndex, newValue) {
-      jsonData.acquisitions[acqName].fields[fieldIndex].value = newValue;
-    }
-
-    function updateSeriesFieldName(acqName, seriesIndex, fieldIndex, newName) {
-      jsonData.acquisitions[acqName].series[seriesIndex].fields[fieldIndex].field = newName;
-    }
-
-    function updateSeriesFieldValue(acqName, seriesIndex, fieldIndex, newValue) {
-      jsonData.acquisitions[acqName].series[seriesIndex].fields[fieldIndex].value = newValue;
-    }
-
-    function deleteAcquisition(acqName) {
-      delete jsonData.acquisitions[acqName];
-      renderEditor();
-    }
-
-    function deleteAcquisitionField(acqName, fieldIndex) {
-      jsonData.acquisitions[acqName].fields.splice(fieldIndex, 1);
-      renderEditor();
-    }
-
-    function addAcquisitionField(acqName) {
-      jsonData.acquisitions[acqName].fields.push({ field: "", value: "" });
-      renderEditor();
-    }
-
-    function deleteSeries(acqName, seriesIndex) {
-      jsonData.acquisitions[acqName].series.splice(seriesIndex, 1);
-      renderEditor();
-    }
-
-    function addSeries(acqName) {
-      jsonData.acquisitions[acqName].series.push({ name: "", fields: [] });
-      renderEditor();
-    }
-
-    function deleteSeriesField(acqName, seriesIndex, fieldIndex) {
-      jsonData.acquisitions[acqName].series[seriesIndex].fields.splice(fieldIndex, 1);
-      renderEditor();
-    }
-
-    function addSeriesField(acqName, seriesIndex) {
-      jsonData.acquisitions[acqName].series[seriesIndex].fields.push({ field: "", value: "" });
-      renderEditor();
-    }
-
-    function updateAcquisitionName(oldName, newName) {
-      if (newName && !jsonData.acquisitions[newName]) {
-        jsonData.acquisitions[newName] = jsonData.acquisitions[oldName];
-        delete jsonData.acquisitions[oldName];
-        renderEditor();
-      }
-    }
-
-    function updateSeriesName(acqName, seriesIndex, newName) {
-      jsonData.acquisitions[acqName].series[seriesIndex].name = newName;
-    }
-
-    function downloadJson() {
-      const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "edited_json.json";
-      a.click();
-    }
-
-    document.getElementById("addAcquisition").addEventListener("click", () => {
-      // Generate a unique acquisition name
-      const newAcqName = `Acquisition${Object.keys(jsonData.acquisitions).length + 1}`;
-      jsonData.acquisitions[newAcqName] = { fields: [], series: [] };
-      renderEditor(); // Re-render the editor
-    });
-
-    // disable Generate JSON Reference button if no DICOM files are selected
-    document.getElementById("sessionFiles").addEventListener("change", () => {
-      validateForm();
-    });
-
-    // check if form is ready whene the DICOM selector, Acquisition Fields, or Reference Fields change
-    document.getElementById("acquisitionFields").addEventListener("change", () => {
-      setTimeout(() => {
-        validateForm();
-      }, 300);
-    });
-
-    // check if form is ready whene the DICOM selector, Acquisition Fields, or Reference Fields change
-    document.getElementById("referenceFields").addEventListener("change", () => {
-      setTimeout(() => {
-        validateForm();
-      }, 300);
-    });
-    initTagify();
   </script>
+
+  <script src="/home/ashley/repos/brainbench/docs/common.js"></script>
+  <script src="/home/ashley/repos/brainbench/docs/fmGenRef.js"></script>
+  <script src="/home/ashley/repos/brainbench/docs/fmCheck.js"></script>
 </body>
 
 </html>
