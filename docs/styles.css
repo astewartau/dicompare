@@ -37,6 +37,13 @@ h1 {
     color: #fff
 }
 
+.tab.right {
+    /* position to the top-right */
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+
 body {
     margin: 0;
     font-family: Arial, sans-serif;

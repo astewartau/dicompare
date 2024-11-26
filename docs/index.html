@@ -15,10 +15,14 @@
   <div class="tab-bar">
     <div class="tab active" onclick="switchTab('sessionReferenceTab')">Generate Reference</div>
     <div class="tab" onclick="switchTab('complianceReportTab')">Check Compliance</div>
+    <div class="tab right"><a href="https://github.com/astewartau/dcm-check" target="_blank">View on GitHub</a></div>
   </div>
 
   <div id="sessionReferenceTab" class="form-container active">
     <h1>Generate session reference</h1>
+
+    <p>This tool generates a JSON file that represents a reference session. This reference session can be used to check
+      future sessions for compliance with the reference session.</p>
 
     <!-- DICOM Directory Selection -->
     <div class="row">
@@ -68,8 +72,11 @@
   <div id="complianceReportTab" class="form-container">
     <h1>Check compliance</h1>
 
+    <p>This tool checks a session for compliance with a reference session. The reference session is a JSON file that
+      contains the expected values for each acquisition in the session.</p>
+
     <div class="row">
-      <label for="fmCheck_selectDICOMs">Select DICOMs: <span class="info-icon"
+      <label for="fmCheck_selectDICOMs">Session DICOMs: <span class="info-icon"
           data-tippy-content="The DICOMs that represent the session to be checked for compliance.">ℹ️</span></label>
       <input type="file" id="fmCheck_selectDICOMs" multiple webkitdirectory />
     </div>
