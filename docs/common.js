@@ -19,7 +19,7 @@ async function initTagify() {
 
     // Add default values to Acquisition Fields
     if (tagInputfmGenRef_acquisitionFields.value.length === 0) {
-        tagInputfmGenRef_acquisitionFields.addTags(["ProtocolName", "SeriesDescription"]);
+        tagInputfmGenRef_acquisitionFields.addTags(["ProtocolName"]);
     }
 
     // Set up reference fields

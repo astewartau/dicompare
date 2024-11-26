@@ -30,7 +30,7 @@
     <!-- Acquisition and Reference Fields -->
     <div class="row">
       <label for="fmGenRef_acquisitionFields">Acquisition fields: <span class="info-icon"
-          data-tippy-content="The combination of DICOM fields that uniquely identify an acquisition. These typically include ProtocolName and possibly SeriesDescription.">ℹ️</span></label>
+          data-tippy-content="The combination of DICOM fields that uniquely identify an acquisition within the reference session. These typically include ProtocolName and possibly SeriesDescription.">ℹ️</span></label>
       <input type="text" id="fmGenRef_acquisitionFields" placeholder="e.g., ProtocolName, SeriesInstanceUID" />
     </div>
 
@@ -38,8 +38,8 @@
     <div class="row">
       <label for="fmGenRef_acquisitionName">Acquisition name: <span class="info-icon"
           data-tippy-content="The template that will be automatically used as the initial name for each acquisition. The names can be changed later.">ℹ️</span></label>
-      <input type="text" id="fmGenRef_acquisitionName" placeholder="{ProtocolName}-{SeriesDescription}"
-        value="{ProtocolName}-{SeriesDescription}" />
+      <input type="text" id="fmGenRef_acquisitionName" placeholder="acq-{ProtocolName}"
+        value="acq-{ProtocolName}" />
     </div>
 
     <div class="row">
@@ -68,18 +68,6 @@
   <div id="complianceReportTab" class="form-container">
     <h1>Compliance Report</h1>
 
-    <!-- Upload JSON and Compliance Report -->
-    <!-- <label for="fmCheck_selectJsonReference">Upload JSON Reference:</label>
-    <input type="file" id="fmCheck_selectJsonReference" accept=".json" />
-
-    <label for="fmCheck_selectDICOMs">Select DICOMs:</label>
-    <input type="file" id="fmCheck_selectDICOMs" multiple webkitdirectory />
-
-    <button id="fmCheck_btnGenCompliance" class="green" onclick="fmCheck_generateComplianceReport()" disabled>Generate Compliance
-      Report</button>
-    <div id="tableOutput"></div> -->
-
-    <!-- Switch to use rows etc. -->
     <div class="row">
       <label for="fmCheck_selectJsonReference">Session reference: <span class="info-icon" 
           data-tippy-content="The JSON file that contains the reference session information.">ℹ️</span></label>
