@@ -10,9 +10,9 @@ from .io import \
     read_dicom_session
 
 from .compliance_check import \
-    get_dicom_compliance, \
-    is_compliant, \
-    get_session_compliance
+    check_dicom_compliance, \
+    is_dicom_compliant, \
+    check_session_compliance
 
 from .cli.dcm_gen_session import \
     generate_json_ref 
