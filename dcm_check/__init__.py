@@ -9,7 +9,7 @@ from .io import \
     read_json_session, \
     read_dicom_session
 
-from .compliance_check import \
+from .check_compliance import \
     check_dicom_compliance, \
     is_dicom_compliant, \
     check_session_compliance
