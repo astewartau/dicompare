@@ -1,27 +1,9 @@
 __version__ = "0.1.6"
 
-from .io import \
-    get_dicom_values, \
-    load_dicom, \
-    create_reference_model, \
-    load_ref_dict, \
-    load_ref_pydantic, \
-    read_json_session, \
-    read_dicom_session
+# Import core functionalities
+from .io import get_dicom_values, load_dicom, read_json_session, read_dicom_session
+from .models import create_reference_model, load_ref_dict, load_ref_pydantic
+from .compliance import check_dicom_compliance, is_dicom_compliant, check_session_compliance
+from .mapping import calculate_field_score, calculate_match_score, map_session, interactive_mapping
+from .utils import clean_string, infer_type_from_extension
 
-from .check_compliance import \
-    check_dicom_compliance, \
-    is_dicom_compliant, \
-    check_session_compliance
-
-from .cli.dcm_gen_session import \
-    generate_json_ref 
-    
-from .session_mapping import \
-    calculate_field_score, \
-    calculate_match_score, \
-    map_session, \
-    interactive_mapping
-
-from .utils import \
-    clean_string

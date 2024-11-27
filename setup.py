@@ -19,10 +19,8 @@ setup(
     py_modules=["dcm_check"],
     entry_points={
         "console_scripts": [
-            "dcm-check=dcm_check.cli.dcm_check:main",
-            "dcm-gen-session=dcm_check.cli.dcm_gen_session:main",
-            "dcm-read-session=dcm_check.cli.dcm_read_session:main",
-            "dcm-check-session=dcm_check.cli.dcm_check_session:main",
+            "dcm-gen-session=dcm_check.cli.gen_session:main",
+            "dcm-check-session=dcm_check.cli.check_session:main"
         ]
     },
     install_requires=[

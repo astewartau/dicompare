@@ -276,3 +276,4 @@ def interactive_mapping(df, acquisitions_info):
 
     curses.wrapper(interactive_loop, df)
     return df
+
