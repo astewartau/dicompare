@@ -7,13 +7,6 @@ import sys
 import os
 
 from tabulate import tabulate
-from dcm_check import (
-    load_ref_json,
-    load_ref_dicom,
-    load_ref_pydantic,
-    get_compliance_summary,
-    load_dicom
-)
 
 def infer_type_from_extension(ref_path):
     """Infer the reference type based on the file extension."""
@@ -62,7 +55,7 @@ def main():
         sys.exit(1)
 
     in_dicom_values = load_dicom(args.in_file)
-    results = get_compliance_summary(reference_model, in_dicom_values, args.acquisition, args.series)
+    results = get_dicom_compliance(reference_model, in_dicom_values, args.acquisition, args.series)
 
     df = pd.DataFrame(results)
 

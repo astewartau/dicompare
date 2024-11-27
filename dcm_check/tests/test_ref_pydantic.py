@@ -1,5 +1,5 @@
 import pytest
-from dcm_check import load_ref_pydantic, is_compliant, get_compliance_summary
+from dcm_check import load_ref_pydantic, is_compliant, get_dicom_compliance
 
 @pytest.fixture
 def t1_mpr_dicom_values():
@@ -59,7 +59,7 @@ def test_t1_mpr_compliance(t1_mpr_dicom_values):
     assert is_compliant(t1_mpr_model, t1_mpr_dicom_values)
 
     # Test get_compliance_summary
-    compliance_summary = get_compliance_summary(t1_mpr_model, t1_mpr_dicom_values)
+    compliance_summary = get_dicom_compliance(t1_mpr_model, t1_mpr_dicom_values)
     assert len(compliance_summary) == 0  # Should be no errors if values are valid
 
 def test_t1_mpr_compliance_summary_invalid(invalid_t1_mpr_dicom_values):
@@ -71,7 +71,7 @@ def test_t1_mpr_compliance_summary_invalid(invalid_t1_mpr_dicom_values):
     assert not is_compliant(t1_mpr_model, invalid_t1_mpr_dicom_values)
 
     # Get compliance summary for errors
-    compliance_summary = get_compliance_summary(t1_mpr_model, invalid_t1_mpr_dicom_values)
+    compliance_summary = get_dicom_compliance(t1_mpr_model, invalid_t1_mpr_dicom_values)
     assert len(compliance_summary) > 0  # Expect some errors
 
     # Example check for specific errors
@@ -94,7 +94,7 @@ def test_t1_mpr_repetition_vs_echo_rule(t1_mpr_dicom_values):
     assert not is_compliant(t1_mpr_model, t1_mpr_dicom_values)
 
     # Check compliance summary
-    compliance_summary = get_compliance_summary(t1_mpr_model, t1_mpr_dicom_values)
+    compliance_summary = get_dicom_compliance(t1_mpr_model, t1_mpr_dicom_values)
 
     assert len(compliance_summary) > 0
     assert compliance_summary[0]["Parameter"] == "Model-Level Error"
@@ -134,7 +134,7 @@ def test_diffusion_config_non_compliance():
     assert not is_compliant(diffusion_model, invalid_diffusion_values)
 
     # Check compliance summary
-    compliance_summary = get_compliance_summary(diffusion_model, invalid_diffusion_values)
+    compliance_summary = get_dicom_compliance(diffusion_model, invalid_diffusion_values)
     print(compliance_summary)
     assert len(compliance_summary) == 6
     error_params = [error["Parameter"] for error in compliance_summary]

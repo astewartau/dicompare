@@ -4,7 +4,7 @@ import pytest
 import json
 from io import BytesIO
 
-from dcm_check import load_ref_json, load_dicom, get_compliance_summary, is_compliant, get_compliance_summaries_json
+from dcm_check import load_ref_json, load_dicom, get_dicom_compliance, is_compliant, get_compliance_summaries_json
 from dcm_check.tests.utils import create_empty_dicom
 from pydantic_core import PydanticUndefined
 from typing import Literal
@@ -210,7 +210,7 @@ def test_json_compliance_within_tolerance_with_dcm(json_ref_with_dcm, dicom_test
 
     # Adjust EchoTime within tolerance (original value is 3.0, tolerance 0.1)
     t1_dicom_values["EchoTime"] = 3.05
-    compliance_summary = get_compliance_summary(reference_model, t1_dicom_values)
+    compliance_summary = get_dicom_compliance(reference_model, t1_dicom_values)
 
     assert is_compliant(reference_model, t1_dicom_values)
     assert len(compliance_summary) == 0
@@ -222,7 +222,7 @@ def test_json_compliance_outside_tolerance_with_dcm(json_ref_with_dcm, dicom_tes
 
     # Adjust EchoTime beyond tolerance (original value is 3.0, tolerance 0.1)
     t1_dicom_values["EchoTime"] = 3.2
-    compliance_summary = get_compliance_summary(reference_model, t1_dicom_values)
+    compliance_summary = get_dicom_compliance(reference_model, t1_dicom_values)
     assert len(compliance_summary) == 1
     assert compliance_summary[0]["Parameter"] == "EchoTime"
     assert compliance_summary[0]["Expected"] == "Input should be less than or equal to 3.1"
@@ -235,7 +235,7 @@ def test_json_compliance_pattern_match(json_ref_no_dcm, dicom_test_file):
 
     # Change SeriesDescription to match pattern "*T1*"
     t1_dicom_values["SeriesDescription"] = "Another_T1_Sequence"
-    compliance_summary = get_compliance_summary(reference_model, t1_dicom_values)
+    compliance_summary = get_dicom_compliance(reference_model, t1_dicom_values)
     assert len(compliance_summary) == 0  # Should pass pattern match
 
 def test_load_dicom_from_bytes(dicom_test_bytes):
@@ -255,7 +255,7 @@ def test_json_compliance_within_tolerance_with_dicom_bytes(json_ref_with_dcm, di
 
     # Adjust EchoTime within tolerance (original value is 3.0, tolerance 0.1)
     t1_dicom_values["EchoTime"] = 3.05
-    compliance_summary = get_compliance_summary(reference_model, t1_dicom_values)
+    compliance_summary = get_dicom_compliance(reference_model, t1_dicom_values)
 
     assert is_compliant(reference_model, t1_dicom_values)
     assert len(compliance_summary) == 0
@@ -267,7 +267,7 @@ def test_json_compliance_outside_tolerance_with_dicom_bytes(json_ref_with_dcm, d
 
     # Adjust EchoTime beyond tolerance (original value is 3.0, tolerance 0.1)
     t1_dicom_values["EchoTime"] = 3.2
-    compliance_summary = get_compliance_summary(reference_model, t1_dicom_values)
+    compliance_summary = get_dicom_compliance(reference_model, t1_dicom_values)
     assert len(compliance_summary) == 1
     assert compliance_summary[0]["Parameter"] == "EchoTime"
     assert compliance_summary[0]["Expected"] == "Input should be less than or equal to 3.1"
@@ -280,7 +280,7 @@ def test_json_compliance_pattern_match_with_dicom_bytes(json_ref_no_dcm, dicom_t
 
     # Change SeriesDescription to match pattern "*T1*"
     t1_dicom_values["SeriesDescription"] = "Another_T1_Sequence"
-    compliance_summary = get_compliance_summary(reference_model, t1_dicom_values)
+    compliance_summary = get_dicom_compliance(reference_model, t1_dicom_values)
     assert len(compliance_summary) == 0  # Should pass pattern match
 
 def test_compliance_summaries_multiple_dicoms(json_ref_multiple_dicom, dicom_test_bytes_group):

@@ -1,11 +1,10 @@
-import os
-import json
+#!/usr/bin/env python
+
 import pandas as pd
 import argparse
 import re
-from typing import Optional, Union, Dict, Any
+import numpy as np
 from scipy.optimize import linear_sum_assignment
-from dcm_check import load_dicom
 
 try:
     import curses
@@ -69,15 +68,31 @@ def calculate_field_score(expected, actual, tolerance=None, contains=None):
     
     return min(MAX_DIFF_SCORE, levenshtein_distance(str(expected), str(actual)))
 
-def calculate_match_score(acquisition, series_row):
-    """Calculate the capped total difference score between an acquisition and a DICOM entry."""
+def calculate_match_score(ref_row, in_row):
+    """
+    Calculate the difference score between a reference row and an input row.
+    
+    Args:
+        ref_row (dict): A dictionary representing a reference acquisition or series.
+        in_row (dict): A dictionary representing an input acquisition or series.
+
+    Returns:
+        float: Total difference score.
+    """
     diff_score = 0.0
-    for field, expected_value in acquisition["fields"].items():
-        actual_value = series_row.get(field, "N/A")
-        tolerance = acquisition.get("tolerance", {}).get(field)
-        contains = acquisition.get("contains", {}).get(field)
-        diff = calculate_field_score(expected_value, actual_value, tolerance=tolerance, contains=contains)
+
+    in_fields = in_row.get("fields", [])
+
+    for ref_field in ref_row.get("fields", []):
+        expected = ref_field.get("value")
+        tolerance = ref_field.get("tolerance")
+        contains = ref_field.get("contains")
+        in_field = next((f for f in in_fields if f["field"] == ref_field["field"]), {})
+        actual = in_field.get("value")
+
+        diff = calculate_field_score(expected, actual, tolerance=tolerance, contains=contains)
         diff_score += diff
+
     return round(diff_score, 2)
 
 def find_closest_matches(session_df, acquisitions_info):
@@ -122,116 +137,79 @@ def find_closest_matches(session_df, acquisitions_info):
 
     return best_acquisitions, best_series, best_scores
 
-def read_session(
-    reference_json: str,
-    session_dir: Optional[str] = None,
-    dicom_bytes: Optional[Union[Dict[str, bytes], Any]] = None,
-    return_acquisitions_info: bool = False
-):
+def json_to_dataframe(json_data: dict):
     """
-    Read a DICOM session directory or DICOM files dictionary and map it to the closest acquisitions and series in a reference JSON file.
+    Convert a JSON-like dictionary structure into a DataFrame.
+    """
+    rows = []
+
+    for acq_name, acquisition in json_data.get("acquisitions", {}).items():
+        acq_fields = {field["field"]: field.get("value", None) for field in acquisition.get("fields", [])}
+
+        if not acquisition.get("series"):
+            rows.append({"Acquisition": acq_name, "Series": None, **acq_fields})
+        else:
+            for series in acquisition["series"]:
+                series_fields = {field["field"]: field.get("value", None) for field in series.get("fields", [])}
+                rows.append({"Acquisition": acq_name, "Series": series["name"], **acq_fields, **series_fields})
+
+    return pd.DataFrame(rows)
+
+def map_session(in_session, ref_session):
+    """
+    Map an input session to a reference session to find the closest acquisitions and series
+    using the Hungarian algorithm to minimize total cost.
 
     Args:
-        reference_json (str): Path to the JSON reference file.
-        session_dir (Optional[str]): Directory path containing DICOM files for the session.
-        dicom_bytes (Optional[Union[Dict[str, bytes], Any]]): Dictionary of DICOM files as byte content.
-        return_acquisitions_info (bool): If True, returns acquisitions_info for dynamic score recalculation.
+        in_session (dict): Input session data returned by `read_session`.
+        ref_session (dict): Reference session data returned by `read_json_session`.
 
     Returns:
-        pd.DataFrame: DataFrame containing matched acquisitions and series with scores.
-        acquisitions_info (optional): List of acquisitions and series info, used for score recalculation.
+        dict: Mapping of (input_acquisition, input_series) -> (reference_acquisition, reference_series).
     """
-    if session_dir is None and dicom_bytes is None:
-        raise ValueError("Either session_dir or dicom_bytes must be provided.")
+    input_acquisitions = in_session["acquisitions"]
+    reference_acquisitions = ref_session["acquisitions"]
 
-    with open(reference_json, 'r') as f:
-        reference_data = json.load(f)
+    input_keys = []
+    reference_keys = []
+    cost_matrix = []
 
-    acquisitions_info = [
-        {
-            "name": acq_name,
-            "fields": {field["field"]: field.get("value", field.get("contains")) for field in acquisition.get("fields", [])},
-            "tolerance": {field["field"]: field["tolerance"] for field in acquisition.get("fields", []) if "tolerance" in field},
-            "contains": {field["field"]: field["contains"] for field in acquisition.get("fields", []) if "contains" in field},
-            "series": [
-                {
-                    "name": series["name"],
-                    "fields": {field["field"]: field.get("value", field.get("contains")) for field in series.get("fields", [])},
-                    "tolerance": {field["field"]: field["tolerance"] for field in series.get("fields", []) if "tolerance" in field},
-                    "contains": {field["field"]: field["contains"] for field in series.get("fields", []) if "contains" in field}
-                }
-                for series in acquisition.get("series", [])
-            ]
-        }
-        for acq_name, acquisition in reference_data.get("acquisitions", {}).items()
-    ]
+    # Prepare input and reference keys and calculate the cost matrix
+    for in_acq_name, in_acq in input_acquisitions.items():
+        in_acq_series = in_acq.get("series", [])
+        for in_series in in_acq_series:
+            in_key = (in_acq_name, in_series["name"])
+            input_keys.append(in_key)
 
-    all_fields = {field for acq in acquisitions_info for field in acq["fields"].keys()}
-    all_fields.update({field for acq in acquisitions_info for series in acq["series"] for field in series["fields"].keys()})
+            row = []
+            for ref_acq_name, ref_acq in reference_acquisitions.items():
+                ref_acq_series = ref_acq.get("series", [])
+                for ref_series in ref_acq_series:
+                    ref_key = (ref_acq_name, ref_series["name"])
+                    if ref_key not in reference_keys:
+                        reference_keys.append(ref_key)
 
-    session_data = []
+                    # Calculate the cost of assigning in_key to ref_key
+                    acq_score = calculate_match_score(ref_acq, in_acq)
+                    series_score = calculate_match_score(ref_series, in_series)
+                    total_score = acq_score + series_score
+                    row.append(total_score)
 
-    # Convert JsProxy to a Python dictionary if necessary
-    if dicom_bytes is not None:
-        if hasattr(dicom_bytes, "to_py"):  # Check if it's a JsProxy object
-            dicom_bytes = dicom_bytes.to_py()
-            
-        for dicom_path, dicom_content in dicom_bytes.items():
-            dicom_values = load_dicom(dicom_content)
-            dicom_entry = {
-                field: tuple(dicom_values[field]) if isinstance(dicom_values.get(field), list)
-                else dicom_values.get(field, "N/A")
-                for field in all_fields
-            }
-            dicom_entry["DICOM_Path"] = dicom_path
-            dicom_entry["DICOM_Binary"] = dicom_content  # Store DICOM content as binary
-            dicom_entry["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
-            session_data.append(dicom_entry)
-    else:
-        for root, _, files in os.walk(session_dir):
-            for file in files:
-                if file.endswith((".dcm", ".IMA")):
-                    dicom_path = os.path.join(root, file)
-                    dicom_values = load_dicom(dicom_path)
-                    dicom_entry = {
-                        field: tuple(dicom_values[field]) if isinstance(dicom_values.get(field), list)
-                        else dicom_values.get(field, "N/A")
-                        for field in all_fields
-                    }
-                    dicom_entry["DICOM_Path"] = dicom_path
-                    dicom_entry["DICOM_Binary"] = None
-                    dicom_entry["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
-                    session_data.append(dicom_entry)
+            cost_matrix.append(row)
 
-    session_df = pd.DataFrame(session_data)
+    # Convert cost_matrix to a numpy array for processing
+    cost_matrix = np.array(cost_matrix)
 
-    if "InstanceNumber" in session_df.columns:
-        session_df.sort_values("InstanceNumber", inplace=True)
-    else:
-        session_df.sort_values("DICOM_Path", inplace=True)
+    # Solve the assignment problem using the Hungarian algorithm
+    row_indices, col_indices = linear_sum_assignment(cost_matrix)
 
-    dedup_fields = all_fields
-    series_count_df = (
-        session_df.groupby(list(dedup_fields))
-        .agg(First_DICOM=('DICOM_Path', 'first'), DICOM_Binary=('DICOM_Binary', 'first'), Count=('DICOM_Path', 'size'))
-        .reset_index()
-    )
+    # Create the mapping
+    mapping = {}
+    for row, col in zip(row_indices, col_indices):
+        if row < len(input_keys) and col < len(reference_keys):
+            mapping[input_keys[row]] = reference_keys[col]
 
-    # Assuming `find_closest_matches` is defined elsewhere
-    acquisitions, series, scores = find_closest_matches(series_count_df, acquisitions_info)
-
-    series_count_df["Acquisition"] = acquisitions
-    series_count_df["Series"] = series
-    series_count_df["Match_Score"] = scores
-
-    acquisition_fields = {field for acq in acquisitions_info for field in acq["fields"].keys()}
-    series_fields = {field for acq in acquisitions_info for series in acq["series"] for field in series["fields"].keys() if field not in acquisition_fields}
-    ordered_headers = list(acquisition_fields) + list(series_fields) + ["First_DICOM", "DICOM_Binary", "Count", "Acquisition", "Series", "Match_Score"]
-    series_count_df = series_count_df[ordered_headers]
-    series_count_df.sort_values(["Acquisition", "Series", "Match_Score"], inplace=True)
-    if return_acquisitions_info:
-        return series_count_df, acquisitions_info
-    return series_count_df
+    return mapping
 
 def interactive_mapping(df, acquisitions_info):
     """
@@ -368,7 +346,7 @@ def main():
     parser.add_argument("--session_dir", required=True, help="Directory containing DICOM files for the session.")
     args = parser.parse_args()
     
-    df, acquisitions_info = read_session(args.ref, args.session_dir, return_acquisitions_info=True)  # Adjusted read_session to return acquisitions_info
+    df, acquisitions_info = map_session(args.ref, args.session_dir, return_acquisitions_info=True)  # Adjusted map_session to return acquisitions_info
     # Drop First_DICOM and Count for display
     df.drop(columns=["First_DICOM", "Count"], inplace=True)
 

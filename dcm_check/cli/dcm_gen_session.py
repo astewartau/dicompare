@@ -21,7 +21,7 @@ def generate_json_ref(
     name_template="{ProtocolName}-{SeriesDescription}",
     dicom_files: Optional[Union[Dict[str, bytes], Any]] = None
 ):
-    """Generate a JSON reference for DICOM compliance.
+    """Generate a JSON reference for DICOM compliance with at least one series per acquisition.
 
     Args:
         in_session_dir (Optional[str]): Directory containing DICOM files for the session.
@@ -31,11 +31,8 @@ def generate_json_ref(
         dicom_files (Optional[Dict[str, bytes]]): In-memory dictionary of DICOM files.
 
     Returns:
-        output (dict): JSON structure with acquisition data.
+        dict: JSON structure with acquisition data.
     """
-
-    # === Initialisation ===
-    # =======================
 
     acquisitions = {}
     dicom_data = []
@@ -51,17 +48,10 @@ def generate_json_ref(
     elif not isinstance(reference_fields, list):
         reference_fields = list(reference_fields)
 
-    # If dicom_files is provided as a JsProxy, convert it to a dictionary
-    if dicom_files is not None:
-        if hasattr(dicom_files, "to_py"):
-            dicom_files = dicom_files.to_py()  # Convert JsProxy to Python dict
-
     # Process either in_session_dir or dicom_files
     if dicom_files is not None:
-        print(f"Generating JSON reference for provided DICOM files")
         files_to_process = dicom_files.items()
     elif in_session_dir:
-        print(f"Generating JSON reference for DICOM files in {in_session_dir}")
         files_to_process = [
             (os.path.join(root, file), None) for root, _, files in os.walk(in_session_dir)
             for file in files if file.endswith((".dcm", ".IMA"))
@@ -69,130 +59,85 @@ def generate_json_ref(
     else:
         raise ValueError("Either in_session_dir or dicom_files must be provided.")
 
-    # === Create a DataFrame from DICOM data ===
-    # ==========================================
-
     # Load and process each DICOM file
     for dicom_path, dicom_content in files_to_process:
-
-        # Load DICOM
         dicom_values = load_dicom(dicom_content or dicom_path)
-
-        # Check required fields
-        for field in acquisition_fields + reference_fields:
-            if field not in dicom_values:
-                print(f"Warning: Field '{field}' not found in DICOM data.", file=sys.stderr)
-        
-        # Store DICOM data
         dicom_entry = {field: dicom_values.get(field, "N/A") for field in acquisition_fields + reference_fields if field in dicom_values}
         dicom_entry['dicom_path'] = dicom_path
         dicom_data.append(dicom_entry)
 
-    # Convert collected DICOM data to a DataFrame and proceed as before
+    # Convert collected DICOM data to a DataFrame
     dicom_df = pd.DataFrame(dicom_data)
-
-    # === Process the DataFrame to generate JSON reference ===
-    # ========================================================
 
     # Handle list-type entries for duplicate detection
     for field in acquisition_fields + reference_fields:
         if field not in dicom_df.columns:
-            print(f"Error: Field '{field}' not found in DICOM data.", file=sys.stderr)
             continue
         if dicom_df[field].apply(lambda x: isinstance(x, list)).any():
             dicom_df[field] = dicom_df[field].apply(lambda x: tuple(x) if isinstance(x, list) else x)
 
-    # Sort the DataFrame by acquisition fields and reference fields
-    sort_order = acquisition_fields + reference_fields
-    dicom_df = dicom_df.sort_values(by=sort_order).reset_index(drop=True)
-
-    # Drop duplicates based on unique acquisition fields
+    # Sort and process the DataFrame
+    dicom_df = dicom_df.sort_values(by=acquisition_fields + reference_fields).reset_index(drop=True)
     unique_series_df = dicom_df.drop_duplicates(subset=acquisition_fields)
 
-    print(f"Found {len(unique_series_df)} unique series in {in_session_dir}")
-
-    # Iterate over unique series in the DataFrame
     id = 1
     for _, unique_row in unique_series_df.iterrows():
-        # Filter rows that match the acquisition fields in this row
         series_df = dicom_df[dicom_df[acquisition_fields].eq(unique_row[acquisition_fields]).all(axis=1)]
-
-        # Dictionary to store unique groups of reference fields
         unique_groups = {}
 
-        # Track reference fields that are constant across all groups
-        constant_reference_fields = {}
+        # Ensure there is always at least one group
+        if series_df.empty:
+            series_df = pd.DataFrame([unique_row])
 
-        # Group by reference field combinations and gather representative paths
+        # Create groups by reference field combinations
         for _, group_row in series_df.drop(columns=acquisition_fields).drop_duplicates().iterrows():
-            # Create a tuple for the current field combination
             group_values = tuple((field, group_row[field]) for field in reference_fields)
-
-            # Check if this combination is already stored
             if group_values not in unique_groups:
                 unique_groups[group_values] = group_row['dicom_path']
 
-        # Identify constant reference fields across groups
-        for field in reference_fields:
-            unique_values = series_df[field].unique()
-            if len(unique_values) == 1:
-                constant_reference_fields[field] = unique_values[0]
-
-        # Remove constant fields from the groups and only include changing fields
         groups = []
         group_number = 1
         for group, ref_path in unique_groups.items():
-            group_fields = [
-                {"field": field, "value": value}
-                for field, value in group if field not in constant_reference_fields
-            ]
-            if group_fields:
-                groups.append({
-                    "name": f"Series {group_number}",  # Assign default name
-                    "fields": group_fields,
-                    "ref": ref_path
-                })
-                group_number += 1
+            group_fields = [{"field": field, "value": value} for field, value in group]
+            groups.append({
+                "name": f"Series {group_number}",
+                "fields": group_fields,
+                "ref": ref_path
+            })
+            group_number += 1
 
-        # Format the series name based on the template using MissingFieldDict to handle missing keys
+        # Ensure there is at least one series
+        if not groups:
+            ref_path = series_df.iloc[0]['dicom_path']
+            group_fields = [{"field": field, "value": unique_row[field]} for field in reference_fields]
+            groups.append({
+                "name": "Series 1",
+                "fields": group_fields,
+                "ref": ref_path
+            })
+
+        # Format the series name using the template
         try:
             series_name = name_template.format_map(MissingFieldDict(unique_row.to_dict()))
         except KeyError as e:
             print(f"Error formatting series name: Missing field '{e.args[0]}'.", file=sys.stderr)
             continue
 
-        # Ensure series_name is unique by appending an index if necessary
         final_series_name = series_name if series_name not in acquisitions else f"{series_name}_{id}"
         id += 1
 
-        # Add acquisition-level fields and values
+        # Add acquisition-level fields
         acquisition_fields_list = [{"field": field, "value": unique_row[field]} for field in acquisition_fields]
 
-        # Include constant reference fields in the acquisition-level fields
-        acquisition_fields_list.extend(
-            [{"field": field, "value": value} for field, value in constant_reference_fields.items()]
-        )
+        # Always include series, even if reference fields are constant
+        acquisitions[final_series_name] = {
+            "ref": unique_row['dicom_path'],
+            "fields": acquisition_fields_list,
+            "series": groups
+        }
 
-        # Decide whether to include groups or inline reference fields
-        if groups:
-            acquisitions[final_series_name] = {
-                "ref": unique_row['dicom_path'],
-                "fields": acquisition_fields_list,
-                "series": groups
-            }
-        else:
-            # No changing groups, so we store only the acquisition-level fields
-            acquisitions[final_series_name] = {
-                "ref": unique_row['dicom_path'],
-                "fields": acquisition_fields_list
-            }
+    return {"acquisitions": acquisitions}
 
-    # Build the JSON output structure
-    output = {
-        "acquisitions": acquisitions
-    }
-
-    return output
 
 
 def main():
