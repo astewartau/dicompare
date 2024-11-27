@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 from pydicom.dataset import Dataset
 
-from dcm_check import load_dicom, is_dicom_compliant, check_dicom_compliance, load_ref_dicom, get_dicom_values
+from dcm_check import load_dicom, is_dicom_compliant, check_dicom_compliance, get_dicom_values
 from dcm_check.tests.utils import create_empty_dicom
 
 @pytest.fixture
@@ -63,100 +63,6 @@ def test_load_dicom(tmp_path, t1):
     t1.save_as(dicom_path, enforce_file_format=True)
     dicom_values = load_dicom(dicom_path)
     assert dicom_values["SeriesDescription"] == "T1-weighted"
-
-def test_dicom_compliance_identity(t1):
-    t1_values = get_dicom_values(t1)
-    reference = load_ref_dicom(t1_values, fields=None)
-    assert is_dicom_compliant(reference_model=reference, dicom_values=t1_values)
-    assert len(check_dicom_compliance(reference_model=reference, dicom_values=t1_values)) == 0
-
-def test_dicom_compliance_specific_fields_compliant(t1):
-    t1_values = get_dicom_values(t1)
-    reference = load_ref_dicom(t1_values, fields=["RepetitionTime", "EchoTime", "InversionTime"])
-    t1_values["SliceThickness"] = 2.0
-    assert is_dicom_compliant(reference_model=reference, dicom_values=t1_values)
-    assert len(check_dicom_compliance(reference_model=reference, dicom_values=t1_values)) == 0
-
-def test_dicom_compliance_specific_fields_non_compliant(t1):
-    t1_values = get_dicom_values(t1)
-    reference = load_ref_dicom(t1_values, fields=["RepetitionTime", "EchoTime", "InversionTime"])
-    t1_values["RepetitionTime"] = 8.1
-
-    assert not is_dicom_compliant(reference_model=reference, dicom_values=t1_values)
-
-    compliance_summary = check_dicom_compliance(reference_model=reference, dicom_values=t1_values)
-    assert len(compliance_summary) == 1
-    assert compliance_summary[0]["Parameter"] == "RepetitionTime"
-    assert compliance_summary[0]["Expected"] == "8.0"
-    assert compliance_summary[0]["Value"] == 8.1
-
-def test_dicom_compliance_small_change(t1):
-    t1_values = get_dicom_values(t1)
-    reference = load_ref_dicom(t1_values, fields=None)
-
-    t1_values["RepetitionTime"] = 8.1
-
-    assert not is_dicom_compliant(reference_model=reference, dicom_values=t1_values)
-
-    compliance_summary = check_dicom_compliance(reference_model=reference, dicom_values=t1_values)
-    assert len(compliance_summary) == 1
-    assert compliance_summary[0]["Parameter"] == "RepetitionTime"
-    assert compliance_summary[0]["Expected"] == "8.0"
-    assert compliance_summary[0]["Value"] == 8.1
-
-def test_dicom_compliance_num_errors(t1):
-    t1_values = get_dicom_values(t1)
-    reference = load_ref_dicom(t1_values, fields=None)
-
-    t1_values["RepetitionTime"] = 8.1
-    t1_values["EchoTime"] = 3.1
-    t1_values["InversionTime"] = 400.1
-
-    assert len(check_dicom_compliance(reference_model=reference, dicom_values=t1_values)) == 3
-
-def test_dicom_compliance_error_message(t1):
-    t1_values = get_dicom_values(t1)
-    reference = load_ref_dicom(t1_values, fields=None)
-
-    t1_values["RepetitionTime"] = 8.1
-    t1_values["EchoTime"] = 3.1
-    t1_values["InversionTime"] = 400.1
-
-    errors = check_dicom_compliance(reference_model=reference, dicom_values=t1_values)
-
-    assert errors[0]["Parameter"] == "RepetitionTime"
-    assert errors[1]["Parameter"] == "EchoTime"
-    assert errors[2]["Parameter"] == "InversionTime"
-    assert errors[0]["Expected"] == "8.0"
-    assert errors[1]["Expected"] == "3.0"
-    assert errors[2]["Expected"] == "400.0"
-    assert errors[0]["Value"] == 8.1
-    assert errors[1]["Value"] == 3.1
-    assert errors[2]["Value"] == 400.1
-
-def test_dicom_compliance_error_message_missing_field(t1):
-    t1_values = get_dicom_values(t1)
-    reference = load_ref_dicom(t1_values, fields=None)
-
-    del t1_values["RepetitionTime"]
-
-    errors = check_dicom_compliance(reference_model=reference, dicom_values=t1_values)
-    compliant = is_dicom_compliant(reference_model=reference, dicom_values=t1_values)
-
-    assert not compliant
-    assert len(errors) == 1
-    assert errors[0]["Parameter"] == "RepetitionTime"
-    assert errors[0]["Expected"] == "Field required"
-    assert errors[0]["Value"] == "N/A"
-
-def test_dicom_compliance_error_raise(t1):
-    t1_values = get_dicom_values(t1)
-    reference = load_ref_dicom(t1_values, fields=None)
-
-    t1_values["RepetitionTime"] = 8.1
-
-    with pytest.raises(ValidationError):
-        check_dicom_compliance(reference_model=reference, dicom_values=t1_values, raise_errors=True)
 
 def test_get_dicom_values_sequence(t1):
     t1.SequenceOfUltrasoundRegions = [Dataset(), Dataset()]

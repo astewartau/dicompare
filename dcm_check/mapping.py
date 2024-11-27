@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import numpy as np
+from tabulate import tabulate
 from scipy.optimize import linear_sum_assignment
 
 try:
@@ -148,132 +149,195 @@ def map_session(in_session, ref_session):
 
     return mapping
 
-def interactive_mapping(df, acquisitions_info):
+def interactive_mapping(in_session, ref_session, initial_mapping=None):
     """
-    Launch an interactive CLI for adjusting acquisition mappings with dynamic match score updates.
+    Interactive CLI for customizing mappings from reference to input acquisitions/series.
+
+    Args:
+        in_session (dict): Input session data.
+        ref_session (dict): Reference session data.
+        initial_mapping (dict, optional): Initial mapping of reference to input acquisitions/series.
+
+    Returns:
+        dict: Final mapping of (reference_acquisition, reference_series) -> (input_acquisition, input_series).
     """
-    if not curses:
-        raise ImportError("curses module is not available. Please install it to use interactive mode.")
-    
-    def calculate_column_widths(df, padding=2):
-        column_widths = {}
-        for col in df.columns:
-            max_content_width = max(len(str(x)) for x in df[col]) if len(df) > 0 else 10
-            column_widths[col] = max(len(col), max_content_width) + padding
-        return column_widths
+    # Prepare input and reference data
+    input_series = {
+        ("input", acq_name, series["name"]): series
+        for acq_name, acq in in_session["acquisitions"].items()
+        for series in acq.get("series", [])
+    }
 
-    def draw_menu(stdscr, df, highlighted_row, column_widths, selected_values):
-        stdscr.clear()
-        h, w = stdscr.getmaxyx()  # Get the screen height and width
+    reference_series = {
+        ("reference", ref_acq_name, ref_series["name"]): ref_series
+        for ref_acq_name, ref_acq in ref_session["acquisitions"].items()
+        for ref_series in ref_acq.get("series", [])
+    }
 
-        # Calculate total row height and truncate rows if needed
-        max_visible_rows = h - 2  # Leave space for header row and bottom navigation
+    # Initialize the mapping (reference -> input)
+    mapping = {}
+    if initial_mapping:
+        # Normalize the keys in the initial mapping to include prefixes
+        for ref_key, input_key in initial_mapping.items():
+            normalized_ref_key = ("reference", ref_key[0], ref_key[1])
+            normalized_input_key = ("input", input_key[0], input_key[1])
+            mapping[normalized_ref_key] = normalized_input_key
 
-        # Calculate column widths and truncate if they exceed screen width
-        available_width = w - 2  # Start with screen width, adjusted for padding
-        truncated_column_widths = {}
-        for col_name in df.columns:
-            # skip First_DICOM and Count columns
-            if col_name in ["First_DICOM", "Count"]:
-                continue
-            col_width = min(column_widths[col_name], available_width)
-            truncated_column_widths[col_name] = col_width
-            available_width -= col_width
-            if available_width <= 0:
-                break  # No more space left for additional columns
+    # Reverse mapping for easy lookup of current assignments
+    reverse_mapping = {v: k for k, v in mapping.items()}
 
-        # Draw headers
-        x = 2
-        for col_name in truncated_column_widths.keys():
-            header_text = col_name.ljust(truncated_column_widths[col_name])[:truncated_column_widths[col_name]]
-            stdscr.addstr(1, x, header_text)
-            x += truncated_column_widths[col_name]
+    def format_mapping_table(ref_keys, mapping, current_idx):
+        """
+        Format the mapping table for display.
+        
+        Args:
+            ref_keys (list): List of reference keys.
+            mapping (dict): Current mapping of reference to input series.
+            current_idx (int): Index of the currently selected reference series.
 
-        # Draw rows with Acquisition and Series columns highlighted
-        visible_rows = df.iloc[:max_visible_rows]  # Limit to max visible rows
-        for idx, row in visible_rows.iterrows():
-            y = idx + 2
-            x = 2
-            for col_name in truncated_column_widths.keys():
-                is_selected_column = col_name in ["Acquisition", "Series"] and idx == highlighted_row
-                cell_text = str(selected_values[col_name] if is_selected_column and selected_values is not None else row[col_name]).ljust(truncated_column_widths[col_name])[:truncated_column_widths[col_name]]
+        Returns:
+            str: Formatted table as a string.
+        """
+        table = []
+        for idx, ref_key in enumerate(ref_keys):
+            ref_acq, ref_series = ref_key[1], ref_key[2]
+            current_mapping = mapping.get(ref_key, "Unmapped")
 
-                if is_selected_column:
-                    stdscr.attron(curses.A_REVERSE)
-                    stdscr.addstr(y, x, cell_text)
-                    stdscr.attroff(curses.A_REVERSE)
-                else:
-                    stdscr.addstr(y, x, cell_text)
-                x += truncated_column_widths[col_name]
-        stdscr.refresh()
+            # Clean up input display (remove 'input' prefix and show nicely)
+            if current_mapping != "Unmapped":
+                input_acq, input_series = current_mapping[1], current_mapping[2]
+                current_mapping = f"{input_acq} - {input_series}"
 
+            # Add indicator for current selection
+            row_indicator = ">>" if idx == current_idx else "  "
+            table.append([row_indicator, f"{ref_acq} - {ref_series}", current_mapping])
 
-    def recalculate_match_score(row_idx, df, acquisitions_info):
-        acquisition_name = df.at[row_idx, "Acquisition"]
-        series_name = df.at[row_idx, "Series"]
+        return tabulate(table, headers=["", "Reference Series", "Mapped Input Series"], tablefmt="simple")
 
-        if pd.notna(acquisition_name):
-            acquisition_info = next((acq for acq in acquisitions_info if acq["name"] == acquisition_name), None)
-            if acquisition_info:
-                if pd.notna(series_name):
-                    series_info = next((series for series in acquisition_info["series"] if series["name"] == series_name), None)
-                    if series_info:
-                        score = calculate_match_score(acquisition_info, df.loc[row_idx]) + calculate_match_score(series_info, df.loc[row_idx])
-                    else:
-                        score = float('inf')
-                else:
-                    score = calculate_match_score(acquisition_info, df.loc[row_idx])
-                return score
-        return float('inf')
-    
-    def interactive_loop(stdscr, df):
-        curses.curs_set(0)  # Hide the cursor
-        highlighted_row = 0
-        last_highlighted_row = 0
-        selected_row = None
-        selected_values = None
-        column_widths = calculate_column_widths(df)
+    def run_curses(stdscr):
+        # Disable cursor
+        curses.curs_set(0)
+
+        # Track the selected reference and input indices
+        selected_ref_idx = 0
+        selected_input_idx = None
 
         while True:
-            draw_menu(stdscr, df, highlighted_row, column_widths, selected_values)
+            # Clear the screen
+            stdscr.clear()
+
+            # Format the mapping table
+            ref_keys = list(reference_series.keys())
+            table = format_mapping_table(ref_keys, mapping, selected_ref_idx)
+
+            # Display the table
+            stdscr.addstr(0, 0, "Reference Acquisitions/Series (use UP/DOWN to select, ENTER to assign, 'u' to unmap):")
+            stdscr.addstr(2, 0, table)
+
+            # If a reference is selected, display the input acquisitions/series
+            if selected_input_idx is not None:
+                # Clear the menu area to ensure no overlapping text
+                stdscr.attron(curses.A_REVERSE)  # Turn on reversed colors
+                menu_start_y = len(ref_keys) + 4
+                menu_height = len(input_series) + 2  # Include "Unassign" option
+                menu_width = curses.COLS - 1  # Use full screen width
+                for i in range(menu_height):
+                    stdscr.addstr(menu_start_y + i, 0, " " * menu_width)  # Fill with spaces
+
+                # Draw the input selection menu
+                stdscr.addstr(menu_start_y, 0, "Select Input Acquisition/Series (use UP/DOWN, ENTER to confirm):")
+                stdscr.addstr(menu_start_y + 1, 0, "Unassign (None)" if selected_input_idx == -1 else "")
+                input_keys = list(input_series.keys())
+                for idx, input_key in enumerate(input_keys):
+                    marker = ">>" if idx == selected_input_idx else "  "
+                    input_acq, input_series_name = input_key[1], input_key[2]
+                    stdscr.addstr(
+                        menu_start_y + 2 + idx, 
+                        0, 
+                        f"{marker} {input_acq} - {input_series_name}", 
+                        curses.A_REVERSE
+                    )
+                stdscr.attroff(curses.A_REVERSE)  # Turn off reversed colors
+
+            # Refresh the screen
+            stdscr.refresh()
+
+            # Handle key inputs
             key = stdscr.getch()
 
-            if key in [curses.KEY_UP, curses.KEY_DOWN]:
-                # Store the last highlighted row before moving
-                last_highlighted_row = highlighted_row
-                highlighted_row += -1 if key == curses.KEY_UP else 1
-                highlighted_row = max(0, min(len(df) - 1, highlighted_row))
-
-                # If we're moving a selected assignment, perform a dynamic swap and recalculate scores
-                if selected_values is not None:
-                    # Swap values between the last and current highlighted rows
-                    df.loc[last_highlighted_row, ["Acquisition", "Series"]], df.loc[highlighted_row, ["Acquisition", "Series"]] = (
-                        df.loc[highlighted_row, ["Acquisition", "Series"]].values,
-                        selected_values.values()
-                    )
-                    
-                    # Recalculate and update match scores for both swapped rows
-                    df.at[last_highlighted_row, "Match_Score"] = recalculate_match_score(last_highlighted_row, df, acquisitions_info)
-                    df.at[highlighted_row, "Match_Score"] = recalculate_match_score(highlighted_row, df, acquisitions_info)
-
-            elif key == 10:  # Enter key
-                if selected_row is None:
-                    # Start moving the selected assignment
-                    selected_row = highlighted_row
-                    selected_values = df.loc[selected_row, ["Acquisition", "Series"]].to_dict()
-                    # Clear original position
-                    df.loc[selected_row, ["Acquisition", "Series"]] = None
+            if key == curses.KEY_UP:
+                if selected_input_idx is None:
+                    selected_ref_idx = max(0, selected_ref_idx - 1)
                 else:
-                    # Place assignment at the new position and deselect
-                    df.loc[highlighted_row, ["Acquisition", "Series"]] = pd.Series(selected_values)
-                    df.at[highlighted_row, "Match_Score"] = recalculate_match_score(highlighted_row, df, acquisitions_info)
-                    selected_row = None
-                    selected_values = None  # Reset selected values
+                    selected_input_idx = max(-1, selected_input_idx - 1)
 
-            elif key == 27:  # ESC key
-                # Exit the interactive loop
+            elif key == curses.KEY_DOWN:
+                if selected_input_idx is None:
+                    selected_ref_idx = min(len(ref_keys) - 1, selected_ref_idx + 1)
+                else:
+                    selected_input_idx = min(len(input_series) - 1, selected_input_idx + 1)
+
+            elif key == curses.KEY_RIGHT and selected_input_idx is None:
+                # Move to input selection
+                selected_input_idx = 0
+
+            elif key == curses.KEY_LEFT and selected_input_idx is not None:
+                # Move back to reference selection
+                selected_input_idx = None
+
+            elif key == ord("u") and selected_input_idx is None:
+                # Unmap the currently selected reference
+                ref_key = ref_keys[selected_ref_idx]
+                if ref_key in mapping:
+                    old_input_key = mapping[ref_key]
+                    del mapping[ref_key]
+                    del reverse_mapping[old_input_key]
+
+            elif key == ord("\n"):  # Enter key
+                if selected_input_idx is not None:
+                    ref_key = ref_keys[selected_ref_idx]
+
+                    if selected_input_idx == -1:  # Unassign option
+                        # Unmap the selected reference if it is currently mapped
+                        if ref_key in mapping:
+                            old_input_key = mapping[ref_key]
+                            del mapping[ref_key]
+                            del reverse_mapping[old_input_key]
+                    else:
+                        input_key = list(input_series.keys())[selected_input_idx]
+
+                        # Unmap the old reference for this input, if it exists
+                        if input_key in reverse_mapping:
+                            old_ref_key = reverse_mapping[input_key]
+                            if old_ref_key != ref_key:  # Ensure we're not unmapping the currently selected reference
+                                del mapping[old_ref_key]
+
+                        # Unmap the old input for this reference, if it exists
+                        if ref_key in mapping:
+                            old_input_key = mapping[ref_key]
+                            if old_input_key != input_key:  # Ensure we're not unmapping the current input
+                                del reverse_mapping[old_input_key]
+
+                        # Update the mapping
+                        mapping[ref_key] = input_key
+                        reverse_mapping[input_key] = ref_key
+
+                    # Reset input selection
+                    selected_input_idx = None
+
+                elif selected_input_idx is None:
+                    # If Enter is pressed while selecting a reference, move to input selection
+                    selected_input_idx = 0
+
+            elif key == ord("q"):  # Quit
                 break
 
-    curses.wrapper(interactive_loop, df)
-    return df
+    # Run the curses application
+    curses.wrapper(run_curses)
+
+    # Remove prefixes from the final mapping before returning
+    return {
+        (ref_key[1], ref_key[2]): (input_key[1], input_key[2])
+        for ref_key, input_key in mapping.items()
+    }
 

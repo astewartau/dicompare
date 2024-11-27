@@ -12,6 +12,12 @@
                     "fields": [
                         {"field": "ImageType", "contains": "M"}
                     ]
+                },
+                {
+                    "name": "Series 2",
+                    "fields": [
+                        {"field": "ImageType", "contains": "P"}
+                    ]
                 }
             ]
         }
