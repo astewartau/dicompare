@@ -17,11 +17,11 @@ from .compliance_check import \
 from .cli.dcm_gen_session import \
     generate_json_ref 
     
-from .cli.dcm_read_session import \
+from .session_mapping import \
     calculate_field_score, \
     calculate_match_score, \
-    find_closest_matches, \
     map_session, \
-    interactive_mapping, \
-    json_to_dataframe
-    
+    interactive_mapping
+
+from .utils import \
+    clean_string

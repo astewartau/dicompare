@@ -1,3 +1,4 @@
+import json
 import argparse
 import pandas as pd
 from tabulate import tabulate
@@ -25,6 +26,11 @@ def main():
     
     # Print formatted output with tabulate
     print(tabulate(compliance_df, headers="keys", tablefmt="simple"))
+
+    # Save compliance_summary (which is a dict) to JSON file
+    if args.output_json:
+        with open(args.output_json, "w") as f:
+            json.dump(compliance_summary, f)
 
 if __name__ == "__main__":
     main()

@@ -1,7 +1,4 @@
-#!/usr/bin/env python
-
 import pandas as pd
-import argparse
 import re
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -94,66 +91,6 @@ def calculate_match_score(ref_row, in_row):
         diff_score += diff
 
     return round(diff_score, 2)
-
-def find_closest_matches(session_df, acquisitions_info):
-    """Compute minimal score assignments for acquisitions, handling unassigned rows."""
-    cost_matrix = []
-    possible_assignments = []
-
-    for i, row in session_df.iterrows():
-        row_costs = []
-        row_assignments = []
-        
-        for acq_info in acquisitions_info:
-            acq_name = acq_info["name"]
-            acq_match_score = calculate_match_score(acq_info, row)
-
-            if not acq_info["series"]:  # Acquisitions without groups (assign group as None)
-                row_costs.append(acq_match_score)
-                row_assignments.append((i, acq_name, None, acq_match_score))
-            else:
-                for series in acq_info["series"]:
-                    series_name = series["name"]
-                    series_diff_score = calculate_match_score(series, row)
-                    total_score = acq_match_score + series_diff_score
-                    row_costs.append(total_score)
-                    row_assignments.append((i, acq_name, series_name, total_score))
-
-        cost_matrix.append(row_costs)
-        possible_assignments.append(row_assignments)
-
-    cost_matrix = pd.DataFrame(cost_matrix)
-    row_indices, col_indices = linear_sum_assignment(cost_matrix)
-
-    best_acquisitions = [None] * len(session_df)
-    best_series = [None] * len(session_df)
-    best_scores = [None] * len(session_df)  # Use NaN for unmatched scores
-
-    for row_idx, col_idx in zip(row_indices, col_indices):
-        _, acq_name, series_name, score = possible_assignments[row_idx][col_idx]
-        best_acquisitions[row_idx] = acq_name
-        best_series[row_idx] = series_name
-        best_scores[row_idx] = score if acq_name else None  # Only assign score if acquisition is matched
-
-    return best_acquisitions, best_series, best_scores
-
-def json_to_dataframe(json_data: dict):
-    """
-    Convert a JSON-like dictionary structure into a DataFrame.
-    """
-    rows = []
-
-    for acq_name, acquisition in json_data.get("acquisitions", {}).items():
-        acq_fields = {field["field"]: field.get("value", None) for field in acquisition.get("fields", [])}
-
-        if not acquisition.get("series"):
-            rows.append({"Acquisition": acq_name, "Series": None, **acq_fields})
-        else:
-            for series in acquisition["series"]:
-                series_fields = {field["field"]: field.get("value", None) for field in series.get("fields", [])}
-                rows.append({"Acquisition": acq_name, "Series": series["name"], **acq_fields, **series_fields})
-
-    return pd.DataFrame(rows)
 
 def map_session(in_session, ref_session):
     """
@@ -339,23 +276,3 @@ def interactive_mapping(df, acquisitions_info):
 
     curses.wrapper(interactive_loop, df)
     return df
-
-def main():
-    parser = argparse.ArgumentParser(description="Map a DICOM session directory to a JSON reference file and print the closest acquisition and series matches.")
-    parser.add_argument("--ref", required=True, help="Path to the JSON reference file.")
-    parser.add_argument("--session_dir", required=True, help="Directory containing DICOM files for the session.")
-    args = parser.parse_args()
-    
-    df, acquisitions_info = map_session(args.ref, args.session_dir, return_acquisitions_info=True)  # Adjusted map_session to return acquisitions_info
-    # Drop First_DICOM and Count for display
-    df.drop(columns=["First_DICOM", "Count"], inplace=True)
-
-    # Interactive session
-    print("Entering interactive mapping mode. Use arrow keys to navigate, Enter to select and move, and Esc to finish.")
-    adjusted_df = interactive_mapping(df, acquisitions_info)
-    
-    # Display the adjusted dataframe
-    print(adjusted_df)
-
-if __name__ == "__main__":
-    main()

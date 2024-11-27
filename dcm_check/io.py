@@ -12,6 +12,8 @@ from pydicom.valuerep import PersonName, DSfloat, IS
 from pydantic_core import PydanticUndefined
 from io import BytesIO
 
+from .utils import clean_string
+
 def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
     """Convert a DICOM dataset to a dictionary, handling sequences and DICOM-specific data types.
 
@@ -120,7 +122,10 @@ def read_dicom_session(
     grouped = session_df.groupby(acquisition_fields)
 
     for acq_key, group in grouped:
-        acq_name = "acq-" + "-".join(map(str, acq_key)) if isinstance(acq_key, tuple) else str(acq_key)
+        # Create acq_name using only acquisition fields
+        acq_name = "acq-" + clean_string("-".join(
+            f"{group[field].iloc[0]}" for field in acquisition_fields if field in group
+        ))
         acq_entry = {"fields": [], "series": []}
 
         # Add acquisition-level fields
