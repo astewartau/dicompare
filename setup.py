@@ -14,7 +14,7 @@ setup(
     version=version["__version__"],
     description="A tool for checking DICOM compliance against a reference model using Pydantic",
     author="Ashley Stewart",
-    url="https://github.com/astewartau/BrainBench",
+    url="https://github.com/astewartau/dcm-check",
     packages=find_packages(),
     py_modules=["dcm_check"],
     entry_points={
