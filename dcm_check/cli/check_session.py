@@ -3,7 +3,10 @@ import json
 import argparse
 import pandas as pd
 from tabulate import tabulate
-from dcm_check import load_ref_dict, read_dicom_session, read_json_session, check_session_compliance, map_session, interactive_mapping
+from ..io import read_dicom_session, read_json_session
+from ..models import load_ref_dict
+from ..compliance import check_session_compliance
+from ..mapping import map_session, interactive_mapping
 
 def main():
     parser = argparse.ArgumentParser(description="Generate compliance summaries for a DICOM session based on JSON reference.")
@@ -27,7 +30,6 @@ def main():
         print("Session is fully compliant with the reference model.")
         return
     
-    # Print formatted output with tabulate
     print(tabulate(compliance_df, headers="keys", tablefmt="simple"))
 
     # Save compliance_summary (which is a dict) to JSON file

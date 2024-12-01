@@ -2,7 +2,7 @@
 
 import argparse
 import json
-from dcm_check import read_dicom_session
+from ..io import read_dicom_session
 
 def main():
     parser = argparse.ArgumentParser(description="Generate a JSON reference for DICOM compliance.")

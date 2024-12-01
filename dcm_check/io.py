@@ -11,6 +11,18 @@ from io import BytesIO
 
 from .utils import clean_string
 
+def normalize_numeric_values(data):
+    """
+    Recursively convert all numeric values in a data structure to floats.
+    """
+    if isinstance(data, dict):
+        return {k: normalize_numeric_values(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [normalize_numeric_values(v) for v in data]
+    elif isinstance(data, (int, float)):  # Normalize ints and floats to float
+        return float(data)
+    return data  # Return other types unchanged
+
 def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
     """Convert a DICOM dataset to a dictionary, handling sequences and DICOM-specific data types.
 
@@ -60,35 +72,41 @@ def load_dicom(dicom_file: Union[str, bytes]) -> Dict[str, Any]:
     
     return get_dicom_values(ds)
 
+def convert_jsproxy(obj):
+    if hasattr(obj, "to_py"):  # Check if it's a JsProxy
+        return convert_jsproxy(obj.to_py())  # Recursively convert nested JsProxy
+    elif isinstance(obj, dict):
+        return {k: convert_jsproxy(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_jsproxy(v) for v in obj]
+    else:
+        return obj  # Return as is if it's already a native Python type
+
 def read_dicom_session(
     reference_fields: List[str],
     session_dir: Optional[str] = None,
-    dicom_bytes: Optional[Dict[str, bytes]] = None,
+    dicom_bytes: Optional[Union[Dict[str, bytes], Any]] = None,
     acquisition_fields: List[str] = ["ProtocolName"]
 ) -> dict:
     """
     Read all files in a DICOM session directory or a dictionary of DICOM files and produce a dictionary resembling the JSON structure.
-
-    Args:
-        reference_fields (List[str]): Fields to include in the output.
-        session_dir (Optional[str]): Path to the directory containing DICOM files.
-        dicom_bytes (Optional[Dict[str, bytes]]): Dictionary of DICOM files as byte content.
-        acquisition_fields (List[str]): Fields to uniquely identify each acquisition.
-
-    Returns:
-        dict: A dictionary resembling the JSON structure with acquisitions and series information.
     """
     session_data = []
 
-    # Collect session data from either dicom_bytes or session_dir
     if dicom_bytes is not None:
+        dicom_bytes = convert_jsproxy(dicom_bytes)
+        
         for dicom_path, dicom_content in dicom_bytes.items():
             dicom_values = load_dicom(dicom_content)
             dicom_entry = {
-                k: v for k, v in dicom_values.items() if k in acquisition_fields + reference_fields
+                str(field): tuple(dicom_values[field]) if isinstance(dicom_values.get(field), list)
+                else dicom_values.get(field, "N/A")
+                for field in acquisition_fields + reference_fields
             }
-            dicom_entry["DICOM_Path"] = dicom_path
+            dicom_entry["DICOM_Path"] = str(dicom_path)
+            dicom_entry["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
             session_data.append(dicom_entry)
+    
     elif session_dir is not None:
         for root, _, files in os.walk(session_dir):
             for file in files:
@@ -103,10 +121,16 @@ def read_dicom_session(
     else:
         raise ValueError("Either session_dir or dicom_bytes must be provided.")
 
-    acquisitions = {}
+    if not session_data:
+        raise ValueError("No DICOM data found to process.")
 
-    # Create a DataFrame from the session data for easier processing
     session_df = pd.DataFrame(session_data)
+
+    # Sort data for consistency
+    if "InstanceNumber" in session_df.columns:
+        session_df.sort_values("InstanceNumber", inplace=True)
+    else:
+        session_df.sort_values("DICOM_Path", inplace=True)
 
     # Ensure all fields used for grouping are hashable
     for field in acquisition_fields + reference_fields:
@@ -118,20 +142,19 @@ def read_dicom_session(
     # Group data by acquisition fields
     grouped = session_df.groupby(acquisition_fields)
 
+    acquisitions = {}
+
     for acq_key, group in grouped:
-        # Create acq_name using only acquisition fields
         acq_name = "acq-" + clean_string("-".join(
             f"{group[field].iloc[0]}" for field in acquisition_fields if field in group
         ))
         acq_entry = {"fields": [], "series": []}
 
-        # Add acquisition-level fields
         for field in acquisition_fields:
             unique_values = group[field].unique()
             if len(unique_values) == 1:
                 acq_entry["fields"].append({"field": field, "value": unique_values[0]})
 
-        # Add series-level fields if reference_fields vary within the acquisition
         series_grouped = group.groupby(reference_fields)
         for i, (_, series_group) in enumerate(series_grouped, start=1):
             series_entry = {
@@ -180,6 +203,9 @@ def read_json_session(json_ref: str) -> tuple:
     with open(json_ref, 'r') as f:
         reference_data = json.load(f)
 
+    # Normalize all numeric values to floats
+    reference_data = normalize_numeric_values(reference_data)
+
     acquisitions = {}
     acquisition_fields = set()  # Store unique field names at the acquisition level
     series_fields = set()  # Store unique field names at the series level
@@ -205,4 +231,3 @@ def read_json_session(json_ref: str) -> tuple:
 
     # Convert sets to sorted lists for consistency
     return sorted(acquisition_fields), sorted(series_fields), {"acquisitions": acquisitions}
-

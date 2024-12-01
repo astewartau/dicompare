@@ -42,18 +42,21 @@ async function fmGenRef_genRef() {
   btnGenJSON.textContent = "Generating JSON...";
   const output = await pyodide.runPythonAsync(`
     import json
-    from dcm_check import generate_json_ref
+    from dcm_check import read_dicom_session
 
-    output = generate_json_ref(
+    acquisition_fields = list(acquisition_fields)
+    reference_fields = list(reference_fields)
+
+    output = read_dicom_session(
       acquisition_fields=acquisition_fields,
       reference_fields=reference_fields,
-      name_template="{ProtocolName}-{SeriesDescription}",
-      dicom_files=dicom_files
+      dicom_bytes=dicom_files
     )
+    
     json.dumps(output, indent=4)
   `);
 
-  btnGenJSON.textContent = "Parse JSON...";
+  btnGenJSON.textContent = "Parsing JSON...";
   jsonData = JSON.parse(output);
   fmGenRef_renderEditor(); // Render all acquisitions and their contents
   btnDownloadJSON.disabled = false; // Enable the Download JSON button
@@ -69,13 +72,11 @@ function fmGenRef_renderEditor() {
     const acqDiv = document.createElement("div");
     acqDiv.className = "acquisition-container";
 
-    const readableName = acqKey.split('-')[0]; // Extract a human-readable name
-
     // Acquisition Name and Delete Button
     acqDiv.innerHTML = `
       <div class="row grid">
         <label>Acquisition:</label>
-        <input type="text" value="${readableName}" onchange="updateAcquisitionName('${acqKey}', this.value)">
+        <input type="text" value="${acqKey}" onchange="updateAcquisitionName('${acqKey}', this.value)">
         <button class="delete" onclick="deleteAcquisition('${acqKey}')">🗑</button>
       </div>
     `;
