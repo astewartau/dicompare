@@ -2,7 +2,7 @@ import pytest
 import json
 from io import BytesIO
 from pydicom.dataset import Dataset
-
+from annotated_types import Interval
 from .fixtures.fixtures import t1
 
 from dcm_check import (
@@ -126,7 +126,6 @@ def test_read_dicom_session_no_input():
     with pytest.raises(ValueError, match="Either session_dir or dicom_bytes must be provided."):
         read_dicom_session(reference_fields=["PatientName"])
 
-# Test for `read_json_session`
 def test_read_json_session(temp_json):
     json_data = {
         "acquisitions": {
@@ -144,10 +143,39 @@ def test_read_json_session(temp_json):
         }
     }
     json_path = temp_json(json_data)
-    acq_fields, series_fields, acquisitions = read_json_session(json_path)
+    acq_fields, series_fields, acquisitions, ref_models = read_json_session(json_path)
+
+    # Validate acquisition fields
     assert acq_fields == ["ProtocolName"]
-    assert set(series_fields) == set(["SeriesDescription", "EchoTime", "ImageType"])
+
+    # Validate series fields
+    assert set(series_fields) == {"SeriesDescription", "EchoTime", "ImageType"}
+
+    # Validate acquisitions structure
     assert "acq-Example" in acquisitions["acquisitions"]
+
+    # Validate the model is properly generated for Series 1
+    model = ref_models.get(("acq-Example", "Series 1"))
+    assert model is not None
+
+    # Validate the model fields
+    model_fields = model.model_fields
+    assert "SeriesDescription" in model_fields
+    assert "EchoTime" in model_fields
+    assert "ImageType" in model_fields
+
+    # Validate the constraints for EchoTime
+    echo_time_field = model_fields["EchoTime"]
+    assert echo_time_field.default == 25.0
+
+    # Extract and validate constraints from metadata
+    metadata_constraints = next(
+        (item for item in echo_time_field.metadata if isinstance(item, Interval)),
+        None
+    )
+    assert metadata_constraints is not None
+    assert metadata_constraints.ge == 24.9  # Lower bound
+    assert metadata_constraints.le == 25.1  # Upper bound
 
 # Edge case: Test invalid JSON file for `read_json_session`
 def test_read_json_session_invalid_file():
@@ -188,7 +216,7 @@ def test_read_dicom_session_read_json_session_numeric_datatype_encoding(tmp_path
         json.dump(result, json_file, indent=4)
 
     # Use `read_json_session` to load the JSON
-    acq_fields, series_fields, loaded_result = read_json_session(str(json_path))
+    acq_fields, series_fields, loaded_result, ref_models = read_json_session(str(json_path))
 
     # Validate the EchoTime values and their types in the JSON
     acquisitions = loaded_result["acquisitions"]
@@ -206,6 +234,14 @@ def test_read_dicom_session_read_json_session_numeric_datatype_encoding(tmp_path
             assert isinstance(fields["EchoTime"], float)
         else:
             pytest.fail("Unexpected EchoTime value found in the output.")
+
+    # Validate models are built correctly
+    print(ref_models)
+    for series_entry in series:
+        series_name = series_entry["name"]
+        model = ref_models.get(("acq-t1", series_name))
+        assert model is not None
+        assert "EchoTime" in model.model_fields
 
 
 # Test for empty DICOM directory

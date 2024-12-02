@@ -31,7 +31,7 @@ async function fmCheck_generateComplianceReport() {
             f.write(json_ref)
 
         # Load the JSON reference file
-        acquisition_fields, reference_fields, ref_session = read_json_session("temp_json_ref.json")
+        acquisition_fields, reference_fields, ref_session, ref_models = read_json_session("temp_json_ref.json")
         in_session = read_dicom_session(dicom_bytes=dicom_files, acquisition_fields=acquisition_fields, reference_fields=reference_fields)
         session_map = map_session(in_session, ref_session)
 
@@ -136,22 +136,15 @@ async function finalizeMapping() {
     const complianceOutput = await pyodide.runPythonAsync(`
     import json
     from dcm_check.compliance import check_session_compliance
-    from dcm_check import load_ref_dict
 
-    ref_session = load_ref_dict(ref_session)
-    
     # Deserialize the mapping
     series_map = {
         tuple(k.split("::")): tuple(v.split("::"))
         for k, v in json.loads(finalized_mapping).items()
     }
 
-    print("series_map", series_map)
-    print("ref_session", ref_session)
-    print("in_session", in_session)
-
     # Perform compliance check
-    compliance_summary = check_session_compliance(in_session=in_session, ref_session=ref_session, series_map=series_map)
+    compliance_summary = check_session_compliance(in_session=in_session, ref_models=ref_models, series_map=series_map)
 
     json.dumps(compliance_summary)
     `);

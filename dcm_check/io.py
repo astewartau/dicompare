@@ -2,12 +2,16 @@ import os
 import pydicom
 import json
 import pandas as pd
+import importlib.util
 
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, Literal
 from pydicom.multival import MultiValue
 from pydicom.uid import UID
 from pydicom.valuerep import PersonName, DSfloat, IS
 from io import BytesIO
+
+from pydantic import BaseModel, Field, confloat, create_model, field_validator
+from pydantic_core import PydanticUndefined
 
 from .utils import clean_string
 
@@ -99,8 +103,7 @@ def read_dicom_session(
         for dicom_path, dicom_content in dicom_bytes.items():
             dicom_values = load_dicom(dicom_content)
             dicom_entry = {
-                str(field): tuple(dicom_values[field]) if isinstance(dicom_values.get(field), list)
-                else dicom_values.get(field, "N/A")
+                str(field): dicom_values.get(field, "N/A")
                 for field in acquisition_fields + reference_fields
             }
             dicom_entry["DICOM_Path"] = str(dicom_path)
@@ -136,7 +139,7 @@ def read_dicom_session(
     for field in acquisition_fields + reference_fields:
         if field in session_df.columns:
             session_df[field] = session_df[field].apply(
-                lambda x: tuple(x) if isinstance(x, list) else x
+                lambda x: x
             )
 
     # Group data by acquisition fields
@@ -177,12 +180,13 @@ def read_json_session(json_ref: str) -> tuple:
     1. A list of field names described at the acquisition level.
     2. A list of field names described at the series level.
     3. A dictionary resembling the JSON structure.
+    4. A dictionary mapping acquisition-series pairs to their Pydantic models.
 
     Args:
         json_ref (str): Path to the JSON file.
 
     Returns:
-        tuple: (acquisition_fields, series_fields, acquisitions_dict)
+        tuple: (acquisition_fields, series_fields, acquisitions_dict, models_dict)
     """
     def process_fields(fields):
         """
@@ -200,6 +204,49 @@ def read_json_session(json_ref: str) -> tuple:
             processed_fields.append(field_entry)
         return processed_fields
 
+    def build_model(acquisition: dict, series: Optional[dict] = None) -> BaseModel:
+        """
+        Build a Pydantic model for an acquisition or series.
+
+        Args:
+            acquisition (dict): The acquisition dictionary.
+            series (Optional[dict]): The series dictionary, if applicable.
+
+        Returns:
+            BaseModel: A dynamically generated Pydantic model.
+        """
+        reference_values = {}
+        fields_config = []
+
+        # Collect acquisition-level fields
+        if "fields" in acquisition:
+            for field in acquisition["fields"]:
+                field_entry = {"field": field["field"]}
+                if "value" in field:
+                    field_entry["value"] = field["value"]
+                    reference_values[field["field"]] = field["value"]
+                if "tolerance" in field:
+                    field_entry["tolerance"] = field["tolerance"]
+                if "contains" in field:
+                    field_entry["contains"] = field["contains"]
+                fields_config.append(field_entry)
+
+        # Collect series-level fields if provided
+        if series and "fields" in series:
+            for field in series["fields"]:
+                field_entry = {"field": field["field"]}
+                if "value" in field:
+                    field_entry["value"] = field["value"]
+                    reference_values[field["field"]] = field["value"]
+                if "tolerance" in field:
+                    field_entry["tolerance"] = field["tolerance"]
+                if "contains" in field:
+                    field_entry["contains"] = field["contains"]
+                fields_config.append(field_entry)
+
+        # Create and return the Pydantic model
+        return create_reference_model(reference_values, fields_config)
+
     with open(json_ref, 'r') as f:
         reference_data = json.load(f)
 
@@ -209,6 +256,7 @@ def read_json_session(json_ref: str) -> tuple:
     acquisitions = {}
     acquisition_fields = set()  # Store unique field names at the acquisition level
     series_fields = set()  # Store unique field names at the series level
+    models = {}
 
     for acq_name, acquisition in reference_data.get("acquisitions", {}).items():
         # Process acquisition-level fields
@@ -218,7 +266,7 @@ def read_json_session(json_ref: str) -> tuple:
         }
         acquisition_fields.update(field["field"] for field in acquisition.get("fields", []))
 
-        # Process series-level fields
+        # Process series-level fields and build models
         for series in acquisition.get("series", []):
             series_entry = {
                 "name": series["name"],
@@ -227,7 +275,105 @@ def read_json_session(json_ref: str) -> tuple:
             acq_entry["series"].append(series_entry)
             series_fields.update(field["field"] for field in series.get("fields", []))
 
+            # Create a model for this acquisition-series pair
+            model_key = (acq_name, series["name"])
+            models[model_key] = build_model(acquisition, series)
+
         acquisitions[acq_name] = acq_entry
 
     # Convert sets to sorted lists for consistency
-    return sorted(acquisition_fields), sorted(series_fields), {"acquisitions": acquisitions}
+    return sorted(acquisition_fields), sorted(series_fields), {"acquisitions": acquisitions}, models
+
+def create_reference_model(reference_values: Dict[str, Any], fields_config: List[Union[str, Dict[str, Any]]]) -> BaseModel:
+    model_fields = {}
+    validators = {}
+
+    # Define validation functions dynamically
+    def contains_check_factory(field_name, contains_value):
+        @field_validator(field_name)
+        def contains_check(cls, v):
+            if not isinstance(v, list) or contains_value not in v:
+                raise ValueError(f"{field_name} must contain '{contains_value}'")
+            return v
+        return contains_check
+
+    def normalize_value(value):
+        """Normalize lists and tuples to lists."""
+        if isinstance(value, tuple):
+            return list(value)
+        return value
+
+    for field in fields_config:
+        field_name = field["field"]
+        tolerance = field.get("tolerance")
+        pattern = field.get("value") if isinstance(field.get("value"), str) and "*" in field["value"] else None
+        contains = field.get("contains")
+        ref_value = normalize_value(reference_values.get(field_name, field.get("value")))
+
+        if pattern:
+            # Pattern matching
+            model_fields[field_name] = (
+                str,
+                Field(default=PydanticUndefined, pattern=pattern.replace("*", ".*"))
+            )
+        elif tolerance is not None:
+            # Numeric tolerance
+            model_fields[field_name] = (
+                confloat(ge=ref_value - tolerance, le=ref_value + tolerance),
+                Field(default=ref_value)
+            )
+        elif contains:
+            # Add a field expecting a list and register a custom validator for "contains"
+            model_fields[field_name] = (List[str], Field(default=PydanticUndefined))
+            validators[f"{field_name}_contains"] = contains_check_factory(field_name, contains)
+        elif isinstance(ref_value, list):
+            # Exact match for lists
+            model_fields[field_name] = (
+                List[type(ref_value[0])] if ref_value else List[Any],
+                Field(default=ref_value)
+            )
+        else:
+            # Exact match for scalar values
+            model_fields[field_name] = (
+                Literal[ref_value],
+                Field(default=PydanticUndefined)
+            )
+
+    # Create model with dynamically added validators
+    return create_model("ReferenceModel", **model_fields, __validators__=validators)
+
+def load_python_module(module_path: str):
+    """
+    Load a Python module containing Pydantic models for validation.
+
+    Args:
+        module_path (str): Path to the Python module.
+
+    Returns:
+        Tuple[Dict[str, BaseModel], List[str], List[str]]:
+        - The `ACQUISITION_MODELS` dictionary from the module.
+        - Combined acquisition fields.
+        - Combined reference fields.
+    """
+    spec = importlib.util.spec_from_file_location("validation_module", module_path)
+    validation_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(validation_module)
+
+    if not hasattr(validation_module, "ACQUISITION_MODELS"):
+        raise ValueError(f"The module {module_path} does not define 'ACQUISITION_MODELS'.")
+
+    acquisition_models = getattr(validation_module, "ACQUISITION_MODELS")
+    if not isinstance(acquisition_models, dict):
+        raise ValueError("'ACQUISITION_MODELS' must be a dictionary.")
+
+    # Combine acquisition and reference fields from all models
+    acquisition_fields = set()
+    series_fields = set()
+    for model in acquisition_models.values():
+        if hasattr(model, "acquisition_fields"):
+            acquisition_fields.update(model.acquisition_fields)
+        if hasattr(model, "reference_fields"):
+            series_fields.update(model.reference_fields)
+
+    return sorted(acquisition_fields), sorted(series_fields), acquisition_models
+

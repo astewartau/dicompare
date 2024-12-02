@@ -3,24 +3,27 @@ from typing import List, Dict, Any, Tuple
 
 def check_session_compliance(
         in_session: Dict[str, Dict[str, Any]],
-        ref_session: Dict[str, Dict[str, Any]],
-        series_map: Dict[Tuple[str, str], Tuple[str, str]], # maps (acquisition, series) to (ref_acquisition, ref_series)
+        ref_models: Dict[Tuple[str, str], BaseModel],
+        series_map: Dict[Tuple[str, str], Tuple[str, str]],  # maps (acquisition, series) to (ref_acquisition, ref_series)
         raise_errors: bool = False
 ) -> List[Dict[str, Any]]:
-    
-    """Validate a DICOM session against a reference session."""
+    """
+    Validate a DICOM session against a reference session using pre-built models.
+    """
     compliance_summary = []
 
-    for ((in_acq_name, in_series_name), (ref_acq_name, ref_series_name)) in series_map.items():
+    for ((ref_acq_name, ref_series_name), (in_acq_name, in_series_name)) in series_map.items():
         in_acq = in_session['acquisitions'].get(in_acq_name)
         in_series = next((series for series in in_acq['series'] if series['name'] == in_series_name), None)
-        ref_acq = ref_session['acquisitions'].get(ref_acq_name)
-        ref_series = next((series for series in ref_acq['series'] if series['name'] == ref_series_name), None)
+        ref_model = ref_models.get((ref_acq_name, ref_series_name))
 
-        in_dicom_values = in_acq.get("fields") + in_series.get("fields")
+        if not ref_model:
+            raise ValueError(f"No model found for reference acquisition '{ref_acq_name}' and series '{ref_series_name}'.")
+
+        in_dicom_values = in_acq.get("fields", []) + in_series.get("fields", [])
         in_dicom_values_dict = {field['field']: field['value'] for field in in_dicom_values}
 
-        compliance_summary += check_dicom_compliance(ref_series.get("model"), in_dicom_values_dict, in_acq_name, in_series_name, raise_errors)
+        compliance_summary += check_dicom_compliance(ref_model, in_dicom_values_dict, in_acq_name, in_series_name, raise_errors)
 
     return compliance_summary
     
@@ -58,23 +61,26 @@ def check_dicom_compliance(
 
 def is_session_compliant(
         in_session: Dict[str, Dict[str, Any]],
-        ref_session: Dict[str, Dict[str, Any]],
+        ref_models: Dict[Tuple[str, str], BaseModel],
         series_map: Dict[Tuple[str, str], Tuple[str, str]]
 ) -> bool:
-    
-    """Validate a DICOM session against a reference session."""
+    """
+    Validate a DICOM session against a reference session using pre-built models.
+    """
     is_compliant = True
 
     for ((in_acq_name, in_series_name), (ref_acq_name, ref_series_name)) in series_map.items():
         in_acq = in_session['acquisitions'].get(in_acq_name)
         in_series = next((series for series in in_acq['series'] if series['name'] == in_series_name), None)
-        ref_acq = ref_session['acquisitions'].get(ref_acq_name)
-        ref_series = next((series for series in ref_acq['series'] if series['name'] == ref_series_name), None)
+        ref_model = ref_models.get((ref_acq_name, ref_series_name))
 
-        in_dicom_values = in_acq.get("fields") + in_series.get("fields")
+        if not ref_model:
+            raise ValueError(f"No model found for reference acquisition '{ref_acq_name}' and series '{ref_series_name}'.")
+
+        in_dicom_values = in_acq.get("fields", []) + in_series.get("fields", [])
         in_dicom_values_dict = {field['field']: field['value'] for field in in_dicom_values}
 
-        is_compliant = is_compliant and is_dicom_compliant(ref_series.get("model"), in_dicom_values_dict)
+        is_compliant = is_compliant and is_dicom_compliant(ref_model, in_dicom_values_dict)
 
     return is_compliant
 
