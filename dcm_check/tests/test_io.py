@@ -1,13 +1,9 @@
 import pytest
-import os
 import json
-import numpy as np
-import pandas as pd
 from io import BytesIO
 from pydicom.dataset import Dataset
-from typing import Dict, Any
 
-from dcm_check.tests.fixtures.fixtures import t1
+from .fixtures.fixtures import t1
 
 from dcm_check import (
     load_dicom,

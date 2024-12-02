@@ -1,6 +1,5 @@
 import pytest
-from pydantic import ValidationError, BaseModel
-from typing import Any, Dict, List
+from pydantic import ValidationError
 
 from dcm_check.models import load_ref_dict, create_reference_model
 
