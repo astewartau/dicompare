@@ -5,7 +5,7 @@ import pytest
 from pydicom.dataset import Dataset
 
 from dcm_check import load_dicom, get_dicom_values
-from dcm_check.tests.fixtures.fixtures import t1
+from .fixtures.fixtures import t1
 
 def test_load_dicom(tmp_path, t1):
     dicom_path = tmp_path / "ref_dicom.dcm"
