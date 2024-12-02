@@ -4,7 +4,7 @@ import json
 import pandas as pd
 import importlib.util
 
-from typing import List, Optional, Dict, Any, Union, Literal
+from typing import List, Optional, Dict, Any, Union, Literal, Tuple
 from pydicom.multival import MultiValue
 from pydicom.uid import UID
 from pydicom.valuerep import PersonName, DSfloat, IS
@@ -42,7 +42,10 @@ def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
         if element.VR == 'SQ':
             return [get_dicom_values(item) for item in element]
         elif isinstance(element.value, MultiValue):
-            return list(element.value)
+            try:
+                return [int(float(item)) if int(float(item)) == float(item) else float(item) for item in element.value]
+            except ValueError:
+                return [item for item in element.value]
         elif isinstance(element.value, (UID, PersonName)):
             return str(element.value)
         elif isinstance(element.value, (DSfloat, float)):
@@ -157,7 +160,11 @@ def read_dicom_session(
             unique_values = group[field].unique()
             if len(unique_values) == 1:
                 acq_entry["fields"].append({"field": field, "value": unique_values[0]})
+        
+        # convert lists to tuples in group for hashability
+        group = group.map(lambda x: tuple(x) if isinstance(x, list) else x)
 
+        # group by reference fields and keep headers
         series_grouped = group.groupby(reference_fields)
         for i, (_, series_group) in enumerate(series_grouped, start=1):
             series_entry = {
@@ -342,7 +349,7 @@ def create_reference_model(reference_values: Dict[str, Any], fields_config: List
     # Create model with dynamically added validators
     return create_model("ReferenceModel", **model_fields, __validators__=validators)
 
-def load_python_module(module_path: str):
+def load_python_module(module_path: str) -> Tuple[List[str], List[str], Dict[str, BaseModel]]:
     """
     Load a Python module containing Pydantic models for validation.
 
@@ -350,7 +357,7 @@ def load_python_module(module_path: str):
         module_path (str): Path to the Python module.
 
     Returns:
-        Tuple[Dict[str, BaseModel], List[str], List[str]]:
+        Tuple[List[str], List[str], Dict[str, BaseModel]]:
         - The `ACQUISITION_MODELS` dictionary from the module.
         - Combined acquisition fields.
         - Combined reference fields.
@@ -368,12 +375,14 @@ def load_python_module(module_path: str):
 
     # Combine acquisition and reference fields from all models
     acquisition_fields = set()
-    series_fields = set()
+    reference_fields = set()
+
     for model in acquisition_models.values():
         if hasattr(model, "acquisition_fields"):
             acquisition_fields.update(model.acquisition_fields)
         if hasattr(model, "reference_fields"):
-            series_fields.update(model.reference_fields)
+            reference_fields.update(model.reference_fields)
 
-    return sorted(acquisition_fields), sorted(series_fields), acquisition_models
+    return sorted(acquisition_fields), sorted(reference_fields), acquisition_models
+
 

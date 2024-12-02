@@ -27,6 +27,84 @@ def check_session_compliance(
 
     return compliance_summary
     
+def check_session_compliance_python_module(
+        in_session: Dict[str, Dict[str, Any]],
+        ref_models: Dict[str, BaseModel],
+        acquisition_map: Dict[str, str],  # Maps reference acquisitions to input acquisitions
+        raise_errors: bool = False
+) -> List[Dict[str, Any]]:
+    compliance_summary = []
+
+    for ref_acq_name, in_acq_name in acquisition_map.items():
+        in_acq = in_session['acquisitions'].get(in_acq_name)
+        if not in_acq:
+            compliance_summary.append({
+                "Reference Acquisition": ref_acq_name,
+                "Input Acquisition": in_acq_name,
+                "Parameter": "Acquisition-Level Error",
+                "Value": "Missing",
+                "Expected": "Present"
+            })
+            continue
+
+        ref_model = ref_models.get(ref_acq_name)
+        if not ref_model:
+            raise ValueError(f"No model found for reference acquisition '{ref_acq_name}'.")
+
+        field_behaviors = getattr(ref_model, "field_behaviors", {})
+
+        aggregated_values = {}
+        for series in in_acq.get("series", []):
+            for field in series.get("fields", []):
+                field_name = field['field']
+                field_value = field['value']
+
+                behavior = field_behaviors.get(field_name, "scalar")  # Default to scalar if unspecified
+                if behavior == "aggregate":
+                    if field_name not in aggregated_values:
+                        aggregated_values[field_name] = []
+                    aggregated_values[field_name].append(field_value)
+                elif behavior == "scalar":
+                    if field_name not in aggregated_values:
+                        aggregated_values[field_name] = field_value
+                    elif aggregated_values[field_name] != field_value:
+                        compliance_summary.append({
+                            "Acquisition": in_acq_name,
+                            "Parameter": field_name,
+                            "Value": aggregated_values[field_name],
+                            "Expected": f"Consistent value across all series ({field_value} found)"
+                        })
+
+        flattened_values = {
+            k: v[0] if isinstance(v, list) and len(v) == 1 else v
+            for k, v in aggregated_values.items()
+        }
+
+        for field in in_acq.get("fields", []):
+            flattened_values[field['field']] = field['value']
+
+        try:
+            ref_model(**flattened_values)
+        except ValidationError as e:
+            if raise_errors:
+                raise e
+            for error in e.errors():
+                param = error['loc'][0] if error['loc'] else "Model-Level Error"
+                param_i = error['loc'][1] if len(error['loc']) > 1 else ""
+                expected = (error['ctx'].get('expected') if 'ctx' in error else None) or error['msg']
+                if isinstance(expected, str) and expected.startswith("'") and expected.endswith("'"):
+                    expected = expected[1:-1]
+                actual = flattened_values.get(param, "N/A") if param != "Model-Level Error" else "N/A"
+                compliance_summary.append({
+                    "Acquisition": in_acq_name,
+                    "Parameter": param + (f"[{param_i}]" if param_i != "" else ""),
+                    "Value": actual[param_i] if param_i != "" else actual,
+                    "Expected": expected
+                })
+
+    return compliance_summary
+
+
 def check_dicom_compliance(
         reference_model: BaseModel,
         dicom_values: Dict[str, Any],

@@ -26,7 +26,7 @@ def test_get_dicom_values(t1: Dataset):
     dicom_dict = get_dicom_values(t1)
     assert isinstance(dicom_dict, dict)
     assert dicom_dict["PatientName"] == "Test^Patient"
-    assert dicom_dict["PixelSpacing"] == ["0.5", "0.5"]
+    assert dicom_dict["PixelSpacing"] == [0.5, 0.5]
 
 # Test for `load_dicom`
 def test_load_dicom_from_path(t1: Dataset, tmp_path):
