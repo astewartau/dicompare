@@ -1,9 +1,9 @@
 let pyodide;
 let tagInputfmGenRef_acquisitionFields, tagInputfmGenRef_referenceFields;
-//const dcm_check_url = "http://localhost:8000/dist/dcm_check-0.1.4-py3-none-any.whl";
+//const dcm_check_url = "http://localhost:8000/dist/dcm_check-0.1.7-py3-none-any.whl";
 //const valid_fields_url = "http://localhost:8000/valid_fields.json";
-const dcm_check_url = "dcm-check==0.1.6"
-const valid_fields_url = "https://raw.githubusercontent.com/astewartau/dcm-check/v0.1.6/valid_fields.json";
+const dcm_check_url = "dcm-check==0.1.7"
+const valid_fields_url = "https://raw.githubusercontent.com/astewartau/dcm-check/v0.1.7/valid_fields.json";
 
 async function initTagify() {
     // Fetch the list of valid fields for Tagify
