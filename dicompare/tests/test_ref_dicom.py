@@ -4,7 +4,7 @@ import pytest
 
 from pydicom.dataset import Dataset
 
-from dcm_check import load_dicom, get_dicom_values
+from dicompare import load_dicom, get_dicom_values
 from .fixtures.fixtures import t1
 
 def test_load_dicom(tmp_path, t1):

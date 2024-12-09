@@ -4,9 +4,9 @@ import argparse
 import pandas as pd
 from tabulate import tabulate
 
-from dcm_check.io import read_json_session, load_python_module, read_dicom_session
-from dcm_check.compliance import check_session_compliance, check_session_compliance_python_module
-from dcm_check.mapping import map_session, interactive_mapping, interactive_mapping_2
+from dicompare.io import read_json_session, load_python_module, read_dicom_session
+from dicompare.compliance import check_session_compliance, check_session_compliance_python_module
+from dicompare.mapping import map_session, interactive_mapping, interactive_mapping_2
 
 def main():
     parser = argparse.ArgumentParser(description="Generate compliance summaries for a DICOM session.")
@@ -22,7 +22,7 @@ def main():
 
     # Load the reference models and fields
     if args.json_ref:
-        acquisition_fields, reference_fields, ref_session, ref_models = read_json_session(json_ref=args.json_ref)
+        acquisition_fields, reference_fields, ref_session = read_json_session(json_ref=args.json_ref)
     elif args.python_ref:
         acquisition_fields, reference_fields, ref_models = load_python_module(module_path=args.python_ref)
 
@@ -45,7 +45,7 @@ def main():
     if args.json_ref:
         compliance_summary = check_session_compliance(
             in_session=in_session,
-            ref_models=ref_models,
+            ref_session=ref_session,
             series_map=session_map
         )
     else:
@@ -61,7 +61,15 @@ def main():
         print("Session is fully compliant with the reference model.")
         return
 
-    print(tabulate(compliance_df, headers="keys", tablefmt="simple"))
+    # Inline summary output
+    for entry in compliance_summary:
+        if entry.get('acquisition'): print(f"Acquisition: {entry.get('acquisition')}")
+        if entry.get('field'): print(f"Field: {entry.get('field')}")
+        if entry.get('value'): print(f"Value: {entry.get('value')}")
+        if entry.get('rule'): print(f"Rule: {entry.get('rule')}")
+        if entry.get('message'): print(f"Message: {entry.get('message')}")
+        if entry.get('passed'): print(f"Passed: {entry.get('passed')}")
+        print("-" * 40)
 
     # Save compliance summary to JSON
     if args.out_json:

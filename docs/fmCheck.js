@@ -12,11 +12,11 @@ async function fmCheck_generateComplianceReport() {
     fmCheck_btnGenCompliance.textContent = "Loading DICOMs...";
     const dicomFiles = await loadDICOMs("fmCheck_selectDICOMs");
 
-    const jsonReferenceFile = document.getElementById("fmCheck_selectJsonReference").files[0];
-    const jsonRefContent = await jsonReferenceFile.text();
+    const referenceFile = document.getElementById("fmCheck_selectJsonReference").files[0];
+    const referenceFileContent = await referenceFile.text();
 
     // Pass data to Pyodide's Python environment
-    pyodide.globals.set("json_ref", jsonRefContent);
+    pyodide.globals.set("ref_json_py", referenceFileContent);
     pyodide.globals.set("dicom_files", dicomFiles);
 
     fmCheck_btnGenCompliance.textContent = "Generating initial mapping...";
@@ -24,22 +24,46 @@ async function fmCheck_generateComplianceReport() {
     // Get the initial mapping and reference data
     const mappingOutput = await pyodide.runPythonAsync(`
         import json
-        from dcm_check import read_dicom_session, read_json_session, map_session
+        from dicompare import read_dicom_session, read_json_session, map_session, load_python_module
 
-        # Save the JSON reference content to a file
-        with open("temp_json_ref.json", "w") as f:
-            f.write(json_ref)
+        is_json = True
+        try:
+            json.loads(ref_json_py)
+        except json.JSONDecodeError:
+            is_json = False
+        
+        if is_json:
+            # Save the JSON reference content to a file
+            with open("temp_json_ref.json", "w") as f:
+                f.write(ref_json_py)
+        else:
+            # Save as .py file
+            with open("temp_py_ref.py", "w") as f:
+                f.write(ref_json_py)
 
         # Load the JSON reference file
-        acquisition_fields, reference_fields, ref_session, ref_models = read_json_session("temp_json_ref.json")
-        in_session = read_dicom_session(dicom_bytes=dicom_files, acquisition_fields=acquisition_fields, reference_fields=reference_fields)
-        session_map = map_session(in_session, ref_session)
+        if is_json:
+            acquisition_fields, reference_fields, ref_session = read_json_session(json_ref="temp_json_ref.json")
+        else:
+            acquisition_fields, reference_fields, ref_models = load_python_module(module_path="temp_py_ref.py")
+            ref_model_names = list(ref_models.keys())
+            ref_session = {"acquisitions": { ref_model_name: {} for ref_model_name in ref_model_names }}
 
-        # Convert tuple keys in session_map to strings for JSON serialization
-        session_map_serializable = {
-            f"{key[0]}::{key[1]}": f"{value[0]}::{value[1]}"
-            for key, value in session_map.items()
-        }
+        print(f"acquisition_fields: {acquisition_fields}")
+        print(f"reference_fields: {reference_fields}")
+
+        in_session = read_dicom_session(dicom_bytes=dicom_files, acquisition_fields=acquisition_fields, reference_fields=reference_fields)
+        
+        if is_json:
+            session_map = map_session(in_session, ref_session)
+
+            # Convert tuple keys in session_map to strings for JSON serialization
+            session_map_serializable = {
+                f"{key[0]}::{key[1]}": f"{value[0]}::{value[1]}"
+                for key, value in session_map.items()
+            }
+        else:
+            session_map_serializable = {}
 
         json.dumps({
             "reference_acquisitions": ref_session["acquisitions"],
@@ -62,15 +86,20 @@ function displayMappingUI(mappingData) {
     mappingContainer.innerHTML = ""; // Clear any previous mapping UI
 
     const table = document.createElement("table");
-    table.innerHTML = `<tr><th>Reference Acquisition-Series</th><th>Input Acquisition-Series</th></tr>`;
+    table.innerHTML = `<tr><th>Reference Acquisition/Series</th><th>Input Acquisition/Series</th></tr>`;
 
     Object.entries(reference_acquisitions).forEach(([refAcqKey, refAcqValue]) => {
-        refAcqValue.series.forEach(refSeries => {
-            const refSeriesKey = `${refAcqKey}::${refSeries.name}`;
+        // Check if the reference acquisition has series
+        const refSeriesExists = Array.isArray(refAcqValue.series);
+        // use name of the acquisition if no series
+        const refSeriesList = refSeriesExists ? refAcqValue.series : [{ name: refAcqKey }]; // Use series if defined, otherwise fallback to acquisition-level
+
+        refSeriesList.forEach(refSeries => {
+            const refSeriesKey = refSeries.name ? `${refAcqKey}::${refSeries.name}` : refAcqKey;
             const row = document.createElement("tr");
 
             const referenceCell = document.createElement("td");
-            referenceCell.textContent = `${refAcqKey} - ${refSeries.name}`;
+            referenceCell.textContent = refSeries.name ? `${refAcqKey} - ${refSeries.name}` : refAcqKey;
             row.appendChild(referenceCell);
 
             const inputCell = document.createElement("td");
@@ -83,14 +112,21 @@ function displayMappingUI(mappingData) {
             unmappedOption.textContent = "Unmapped";
             select.appendChild(unmappedOption);
 
+            // Iterate over input acquisitions
             Object.entries(input_acquisitions).forEach(([inputAcqKey, inputAcqValue]) => {
-                inputAcqValue.series.forEach(inputSeries => {
-                    const inputSeriesKey = `${inputAcqKey}::${inputSeries.name}`;
+                // If reference has no series, only map acquisition to acquisition
+                const inputSeriesList = refSeriesExists && inputAcqValue.series ? inputAcqValue.series : [{ name: inputAcqKey }];
+                inputSeriesList.forEach(inputSeries => {
+                    // Use series-level mapping only if the reference has series
+                    const inputSeriesKey = refSeriesExists && inputSeries.name
+                        ? `${inputAcqKey}::${inputSeries.name}`
+                        : inputAcqKey;
+
                     const option = document.createElement("option");
                     option.value = inputSeriesKey;
-                    option.textContent = `${inputAcqKey} - ${inputSeries.name}`;
+                    option.textContent = inputSeries.name ? `${inputAcqKey} - ${inputSeries.name}` : inputAcqKey;
 
-                    // Pre-select the mapped input acquisition-series if available
+                    // Pre-select the mapped input acquisition/series if available
                     if (session_map[refSeriesKey] === inputSeriesKey) {
                         option.selected = true;
                     }
@@ -116,6 +152,7 @@ function displayMappingUI(mappingData) {
 }
 
 
+
 async function finalizeMapping() {
     const dropdownMappings = {};
     const dropdowns = document.querySelectorAll(".mapping-dropdown");
@@ -135,16 +172,30 @@ async function finalizeMapping() {
 
     const complianceOutput = await pyodide.runPythonAsync(`
     import json
-    from dcm_check.compliance import check_session_compliance
+    from dicompare.compliance import check_session_compliance, check_session_compliance_python_module
 
     # Deserialize the mapping
-    series_map = {
-        tuple(k.split("::")): tuple(v.split("::"))
-        for k, v in json.loads(finalized_mapping).items()
-    }
+    if is_json:
+        series_map = {
+            tuple(k.split("::")): tuple(v.split("::"))
+            for k, v in json.loads(finalized_mapping).items()
+        }
+    else:
+        # this time we don't want tuples, just a dict mapping the strings
+        series_map = {
+            k.split("::")[0]: v
+            for k, v in json.loads(finalized_mapping).items()
+        }
 
     # Perform compliance check
-    compliance_summary = check_session_compliance(in_session=in_session, ref_models=ref_models, series_map=series_map)
+    if is_json:
+        compliance_summary = check_session_compliance(in_session=in_session, ref_session=ref_session, series_map=series_map)
+    else:
+        compliance_summary = check_session_compliance_python_module(
+            in_session=in_session,
+            ref_models=ref_models,
+            acquisition_map=series_map
+        )
 
     json.dumps(compliance_summary)
     `);
@@ -160,7 +211,6 @@ function displayComplianceReport(complianceData) {
         messageContainer.textContent = "The input DICOMs are fully compliant with the reference.";
         tableContainer.innerHTML = "";
     } else {
-        messageContainer.textContent = "The input DICOMs are non-compliant with the reference. The following issues were identified:";
         displayTable(complianceData);
     }
 }

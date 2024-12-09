@@ -42,7 +42,7 @@ async function fmGenRef_genRef() {
   btnGenJSON.textContent = "Generating JSON...";
   const output = await pyodide.runPythonAsync(`
     import json
-    from dcm_check import read_dicom_session
+    from dicompare import read_dicom_session
 
     acquisition_fields = list(acquisition_fields)
     reference_fields = list(reference_fields)

@@ -2,7 +2,7 @@
 <html>
 
 <head>
-  <title>dcm-check</title>
+  <title>dicompare</title>
   <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
@@ -15,7 +15,7 @@
   <div class="tab-bar">
     <div class="tab active" onclick="switchTab('sessionReferenceTab')">Generate Reference</div>
     <div class="tab" onclick="switchTab('complianceReportTab')">Check Compliance</div>
-    <div class="tab right"><a href="https://github.com/astewartau/dcm-check" target="_blank">View on GitHub</a></div>
+    <div class="tab right"><a href="https://github.com/astewartau/dicompare" target="_blank">View on GitHub</a></div>
   </div>
 
   <div id="sessionReferenceTab" class="form-container active">
@@ -80,11 +80,22 @@
           data-tippy-content="The DICOMs that represent the session to be checked for compliance.">ℹ️</span></label>
       <input type="file" id="fmCheck_selectDICOMs" multiple webkitdirectory />
     </div>
+
+    <div class="row">
+      <label for="fmCheck_selectDomainReference">Reference: <span class="info-icon"
+          data-tippy-content="...">ℹ️</span></label>
+      <select id="fmCheck_selectDomainReference">
+        <option value="Custom">Custom (JSON or Python)</option>
+        <option value="QSM">Quantitative Susceptibility Mapping (QSM)</option>
+        <option value="HCP">Human Connectome Project (HCP)</option>
+        <option value="ABCD">Adolescent Brain Cognitive Development (ABCD) Study</option>
+      </select>
+    </div>
     
     <div class="row">
       <label for="fmCheck_selectJsonReference">Reference file: <span class="info-icon" 
           data-tippy-content="The JSON or Python file that contains the reference session information.">ℹ️</span></label>
-      <input type="file" id="fmCheck_selectJsonReference" accept=".json" />
+      <input type="file" id="fmCheck_selectJsonReference" accept=".json,.py" />
     </div>
 
     <div class="row">
