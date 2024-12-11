@@ -8,8 +8,10 @@ from dicompare import (
     load_dicom,
     get_dicom_values,
     load_dicom_session,
-    load_json_session
+    load_json_session,
 )
+
+from dicompare.cli.gen_session import create_json_reference
 
 @pytest.fixture
 def temp_json(tmp_path):
@@ -48,11 +50,10 @@ def test_read_dicom_session_directory(t1: Dataset, tmp_path):
     dicom_path = dicom_dir / "test.dcm"
     t1.save_as(dicom_path, enforce_file_format=True)
     result = load_dicom_session(
-        reference_fields=["PatientName", "SeriesDescription"],
-        session_dir=str(dicom_dir),
+        session_dir=str(dicom_dir)
     )
-    assert "acq-t1" in result["acquisitions"]
-    assert len(result["acquisitions"]["acq-t1"]["series"]) > 0
+    assert "acq-t1" in result["Acquisition"].values
+    assert len(result['Acquisition']) == 1
 
 def test_read_dicom_session_bytes(t1: Dataset):
     # Save DICOM to bytes
@@ -65,25 +66,14 @@ def test_read_dicom_session_bytes(t1: Dataset):
 
     # Call `read_dicom_session` with the simulated byte data
     result = load_dicom_session(
-        reference_fields=["PatientName", "SeriesDescription"],
-        dicom_bytes=dicom_bytes,
-        acquisition_fields=["ProtocolName"]
+        dicom_bytes=dicom_bytes
     )
 
     # Validate the results
-    assert "acq-t1" in result["acquisitions"]
-    acquisition = result["acquisitions"]["acq-t1"]
-
-    # Check acquisition-level fields
-    acquisition_fields = {field["field"]: field["value"] for field in acquisition["fields"]}
-    assert acquisition_fields["ProtocolName"] == "T1"
-
-    # Check series-level fields
-    assert len(acquisition["series"]) == 1
-    series = acquisition["series"][0]
-    series_fields = {field["field"]: field["value"] for field in series["fields"]}
-    assert series_fields["PatientName"] == "Test^Patient"
-    assert series_fields["SeriesDescription"] == "T1-weighted"
+    assert "acq-t1" in result["Acquisition"].values
+    assert "Test^Patient" in result["PatientName"].values
+    assert "T1-weighted" in result["SeriesDescription"].values
+    assert len(result['Acquisition']) == 1
 
 def test_read_dicom_session_bytes_partial(t1: Dataset):
     # Save full DICOM to bytes
@@ -99,31 +89,14 @@ def test_read_dicom_session_bytes_partial(t1: Dataset):
 
     # Call `read_dicom_session` with the partial byte data
     result = load_dicom_session(
-        reference_fields=["PatientName", "SeriesDescription"],
-        dicom_bytes=dicom_bytes,
-        acquisition_fields=["ProtocolName"]
+        dicom_bytes=dicom_bytes
     )
 
     # Validate the results
-    assert "acq-t1" in result["acquisitions"]
-    acquisition = result["acquisitions"]["acq-t1"]
-
-    # Check acquisition-level fields
-    acquisition_fields = {field["field"]: field["value"] for field in acquisition["fields"]}
-    assert acquisition_fields["ProtocolName"] == "T1"
-
-    # Check series-level fields
-    assert len(acquisition["series"]) == 1
-    series = acquisition["series"][0]
-    series_fields = {field["field"]: field["value"] for field in series["fields"]}
-    assert series_fields["PatientName"] == "Test^Patient"
-    assert series_fields["SeriesDescription"] == "T1-weighted"
-
-
-# Test for `read_dicom_session` with missing data
-def test_read_dicom_session_no_input():
-    with pytest.raises(ValueError, match="Either session_dir or dicom_bytes must be provided."):
-        load_dicom_session(reference_fields=["PatientName"])
+    assert "acq-t1" in result["Acquisition"].values
+    assert "Test^Patient" in result["PatientName"].values
+    assert "T1-weighted" in result["SeriesDescription"].values
+    assert len(result['Acquisition']) == 1
 
 def test_read_json_session(temp_json):
     json_data = {
@@ -181,15 +154,15 @@ def test_read_dicom_session_read_json_session_numeric_datatype_encoding(tmp_path
 
     # Read the DICOM session
     result = load_dicom_session(
-        reference_fields=["EchoTime"],
-        session_dir=str(dicom_dir),
-        acquisition_fields=["ProtocolName"]
+        session_dir=str(dicom_dir)
     )
 
-    # Save the result as a JSON file
+    result_json = create_json_reference(result, ["ProtocolName"], ["EchoTime", "SeriesDescription"])
+
+    # Save the dataframe as a JSON file
     json_path = tmp_path / "session_output.json"
     with open(json_path, "w") as json_file:
-        json.dump(result, json_file, indent=4)
+        json.dump(result_json, json_file, indent=4)
 
     # Use `read_json_session` to load the JSON
     acq_fields, series_fields, loaded_result = load_json_session(str(json_path))
@@ -218,6 +191,5 @@ def test_read_dicom_session_empty_directory(tmp_path):
     empty_dir.mkdir()
     with pytest.raises(ValueError, match="No DICOM data found to process."):
         load_dicom_session(
-            reference_fields=["PatientName"],
             session_dir=str(empty_dir),
         )

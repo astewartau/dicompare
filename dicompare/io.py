@@ -103,7 +103,7 @@ def load_dicom(dicom_file: Union[str, bytes]) -> Dict[str, Any]:
 def load_dicom_session(
     session_dir: Optional[str] = None,
     dicom_bytes: Optional[Union[Dict[str, bytes], Any]] = None,
-    acquisition_fields: Optional[List[str]] = [],
+    acquisition_fields: Optional[List[str]] = ["ProtocolName"],
 ) -> pd.DataFrame:
     """
     Read all files in a DICOM session directory or a dictionary of DICOM files 
