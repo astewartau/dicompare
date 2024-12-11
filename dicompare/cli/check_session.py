@@ -4,8 +4,8 @@ import argparse
 import pandas as pd
 
 from dicompare.io import load_json_session, load_python_session, load_dicom_session
-from dicompare.compliance import check_session_compliance, check_session_compliance_python_module
-from dicompare.mapping import map_session, interactive_mapping, interactive_mapping_2
+from dicompare.compliance import check_session_compliance_with_json_reference, check_session_compliance_with_python_module
+from dicompare.mapping import map_to_json_reference, interactive_mapping_to_json_reference, interactive_mapping_to_python_reference
 
 def main():
     parser = argparse.ArgumentParser(description="Generate compliance summaries for a DICOM session.")
@@ -46,22 +46,22 @@ def main():
         )
 
     if args.json_ref:
-        session_map = map_session(in_session, ref_session)
+        session_map = map_to_json_reference(in_session, ref_session)
         if not args.auto_yes and sys.stdin.isatty():
-            session_map = interactive_mapping(in_session, ref_session, initial_mapping=session_map)
+            session_map = interactive_mapping_to_json_reference(in_session, ref_session, initial_mapping=session_map)
     else:
-        session_map = interactive_mapping_2(in_session, ref_models)
+        session_map = interactive_mapping_to_python_reference(in_session, ref_models)
     
 
     # Perform compliance check
     if args.json_ref:
-        compliance_summary = check_session_compliance(
+        compliance_summary = check_session_compliance_with_json_reference(
             in_session=in_session,
             ref_session=ref_session,
             session_map=session_map
         )
     else:
-        compliance_summary = check_session_compliance_python_module(
+        compliance_summary = check_session_compliance_with_python_module(
             in_session=in_session,
             ref_models=ref_models,
             session_map=session_map

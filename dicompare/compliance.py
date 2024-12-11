@@ -1,22 +1,30 @@
+"""
+This module provides functions for validating a DICOM sessions.
+
+The module supports compliance checks for JSON-based reference sessions and Python module-based validation models.
+
+"""
+
 from typing import List, Dict, Any, Tuple
 from dicompare.validation import BaseValidationModel
 import pandas as pd
 
-def check_session_compliance(
+def check_session_compliance_with_json_reference(
     in_session: pd.DataFrame,
     ref_session: Dict[str, Any],
-    session_map: Dict[Tuple[str, str], Tuple[str, str]]  # Maps (input_acquisition, input_series) to (ref_acquisition, ref_series)
+    session_map: Dict[Tuple[str, str], Tuple[str, str]]
 ) -> List[Dict[str, Any]]:
     """
-    Validate a DICOM session against a reference session.
+    Validate a DICOM session against a JSON reference session.
 
     Args:
-        in_session (pd.DataFrame): Input session DataFrame as returned by `load_dicom_session`.
-        ref_session (Dict[str, Any]): Reference session dictionary as returned by `load_json_session`.
-        session_map (Dict[Tuple[str, str], Tuple[str, str]]): Mapping of input acquisitions and series to reference acquisitions and series.
+        in_session (pd.DataFrame): Input session DataFrame containing DICOM metadata.
+        ref_session (Dict[str, Any]): Reference session data loaded from a JSON file.
+        session_map (Dict[Tuple[str, str], Tuple[str, str]]): Mapping of input acquisitions/series 
+            to reference acquisitions/series.
 
     Returns:
-        List[Dict[str, Any]]: List of compliance issues.
+        List[Dict[str, Any]]: A list of compliance issues, where each issue is represented as a dictionary.
     """
     compliance_summary = []
 
@@ -120,23 +128,28 @@ def check_session_compliance(
                 })
 
     return compliance_summary
-def check_session_compliance_python_module(
+
+def check_session_compliance_with_python_module(
     in_session: pd.DataFrame,
     ref_models: Dict[str, BaseValidationModel],
-    session_map: Dict[str, str],  # Maps reference acquisitions to input acquisitions
+    session_map: Dict[str, str],
     raise_errors: bool = False
 ) -> List[Dict[str, Any]]:
     """
-    Validate a DICOM session against reference models defined in a Python module.
+    Validate a DICOM session against Python module-based validation models.
 
     Args:
-        in_session (pd.DataFrame): Input session DataFrame as returned by `load_dicom_session`.
-        ref_models (Dict[str, BaseValidationModel]): Reference models loaded from a Python module.
+        in_session (pd.DataFrame): Input session DataFrame containing DICOM metadata.
+        ref_models (Dict[str, BaseValidationModel]): Dictionary mapping acquisition names to 
+            validation models.
         session_map (Dict[str, str]): Mapping of reference acquisitions to input acquisitions.
-        raise_errors (bool): If True, raise an exception when validation fails.
+        raise_errors (bool): Whether to raise exceptions for validation failures. Defaults to False.
 
     Returns:
-        List[Dict[str, Any]]: Compliance summary with validation results.
+        List[Dict[str, Any]]: A list of compliance issues, where each issue is represented as a dictionary.
+    
+    Raises:
+        ValueError: If `raise_errors` is True and validation fails for any acquisition.
     """
     compliance_summary = []
 
@@ -169,7 +182,7 @@ def check_session_compliance_python_module(
                 "passed": "❌"
             })
             continue
-        ref_model = ref_model_cls()  # Instantiate the validation model
+        ref_model = ref_model_cls()
 
         # Prepare acquisition data as a single DataFrame
         acquisition_df = in_acq.copy()
@@ -216,14 +229,15 @@ def check_dicom_compliance(
     dicom_values: Dict[str, Any]
 ) -> List[Dict[str, Any]]:
     """
-    Validate a DICOM file against reference fields.
+    Validate individual DICOM values against reference fields.
 
     Args:
-        reference_fields (List[Dict[str, Any]]): List of fields with their expected values and rules.
-        dicom_values (Dict[str, Any]): Actual DICOM values.
+        reference_fields (List[Dict[str, Any]]): A list of dictionaries defining the expected values 
+            and rules for validation (e.g., tolerance, contains).
+        dicom_values (Dict[str, Any]): Dictionary of DICOM metadata values to be validated.
 
     Returns:
-        List[Dict[str, Any]]: List of compliance issues.
+        List[Dict[str, Any]]: A list of compliance issues, where each issue is represented as a dictionary.
     """
     compliance_summary = []
 
@@ -291,33 +305,33 @@ def is_session_compliant(
         session_map: Dict[Tuple[str, str], Tuple[str, str]]
 ) -> bool:
     """
-    Validate if the DICOM session is fully compliant with the reference session.
+    Check if the entire DICOM session complies with the reference session.
 
     Args:
-        in_session (Dict): Input session data.
-        ref_session (Dict): Reference session data.
-        series_map (Dict): Mapping of input series to reference series.
+        in_session (Dict): Input session data containing DICOM metadata.
+        ref_session (Dict): Reference session data containing expected metadata and rules.
+        session_map (Dict): Mapping of input acquisitions/series to reference acquisitions/series.
 
     Returns:
-        bool: True if compliant, False otherwise.
+        bool: True if the session is fully compliant, False otherwise.
     """
-    compliance_issues = check_session_compliance(in_session, ref_session, session_map)
-    return len(compliance_issues) == 0
 
+    compliance_issues = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    return len(compliance_issues) == 0
 
 def is_dicom_compliant(
         reference_model: BaseValidationModel,
         dicom_values: Dict[str, Any]
 ) -> bool:
-    
-    """Validate a DICOM file against the reference model.
+    """
+    Check if a DICOM file's metadata complies with a validation model.
 
     Args:
-        reference_model (BaseValidationModel): The reference model for validation.
-        dicom_values (Dict[str, Any]): The DICOM values to validate.
+        reference_model (BaseValidationModel): The validation model defining expected metadata.
+        dicom_values (Dict[str, Any]): Dictionary of DICOM metadata values to be validated.
 
     Returns:
-        is_compliant (bool): True if the DICOM values are compliant with the reference model.
+        bool: True if the DICOM metadata is compliant, False otherwise.
     """
 
     compliance_issues = check_dicom_compliance(
@@ -326,3 +340,4 @@ def is_dicom_compliant(
     )
 
     return len(compliance_issues) == 0
+

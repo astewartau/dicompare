@@ -1,61 +1,37 @@
+"""
+This module contains functions for loading and processing DICOM data, JSON references, and Python validation modules.
+
+"""
+
 import os
 import pydicom
 import json
 import pandas as pd
 import importlib.util
 
-from typing import List, Optional, Dict, Any, Union, Tuple
 from pydicom.multival import MultiValue
 from pydicom.uid import UID
 from pydicom.valuerep import PersonName, DSfloat, IS
+from typing import List, Optional, Dict, Any, Union, Tuple
 from io import BytesIO
 
-from .utils import clean_string
+from .utils import clean_string, convert_jsproxy, make_hashable, normalize_numeric_values
 from .validation import BaseValidationModel
 
-def normalize_numeric_values(data):
-    """
-    Recursively convert all numeric values in a data structure to floats.
-    """
-    if isinstance(data, dict):
-        return {k: normalize_numeric_values(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [normalize_numeric_values(v) for v in data]
-    elif isinstance(data, (int, float)):
-        return float(data)
-    return data
-
-def convert_jsproxy(obj):
-    if hasattr(obj, "to_py"):
-        return convert_jsproxy(obj.to_py())
-    elif isinstance(obj, dict):
-        return {k: convert_jsproxy(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_jsproxy(v) for v in obj]
-    else:
-        return obj
-    
-def make_hashable(value):
-    """
-    Convert a value into a hashable format.
-    Handles lists, dictionaries, and other non-hashable types.
-    """
-    if isinstance(value, list):
-        return tuple(value)
-    elif isinstance(value, dict):
-        return tuple((k, make_hashable(v)) for k, v in value.items())
-    elif isinstance(value, set):
-        return tuple(sorted(make_hashable(v) for v in value))
-    return value
-
 def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
-    """Convert a DICOM dataset to a dictionary, handling sequences and DICOM-specific data types.
+    """
+    Convert a DICOM dataset to a dictionary, handling sequences and DICOM-specific data types.
+    
+    Notes:
+        - Sequences are recursively processed.
+        - Common DICOM data types (e.g., UID, PersonName) are converted to strings.
+        - Numeric values are normalized.
 
     Args:
         ds (pydicom.dataset.FileDataset): The DICOM dataset to process.
 
     Returns:
-        dicom_dict (Dict[str, Any]): A dictionary of DICOM values.
+        Dict[str, Any]: A dictionary of extracted DICOM metadata, excluding pixel data.
     """
     dicom_dict = {}
 
@@ -84,14 +60,20 @@ def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
     return dicom_dict
 
 def load_dicom(dicom_file: Union[str, bytes]) -> Dict[str, Any]:
-    """Load a DICOM file from a path or bytes and extract values as a dictionary.
+    """
+    Load a DICOM file and extract its metadata as a dictionary.
 
     Args:
-        dicom_file (Union[str, bytes]): Path to the DICOM file or file content as bytes.
+        dicom_file (Union[str, bytes]): Path to the DICOM file or file content in bytes.
 
     Returns:
-        dicom_values (Dict[str, Any]): A dictionary of DICOM values.
+        Dict[str, Any]: A dictionary of DICOM metadata, with normalized and truncated values.
+
+    Raises:
+        FileNotFoundError: If the specified DICOM file path does not exist.
+        pydicom.errors.InvalidDicomError: If the file is not a valid DICOM file.
     """
+
     if isinstance(dicom_file, (bytes, memoryview)):
         # Convert dicom_file to BytesIO if it's in bytes or memoryview format
         ds = pydicom.dcmread(BytesIO(dicom_file), stop_before_pixels=True)
@@ -106,16 +88,23 @@ def load_dicom_session(
     acquisition_fields: Optional[List[str]] = ["ProtocolName"],
 ) -> pd.DataFrame:
     """
-    Read all files in a DICOM session directory or a dictionary of DICOM files 
-    and return a single DataFrame containing all DICOM metadata.
+    Load and process all DICOM files in a session directory or a dictionary of byte content.
+
+    Notes:
+        - The function can process files directly from a directory or byte content.
+        - Metadata is grouped and sorted based on the acquisition fields and `InstanceNumber`.
+        - Missing fields are normalized with default values.
 
     Args:
-        session_dir (Optional[str]): Path to the directory containing DICOM files.
-        dicom_bytes (Optional[Union[Dict[str, bytes], Any]]): A dictionary of file paths and their respective byte content.
-        acquisition_fields (Optional[List[str]]): Fields to uniquely identify each acquisition.
+        session_dir (Optional[str]): Path to a directory containing DICOM files.
+        dicom_bytes (Optional[Union[Dict[str, bytes], Any]]): Dictionary of file paths and their byte content.
+        acquisition_fields (Optional[List[str]]): List of fields used to uniquely identify each acquisition.
 
     Returns:
-        pd.DataFrame: DataFrame containing all extracted DICOM metadata.
+        pd.DataFrame: A DataFrame containing metadata for all DICOM files in the session.
+
+    Raises:
+        ValueError: If neither `session_dir` nor `dicom_bytes` is provided, or if no DICOM data is found.
     """
     session_data = []
 
@@ -172,18 +161,28 @@ def load_dicom_session(
 
     return session_df
 
-
-
 def load_json_session(json_ref: str) -> Tuple[List[str], List[str], Dict[str, Any]]:
     """
-    Load a JSON reference file and extract acquisition and series fields.
+    Load a JSON reference file and extract fields for acquisitions and series.
+
+    Notes:
+        - Fields are normalized for easier comparison.
+        - Nested fields in acquisitions and series are processed recursively.
 
     Args:
-        json_ref (str): Path to the JSON file.
+        json_ref (str): Path to the JSON reference file.
 
     Returns:
-        Tuple: (acquisition_fields, series_fields, acquisitions_dict)
+        Tuple[List[str], List[str], Dict[str, Any]]:
+            - List of acquisition-level fields.
+            - List of series-level fields.
+            - Processed reference data as a dictionary.
+
+    Raises:
+        FileNotFoundError: If the specified JSON file path does not exist.
+        JSONDecodeError: If the file is not a valid JSON file.
     """
+
     def process_fields(fields: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Process fields to standardize them for comparison.
@@ -230,17 +229,26 @@ def load_json_session(json_ref: str) -> Tuple[List[str], List[str], Dict[str, An
 
 def load_python_session(module_path: str) -> Tuple[List[str], List[str], Dict[str, BaseValidationModel]]:
     """
-    Load a Python module containing Pydantic models for validation.
+    Load validation models from a Python module for DICOM compliance checks.
+
+    Notes:
+        - The module must define `ACQUISITION_MODELS` as a dictionary mapping acquisition names to validation models.
+        - Validation models must inherit from `BaseValidationModel`.
 
     Args:
-        module_path (str): Path to the Python module.
+        module_path (str): Path to the Python module containing validation models.
 
     Returns:
         Tuple[List[str], List[str], Dict[str, BaseValidationModel]]:
-        - The `ACQUISITION_MODELS` dictionary from the module.
-        - Combined acquisition fields.
-        - Combined reference fields.
+            - Dictionary of acquisition validation models from the module.
+            - List of combined acquisition fields.
+            - List of combined series fields.
+
+    Raises:
+        FileNotFoundError: If the specified Python module path does not exist.
+        ValueError: If the module does not define `ACQUISITION_MODELS` or its format is incorrect.
     """
+
     spec = importlib.util.spec_from_file_location("validation_module", module_path)
     validation_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(validation_module)

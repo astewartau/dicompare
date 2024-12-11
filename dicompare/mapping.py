@@ -1,3 +1,8 @@
+"""
+This module provides functions for mapping DICOM input data to reference models (JSON or Python modules).
+
+"""
+
 import re
 import numpy as np
 import pandas as pd
@@ -15,7 +20,18 @@ MAX_DIFF_SCORE = 10  # Maximum allowed difference score for each field to avoid 
 
 def levenshtein_distance(s1, s2):
     """
-    Calculate the Levenshtein distance between two strings.
+    Calculate the Levenshtein distance (edit distance) between two strings.
+
+    Notes:
+        - Uses a dynamic programming approach.
+        - Distance is the number of single-character edits required to convert one string to another.
+
+    Args:
+        s1 (str): First string.
+        s2 (str): Second string.
+
+    Returns:
+        int: The Levenshtein distance between the two strings.
     """
     if len(s1) < len(s2):
         return levenshtein_distance(s2, s1)
@@ -35,7 +51,24 @@ def levenshtein_distance(s1, s2):
     return previous_row[-1]
 
 def calculate_field_score(expected, actual, tolerance=None, contains=None):
-    """Calculate the difference between expected and actual values, with caps for large scores."""
+    """
+    Calculate the difference score between expected and actual values, applying specific rules.
+
+    Notes:
+        - Handles numeric comparisons with optional tolerance.
+        - Applies substring containment checks.
+        - String comparisons use Levenshtein distance.
+        - Missing values incur a high penalty.
+
+    Args:
+        expected (Any): The expected value.
+        actual (Any): The actual value.
+        tolerance (Optional[float]): Tolerance for numeric comparisons.
+        contains (Optional[str]): Substring or value that should be contained in `actual`.
+
+    Returns:
+        float: A difference score capped at `MAX_DIFF_SCORE`.
+    """
 
     if actual is None:
         # Assign a high penalty for missing actual value
@@ -75,15 +108,16 @@ def calculate_field_score(expected, actual, tolerance=None, contains=None):
 
 def calculate_match_score(ref_row, in_row):
     """
-    Calculate the difference score between a reference row and an input row.
-    
+    Calculate the total difference score for a reference row and an input row.
+
     Args:
-        ref_row (dict): A dictionary representing a reference acquisition or series.
-        in_row (dict): A dictionary representing an input acquisition or series.
+        ref_row (dict): Dictionary representing a reference acquisition or series.
+        in_row (dict): Dictionary representing an input acquisition or series.
 
     Returns:
-        float: Total difference score.
+        float: The total difference score.
     """
+
     diff_score = 0.0
 
     in_fields = in_row.get("fields", [])
@@ -100,18 +134,23 @@ def calculate_match_score(ref_row, in_row):
 
     return round(diff_score, 2)
 
-def map_session(in_session_df: pd.DataFrame, ref_session: dict) -> dict:
+def map_to_json_reference(in_session_df: pd.DataFrame, ref_session: dict) -> dict:
     """
-    Map an input session to a reference session to find the closest acquisitions and series
-    using the Hungarian algorithm to minimize total cost.
+    Automatically map input acquisitions/series to a JSON reference using the Hungarian algorithm.
+
+    Notes:
+        - Uses `calculate_field_score` to compute a cost matrix for mapping.
+        - Assigns mappings to minimize total mapping cost.
+        - Handles grouping and ranking of input series using unique combinations of fields.
 
     Args:
-        in_session_df (pd.DataFrame): DataFrame of input session data, as returned by `load_dicom_session`.
-        ref_session (dict): Reference session data returned by `load_json_session`.
+        in_session_df (pd.DataFrame): DataFrame of input session metadata.
+        ref_session (dict): Reference session data in JSON format.
 
     Returns:
-        dict: Mapping of (input_acquisition, input_series) to (reference_acquisition, reference_series).
+        dict: Mapping of (input_acquisition, input_series) -> (reference_acquisition, reference_series).
     """
+
     # Extract reference acquisitions and series fields
     reference_acquisitions = ref_session["acquisitions"]
 
@@ -142,7 +181,6 @@ def map_session(in_session_df: pd.DataFrame, ref_session: dict) -> dict:
         .astype(int))
         .astype(str)
     )
-
 
     # Prepare lists for input acquisitions + series and reference acquisitions + series
     input_acquisition_series = in_session_df[["Acquisition", "Series"]].drop_duplicates().values.tolist()
@@ -210,18 +248,25 @@ def map_session(in_session_df: pd.DataFrame, ref_session: dict) -> dict:
             mapping[tuple(input_acquisition_series[row])] = tuple(reference_acquisition_series[col])
 
     return mapping
-def interactive_mapping(in_session_df: pd.DataFrame, ref_session: dict, initial_mapping=None):
+
+def interactive_mapping_to_json_reference(in_session_df: pd.DataFrame, ref_session: dict, initial_mapping=None):
     """
-    Interactive CLI for customizing mappings from reference to input acquisitions/series.
+    Interactive CLI for mapping input acquisitions/series to JSON references.
+
+    Notes:
+        - Provides an interactive terminal interface for customizing mappings.
+        - Allows users to assign, unassign, and modify mappings dynamically.
+        - Displays reference and input series fields for context.
 
     Args:
-        in_session_df (pd.DataFrame): DataFrame of the input session data.
-        ref_session (dict): Reference session data.
-        initial_mapping (dict, optional): Initial mapping of reference to input acquisitions/series.
+        in_session_df (pd.DataFrame): DataFrame of input session metadata.
+        ref_session (dict): Reference session data in JSON format.
+        initial_mapping (dict, optional): Initial mapping to use as a starting point.
 
     Returns:
         dict: Final mapping of (reference_acquisition, reference_series) -> (input_acquisition, input_series).
     """
+
     # Prepare input series from the DataFrame with detailed identifiers
     input_series = {
         ("input", acq_name, series_name): in_session_df[
@@ -387,15 +432,19 @@ def interactive_mapping(in_session_df: pd.DataFrame, ref_session: dict, initial_
         for ref_key, input_key in mapping.items()
     }
 
-
-def interactive_mapping_2(in_session_df: pd.DataFrame, ref_models: dict, initial_mapping=None):
+def interactive_mapping_to_python_reference(in_session_df: pd.DataFrame, ref_models: dict, initial_mapping=None):
     """
-    Interactive CLI for customizing mappings from reference acquisitions to input acquisitions.
+    Interactive CLI for mapping input acquisitions to Python module references.
+
+    Notes:
+        - Designed for Python module-based validation where mappings are at the acquisition level.
+        - Provides an interactive terminal interface for adjusting mappings.
+        - Displays available input acquisitions for selection.
 
     Args:
-        in_session_df (pd.DataFrame): DataFrame of input session data.
-        ref_models (dict): Reference models keyed by acquisition names.
-        initial_mapping (dict, optional): Initial mapping of reference acquisitions to input acquisitions.
+        in_session_df (pd.DataFrame): DataFrame of input session metadata.
+        ref_models (dict): Dictionary of reference validation models keyed by acquisition names.
+        initial_mapping (dict, optional): Initial mapping to use as a starting point.
 
     Returns:
         dict: Final mapping of reference acquisitions -> input acquisitions.
