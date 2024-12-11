@@ -4,16 +4,14 @@ import json
 import pandas as pd
 import importlib.util
 
-from typing import List, Optional, Dict, Any, Union, Literal, Tuple
+from typing import List, Optional, Dict, Any, Union, Tuple
 from pydicom.multival import MultiValue
 from pydicom.uid import UID
 from pydicom.valuerep import PersonName, DSfloat, IS
 from io import BytesIO
 
-from pydantic import BaseModel, Field, confloat, create_model, field_validator
-from pydantic_core import PydanticUndefined
-
 from .utils import clean_string
+from .validation import BaseValidationModel
 
 def normalize_numeric_values(data):
     """
@@ -23,9 +21,32 @@ def normalize_numeric_values(data):
         return {k: normalize_numeric_values(v) for k, v in data.items()}
     elif isinstance(data, list):
         return [normalize_numeric_values(v) for v in data]
-    elif isinstance(data, (int, float)):  # Normalize ints and floats to float
+    elif isinstance(data, (int, float)):
         return float(data)
-    return data  # Return other types unchanged
+    return data
+
+def convert_jsproxy(obj):
+    if hasattr(obj, "to_py"):
+        return convert_jsproxy(obj.to_py())
+    elif isinstance(obj, dict):
+        return {k: convert_jsproxy(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_jsproxy(v) for v in obj]
+    else:
+        return obj
+    
+def make_hashable(value):
+    """
+    Convert a value into a hashable format.
+    Handles lists, dictionaries, and other non-hashable types.
+    """
+    if isinstance(value, list):
+        return tuple(value)
+    elif isinstance(value, dict):
+        return tuple((k, make_hashable(v)) for k, v in value.items())
+    elif isinstance(value, set):
+        return tuple(sorted(make_hashable(v) for v in value))
+    return value
 
 def get_dicom_values(ds: pydicom.dataset.FileDataset) -> Dict[str, Any]:
     """Convert a DICOM dataset to a dictionary, handling sequences and DICOM-specific data types.
@@ -79,126 +100,83 @@ def load_dicom(dicom_file: Union[str, bytes]) -> Dict[str, Any]:
     
     return get_dicom_values(ds)
 
-def convert_jsproxy(obj):
-    if hasattr(obj, "to_py"):  # Check if it's a JsProxy
-        return convert_jsproxy(obj.to_py())  # Recursively convert nested JsProxy
-    elif isinstance(obj, dict):
-        return {k: convert_jsproxy(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_jsproxy(v) for v in obj]
-    else:
-        return obj  # Return as is if it's already a native Python type
-
-def read_dicom_session(
-    reference_fields: List[str],
+def load_dicom_session(
     session_dir: Optional[str] = None,
     dicom_bytes: Optional[Union[Dict[str, bytes], Any]] = None,
-    acquisition_fields: List[str] = ["ProtocolName"]
-) -> dict:
+    acquisition_fields: Optional[List[str]] = [],
+) -> pd.DataFrame:
     """
-    Read all files in a DICOM session directory or a dictionary of DICOM files and produce a dictionary resembling the JSON structure.
+    Read all files in a DICOM session directory or a dictionary of DICOM files 
+    and return a single DataFrame containing all DICOM metadata.
+
+    Args:
+        session_dir (Optional[str]): Path to the directory containing DICOM files.
+        dicom_bytes (Optional[Union[Dict[str, bytes], Any]]): A dictionary of file paths and their respective byte content.
+        acquisition_fields (Optional[List[str]]): Fields to uniquely identify each acquisition.
+
+    Returns:
+        pd.DataFrame: DataFrame containing all extracted DICOM metadata.
     """
     session_data = []
 
     if dicom_bytes is not None:
         dicom_bytes = convert_jsproxy(dicom_bytes)
-        
         for dicom_path, dicom_content in dicom_bytes.items():
             dicom_values = load_dicom(dicom_content)
-            dicom_entry = {
-                str(field): dicom_values.get(field, "N/A")
-                for field in acquisition_fields + reference_fields
-            }
-            dicom_entry["DICOM_Path"] = str(dicom_path)
-            dicom_entry["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
-            session_data.append(dicom_entry)
-    
+            dicom_values["DICOM_Path"] = str(dicom_path)
+            dicom_values["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
+            session_data.append(dicom_values)
     elif session_dir is not None:
         for root, _, files in os.walk(session_dir):
             for file in files:
                 if file.endswith((".dcm", ".IMA")):
                     dicom_path = os.path.join(root, file)
                     dicom_values = load_dicom(dicom_path)
-                    dicom_entry = {
-                        k: v for k, v in dicom_values.items() if k in acquisition_fields + reference_fields
-                    }
-                    dicom_entry["DICOM_Path"] = dicom_path
-                    session_data.append(dicom_entry)
+                    dicom_values["DICOM_Path"] = dicom_path
+                    dicom_values["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
+                    session_data.append(dicom_values)
     else:
         raise ValueError("Either session_dir or dicom_bytes must be provided.")
 
     if not session_data:
         raise ValueError("No DICOM data found to process.")
 
+    # Create a DataFrame
     session_df = pd.DataFrame(session_data)
 
-    # Sort data for consistency
+    # Ensure all values are hashable
+    for col in session_df.columns:
+        session_df[col] = session_df[col].apply(make_hashable)
+
+    # Sort data by InstanceNumber if present
     if "InstanceNumber" in session_df.columns:
         session_df.sort_values("InstanceNumber", inplace=True)
-    else:
+    elif "DICOM_Path" in session_df.columns:
         session_df.sort_values("DICOM_Path", inplace=True)
 
-    # Ensure all fields used for grouping are hashable
-    for field in acquisition_fields + reference_fields:
-        if field in session_df.columns:
-            session_df[field] = session_df[field].apply(
-                lambda x: x
-            )
+    # Group by unique combinations of acquisition fields
+    if acquisition_fields:
+        session_df = session_df.groupby(acquisition_fields).apply(lambda x: x.reset_index(drop=True))
 
-    # Group data by acquisition fields
-    grouped = session_df.groupby(acquisition_fields)
+    # Convert acquisition fields to strings and handle missing values
+    def clean_acquisition_values(row):
+        return "-".join(str(val) if pd.notnull(val) else "NA" for val in row)
 
-    acquisitions = {}
+    # Add 'Acquisition' field
+    session_df["Acquisition"] = (
+        "acq-"
+        + session_df[acquisition_fields]
+        .apply(clean_acquisition_values, axis=1)
+        .apply(clean_string)
+    )
 
-    for acq_key, group in grouped:
-        acq_name = "acq-" + clean_string("-".join(
-            f"{group[field].iloc[0]}" for field in acquisition_fields if field in group
-        ))
-        acq_entry = {"fields": [], "series": []}
+    return session_df
 
-        for field in acquisition_fields:
-            unique_values = list(group[field].unique())
 
-            # convert numeric types to native Python types
-            unique_values = [
-                float(value) if isinstance(value, float)
-                else int(value) if isinstance(value, int) 
-                else value for value in unique_values
-            ]
 
-            if len(unique_values) == 1:
-                acq_entry["fields"].append({"field": field, "value": unique_values[0]})
-        
-        # convert lists to tuples in group for hashability
-        group = group.map(lambda x: tuple(x) if isinstance(x, list) else x)
-
-        # group by reference fields and keep headers
-        series_grouped = group.groupby(reference_fields)
-        for i, (_, series_group) in enumerate(series_grouped, start=1):
-            series_entry = {
-                "name": f"Series {i}",
-                "fields": []
-            }
-            for field in reference_fields:
-                unique_values = list(series_group[field].unique())
-
-                # convert numeric types to native Python types
-                unique_values = [
-                    float(value) if isinstance(value, float)
-                    else int(value) if isinstance(value, int) 
-                    else value for value in unique_values
-                ]
-                if len(unique_values) == 1:
-                    series_entry["fields"].append({"field": field, "value": unique_values[0]})
-            acq_entry["series"].append(series_entry)
-
-        acquisitions[acq_name] = acq_entry
-
-    return {"acquisitions": acquisitions}
-
-def read_json_session(json_ref: str) -> Tuple[List[str], List[str], Dict[str, Any]]:
+def load_json_session(json_ref: str) -> Tuple[List[str], List[str], Dict[str, Any]]:
     """
-    Read a JSON reference file and extract acquisition and series fields.
+    Load a JSON reference file and extract acquisition and series fields.
 
     Args:
         json_ref (str): Path to the JSON file.
@@ -214,7 +192,7 @@ def read_json_session(json_ref: str) -> Tuple[List[str], List[str], Dict[str, An
         for field in fields:
             processed = {"field": field["field"]}
             if "value" in field:
-                processed["value"] = field["value"]
+                processed["value"] = tuple(field["value"]) if isinstance(field["value"], list) else field["value"]
             if "tolerance" in field:
                 processed["tolerance"] = field["tolerance"]
             if "contains" in field:
@@ -250,7 +228,7 @@ def read_json_session(json_ref: str) -> Tuple[List[str], List[str], Dict[str, An
 
     return sorted(acquisition_fields), sorted(series_fields), {"acquisitions": acquisitions}
 
-def load_python_module(module_path: str) -> Tuple[List[str], List[str], Dict[str, BaseModel]]:
+def load_python_session(module_path: str) -> Tuple[List[str], List[str], Dict[str, BaseValidationModel]]:
     """
     Load a Python module containing Pydantic models for validation.
 
@@ -258,7 +236,7 @@ def load_python_module(module_path: str) -> Tuple[List[str], List[str], Dict[str
         module_path (str): Path to the Python module.
 
     Returns:
-        Tuple[List[str], List[str], Dict[str, BaseModel]]:
+        Tuple[List[str], List[str], Dict[str, BaseValidationModel]]:
         - The `ACQUISITION_MODELS` dictionary from the module.
         - Combined acquisition fields.
         - Combined reference fields.
@@ -274,16 +252,6 @@ def load_python_module(module_path: str) -> Tuple[List[str], List[str], Dict[str
     if not isinstance(acquisition_models, dict):
         raise ValueError("'ACQUISITION_MODELS' must be a dictionary.")
 
-    # Combine acquisition and reference fields from all models
-    acquisition_fields = set()
-    reference_fields = set()
-
-    for model in acquisition_models.values():
-        if hasattr(model, "acquisition_fields"):
-            acquisition_fields.update(model.acquisition_fields)
-        if hasattr(model, "reference_fields"):
-            reference_fields.update(list(sorted(list(model.reference_fields.keys()))))
-
-    return sorted(acquisition_fields), sorted(reference_fields), acquisition_models
+    return acquisition_models
 
 

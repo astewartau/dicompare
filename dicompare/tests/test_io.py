@@ -2,14 +2,13 @@ import pytest
 import json
 from io import BytesIO
 from pydicom.dataset import Dataset
-from annotated_types import Interval
 from .fixtures.fixtures import t1
 
 from dicompare import (
     load_dicom,
     get_dicom_values,
-    read_dicom_session,
-    read_json_session
+    load_dicom_session,
+    load_json_session
 )
 
 @pytest.fixture
@@ -48,7 +47,7 @@ def test_read_dicom_session_directory(t1: Dataset, tmp_path):
     dicom_dir.mkdir()
     dicom_path = dicom_dir / "test.dcm"
     t1.save_as(dicom_path, enforce_file_format=True)
-    result = read_dicom_session(
+    result = load_dicom_session(
         reference_fields=["PatientName", "SeriesDescription"],
         session_dir=str(dicom_dir),
     )
@@ -65,7 +64,7 @@ def test_read_dicom_session_bytes(t1: Dataset):
     dicom_bytes = {"test.dcm": dicom_content}
 
     # Call `read_dicom_session` with the simulated byte data
-    result = read_dicom_session(
+    result = load_dicom_session(
         reference_fields=["PatientName", "SeriesDescription"],
         dicom_bytes=dicom_bytes,
         acquisition_fields=["ProtocolName"]
@@ -99,7 +98,7 @@ def test_read_dicom_session_bytes_partial(t1: Dataset):
     dicom_bytes = {"partial_test.dcm": partial_content}
 
     # Call `read_dicom_session` with the partial byte data
-    result = read_dicom_session(
+    result = load_dicom_session(
         reference_fields=["PatientName", "SeriesDescription"],
         dicom_bytes=dicom_bytes,
         acquisition_fields=["ProtocolName"]
@@ -124,7 +123,7 @@ def test_read_dicom_session_bytes_partial(t1: Dataset):
 # Test for `read_dicom_session` with missing data
 def test_read_dicom_session_no_input():
     with pytest.raises(ValueError, match="Either session_dir or dicom_bytes must be provided."):
-        read_dicom_session(reference_fields=["PatientName"])
+        load_dicom_session(reference_fields=["PatientName"])
 
 def test_read_json_session(temp_json):
     json_data = {
@@ -143,7 +142,7 @@ def test_read_json_session(temp_json):
         }
     }
     json_path = temp_json(json_data)
-    acq_fields, series_fields, acquisitions = read_json_session(json_path)
+    acq_fields, series_fields, acquisitions = load_json_session(json_path)
 
     # Validate acquisition fields
     assert acq_fields == ["ProtocolName"]
@@ -157,7 +156,7 @@ def test_read_json_session(temp_json):
 # Edge case: Test invalid JSON file for `read_json_session`
 def test_read_json_session_invalid_file():
     with pytest.raises(FileNotFoundError):
-        read_json_session("non_existent.json")
+        load_json_session("non_existent.json")
 
 # Edge case: Test DICOM file with no Pixel Data for `get_dicom_values`
 def test_get_dicom_values_no_pixel_data(t1: Dataset):
@@ -181,7 +180,7 @@ def test_read_dicom_session_read_json_session_numeric_datatype_encoding(tmp_path
     t1.save_as(dicom_path_int, enforce_file_format=True)
 
     # Read the DICOM session
-    result = read_dicom_session(
+    result = load_dicom_session(
         reference_fields=["EchoTime"],
         session_dir=str(dicom_dir),
         acquisition_fields=["ProtocolName"]
@@ -193,7 +192,7 @@ def test_read_dicom_session_read_json_session_numeric_datatype_encoding(tmp_path
         json.dump(result, json_file, indent=4)
 
     # Use `read_json_session` to load the JSON
-    acq_fields, series_fields, loaded_result = read_json_session(str(json_path))
+    acq_fields, series_fields, loaded_result = load_json_session(str(json_path))
 
     # Validate the EchoTime values and their types in the JSON
     acquisitions = loaded_result["acquisitions"]
@@ -218,7 +217,7 @@ def test_read_dicom_session_empty_directory(tmp_path):
     empty_dir = tmp_path / "empty_dir"
     empty_dir.mkdir()
     with pytest.raises(ValueError, match="No DICOM data found to process."):
-        read_dicom_session(
+        load_dicom_session(
             reference_fields=["PatientName"],
             session_dir=str(empty_dir),
         )

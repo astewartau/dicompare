@@ -20,7 +20,7 @@ setup(
     entry_points={
         "console_scripts": [
             "dcm-gen-session=dicompare.cli.gen_session:main",
-            "dicompare-session=dicompare.cli.check_session:main",
+            "dcm-check-session=dicompare.cli.check_session:main",
             "dicompare=dicompare.cli.start_web:main",
         ]
     },

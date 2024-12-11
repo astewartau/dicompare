@@ -1,8 +1,10 @@
-import pandas as pd
 import re
 import numpy as np
+import pandas as pd
+
 from tabulate import tabulate
 from scipy.optimize import linear_sum_assignment
+from typing import List
 
 try:
     import curses
@@ -34,6 +36,11 @@ def levenshtein_distance(s1, s2):
 
 def calculate_field_score(expected, actual, tolerance=None, contains=None):
     """Calculate the difference between expected and actual values, with caps for large scores."""
+
+    if actual is None:
+        # Assign a high penalty for missing actual value
+        return MAX_DIFF_SCORE
+
     if isinstance(expected, str) and ("*" in expected or "?" in expected):
         pattern = re.compile("^" + expected.replace("*", ".*").replace("?", ".") + "$")
         if pattern.match(actual):
@@ -93,47 +100,102 @@ def calculate_match_score(ref_row, in_row):
 
     return round(diff_score, 2)
 
-def map_session(in_session, ref_session):
+def map_session(in_session_df: pd.DataFrame, ref_session: dict) -> dict:
     """
     Map an input session to a reference session to find the closest acquisitions and series
     using the Hungarian algorithm to minimize total cost.
 
     Args:
-        in_session (dict): Input session data returned by `read_session`.
-        ref_session (dict): Reference session data returned by `read_json_session`.
+        in_session_df (pd.DataFrame): DataFrame of input session data, as returned by `load_dicom_session`.
+        ref_session (dict): Reference session data returned by `load_json_session`.
 
     Returns:
-        dict: Mapping of (input_acquisition, input_series) -> (reference_acquisition, reference_series).
+        dict: Mapping of (input_acquisition, input_series) to (reference_acquisition, reference_series).
     """
-    input_acquisitions = in_session["acquisitions"]
+    # Extract reference acquisitions and series fields
     reference_acquisitions = ref_session["acquisitions"]
 
-    input_keys = []
-    reference_keys = []
+    # Identify all unique series fields in the reference session
+    series_fields = set()
+    for ref_acq in reference_acquisitions.values():
+        for series in ref_acq.get("series", []):
+            for field in series.get("fields", []):
+                series_fields.add(field["field"])
+    series_fields = list(series_fields)
+
+    # Group input session by acquisition and series fields
+    def group_series(df: pd.DataFrame, group_keys: List[str]) -> pd.Series:
+            
+        # Avoid duplicate columns by resetting the index and renaming
+        df = df.reset_index(drop=True)
+
+        # Group by the specified keys and assign unique group numbers
+        return df.groupby(group_keys, dropna=False).ngroup()
+
+    in_session_df["SeriesGroup"] = group_series(in_session_df, series_fields)
+    #in_session_df["Series"] = "Series " + (in_session_df.groupby("Acquisition")["SeriesGroup"].rank(method="dense").astype(int)).astype(str)
+    in_session_df["Series"] = (
+        "Series " +
+        (in_session_df.groupby("Acquisition")["SeriesGroup"]
+        .rank(method="dense")
+        .fillna(0)  # Replace NaN with a default value (e.g., 0)
+        .astype(int))
+        .astype(str)
+    )
+
+
+    # Prepare lists for input acquisitions + series and reference acquisitions + series
+    input_acquisition_series = in_session_df[["Acquisition", "Series"]].drop_duplicates().values.tolist()
+    reference_acquisition_series = []
+    for ref_acq_name, ref_acq in reference_acquisitions.items():
+        for series in ref_acq.get("series", []):
+            reference_acquisition_series.append((ref_acq_name, series["name"]))
+
+    # Initialize the cost matrix
     cost_matrix = []
 
-    # Prepare input and reference keys and calculate the cost matrix
-    for in_acq_name, in_acq in input_acquisitions.items():
-        in_acq_series = in_acq.get("series", [])
-        for in_series in in_acq_series:
-            in_key = (in_acq_name, in_series["name"])
-            input_keys.append(in_key)
+    for in_acq, in_series in input_acquisition_series:
+        # Filter input session DataFrame for the current acquisition and series
+        input_series_df = in_session_df[
+            (in_session_df["Acquisition"] == in_acq) & (in_session_df["Series"] == in_series)
+        ]
 
-            row = []
-            for ref_acq_name, ref_acq in reference_acquisitions.items():
-                ref_acq_series = ref_acq.get("series", [])
-                for ref_series in ref_acq_series:
-                    ref_key = (ref_acq_name, ref_series["name"])
-                    if ref_key not in reference_keys:
-                        reference_keys.append(ref_key)
+        row = []
+        for ref_acq, ref_series in reference_acquisition_series:
+            # Find the reference series details
+            ref_series_data = next(
+                (series for series in reference_acquisitions[ref_acq]["series"] if series["name"] == ref_series),
+                None,
+            )
+            if ref_series_data is None:
+                row.append(np.inf)  # If no matching reference series, assign a high cost
+                continue
 
-                    # Calculate the cost of assigning in_key to ref_key
-                    acq_score = calculate_match_score(ref_acq, in_acq)
-                    series_score = calculate_match_score(ref_series, in_series)
-                    total_score = acq_score + series_score
-                    row.append(total_score)
+            # Calculate the difference score for this mapping
+            diff_score = 0.0
+            for field in ref_series_data.get("fields", []):
+                field_name = field["field"]
+                expected_value = field.get("value")
+                tolerance = field.get("tolerance")
+                contains = field.get("contains")
 
-            cost_matrix.append(row)
+                # Check the corresponding field in the input series DataFrame
+                if field_name in input_series_df.columns:
+                    actual_values = input_series_df[field_name].unique()
+                    if len(actual_values) == 1:
+                        actual_value = actual_values[0]
+                    else:
+                        actual_value = None  # Non-unique values are ambiguous
+                else:
+                    actual_value = None
+
+                # Calculate the difference for this field
+                diff = calculate_field_score(expected_value, actual_value, tolerance=tolerance, contains=contains)
+                diff_score += diff
+
+            row.append(diff_score)
+
+        cost_matrix.append(row)
 
     # Convert cost_matrix to a numpy array for processing
     cost_matrix = np.array(cost_matrix)
@@ -144,30 +206,31 @@ def map_session(in_session, ref_session):
     # Create the mapping
     mapping = {}
     for row, col in zip(row_indices, col_indices):
-        if row < len(input_keys) and col < len(reference_keys):
-            mapping[input_keys[row]] = reference_keys[col]
+        if row < len(input_acquisition_series) and col < len(reference_acquisition_series):
+            mapping[tuple(input_acquisition_series[row])] = tuple(reference_acquisition_series[col])
 
     return mapping
 
-def interactive_mapping(in_session, ref_session, initial_mapping=None):
+def interactive_mapping(in_session_df: pd.DataFrame, ref_session: dict, initial_mapping=None):
     """
     Interactive CLI for customizing mappings from reference to input acquisitions/series.
 
     Args:
-        in_session (dict): Input session data.
+        in_session_df (pd.DataFrame): DataFrame of the input session data.
         ref_session (dict): Reference session data.
         initial_mapping (dict, optional): Initial mapping of reference to input acquisitions/series.
 
     Returns:
         dict: Final mapping of (reference_acquisition, reference_series) -> (input_acquisition, input_series).
     """
-    # Prepare input and reference data
+    # Prepare input series from the DataFrame
     input_series = {
-        ("input", acq_name, series["name"]): series
-        for acq_name, acq in in_session["acquisitions"].items()
-        for series in acq.get("series", [])
+        ("input", acq_name, series_name): series_name
+        for acq_name in in_session_df["Acquisition"].unique()
+        for series_name in in_session_df[in_session_df["Acquisition"] == acq_name]["Series"].unique()
     }
 
+    # Prepare reference series from the JSON/dict
     reference_series = {
         ("reference", ref_acq_name, ref_series["name"]): ref_series
         for ref_acq_name, ref_acq in ref_session["acquisitions"].items()
@@ -189,7 +252,7 @@ def interactive_mapping(in_session, ref_session, initial_mapping=None):
     def format_mapping_table(ref_keys, mapping, current_idx):
         """
         Format the mapping table for display.
-        
+
         Args:
             ref_keys (list): List of reference keys.
             mapping (dict): Current mapping of reference to input series.
