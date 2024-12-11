@@ -5,43 +5,44 @@ class QSM(BaseValidationModel):
 
     @validator(["ImageType", "EchoTime"], rule_message="Each EchoTime must have exactly one magnitude and phase image.")
     def validate_image_type(cls, value):  # value is a DataFrame grouped by ImageType and EchoTime
-        # Group by EchoTime
+        magnitude_counts = []
+        phase_counts = []
+
         for echo_time, group in value.groupby("EchoTime"):
             image_types = group["ImageType"]
 
             # Count occurrences of 'M' and 'P' in ImageType tuples
-            magnitude_count = sum('M' in image for image in image_types)
-            phase_count = sum('P' in image for image in image_types)
+            magnitude_counts.append(sum('M' in image for image in image_types))
+            phase_counts.append(sum('P' in image for image in image_types))
 
-            # Validate presence and uniqueness of magnitude and phase images
-            if magnitude_count != 1:
-                raise ValidationError(f"EchoTime {echo_time} must have exactly one magnitude image, found {magnitude_count}.")
-            if phase_count != 1:
-                raise ValidationError(f"EchoTime {echo_time} must have exactly one phase image, found {phase_count}.")
+        if not all(m == 1 for m in magnitude_counts):
+            raise ValidationError(f"Each EchoTime must have exactly one magnitude image. Found {magnitude_counts}.")
+        if not all(p == 1 for p in phase_counts):
+            raise ValidationError(f"Each EchoTime must have exactly one phase image. Found {phase_counts}.")
 
         return value
 
     @validator(["EchoTime"], rule_message="While QSM can be achieved with one echo, two is the minimum number of echoes needed to separate the intrinsic transmit RF phase from the magnetic field-induced phase.")
     def validate_echo_count(cls, value):
         echo_times = value["EchoTime"].dropna().unique()
-        if len(echo_times) < 2:
-            raise ValidationError()
+        if len(echo_times) == 1:
+            raise ValidationError("Found single-echo acquisition.")
         elif len(echo_times) < 3:
-            raise ValidationError("At least three echoes are recommended.")
+            raise ValidationError(f"Found {len(echo_times)} echoes, but at least 3 are recommended.")
         return value
 
     @validator(["EchoTime"], rule_message="The first TE (TE1) should be as short as possible.")
     def validate_first_echo(cls, value):
         first_echo_time = value["EchoTime"].min()
         if first_echo_time > 10:
-            raise ValidationError()
+            raise ValidationError(f"The first TE is overly long.")
         return value
 
     @validator(["MRAcquisitionType"], rule_message="Use 3D acquisition instead of 2D acquisition to avoid potential slice-to-slice phase discontinuities in 2D phase maps.")
     def validate_mra_type(cls, value):
         acquisition_type = value["MRAcquisitionType"].iloc[0]  # Assuming consistent within group
         if acquisition_type != "3D":
-            raise ValidationError()
+            raise ValidationError(f"The input data is not 3D.")
         return value
 
     @validator(["RepetitionTime", "MagneticFieldStrength"], rule_message="RepetitionTime should be as short as possible.")
@@ -60,7 +61,7 @@ class QSM(BaseValidationModel):
 
         t1_min, t1_max = T1_MIN_MAX[field_strength]["min"], T1_MIN_MAX[field_strength]["max"]
         if repetition_time > 0.5 * t1_max:
-            raise ValidationError(f"RepetitionTime should not exceed 0.5x the longest reasonable T1 ({t1_max} ms).")
+            raise ValidationError(f"TR may not be as short as possible (≤0.5*T1≈{0.5*t1_max} ms).")
         return value
 
     @validator(["FlipAngle", "RepetitionTime", "MagneticFieldStrength"], rule_message="FlipAngle should be close to the Ernst angle.")
@@ -76,17 +77,17 @@ class QSM(BaseValidationModel):
         }
 
         if field_strength not in T1_MIN_MAX:
-            raise ValidationError("Unsupported MagneticFieldStrength for FlipAngle validation.")
+            raise ValidationError(f"Unsupported MagneticFieldStrength {field_strength}T for Ernst angle validation.")
 
         t1_min, t1_max = T1_MIN_MAX[field_strength]["min"], T1_MIN_MAX[field_strength]["max"]
         ernst_min = math.acos(math.exp(-tr / t1_max)) * (180 / math.pi)
         ernst_max = math.acos(math.exp(-tr / t1_min)) * (180 / math.pi)
 
         if not (ernst_min <= flip_angle <= ernst_max):
-            raise ValidationError(f"FlipAngle should be between {ernst_min:.2f}° and {ernst_max:.2f}° for field strength {field_strength}T.")
+            raise ValidationError(f"FlipAngle should be between {ernst_min:.2f}° and {ernst_max:.2f}° at {field_strength}T.")
         return value
 
-    @validator(["EchoTime", "MagneticFieldStrength"], rule_message="The longest TE (the TE of the last echo) should be equal to at least the value of the tissue of interest.")
+    @validator(["EchoTime", "MagneticFieldStrength"], rule_message="The longest TE (the TE of the last echo) should be equal to at least the T2* value of the tissue of interest.")
     def validate_echo_times(cls, value):
         echo_times = value["EchoTime"].dropna().sort_values()
         field_strength = value["MagneticFieldStrength"].iloc[0]
@@ -111,17 +112,27 @@ class QSM(BaseValidationModel):
         echo_times = value["EchoTime"].dropna().sort_values()
         spacings = echo_times.diff().iloc[1:]
         if not all(abs(spacings.iloc[0] - s) < 0.01 for s in spacings):
-            raise ValidationError("EchoTime values must be evenly spaced.")
+            raise ValidationError()
+        return value
+    
+    @validator(["PixelSpacing", "SliceThickness"], rule_message="Use isotropic voxels.")
+    def validate_voxel_shape(cls, value):
+        pixel_spacing = value["PixelSpacing"].iloc[0]
+        slice_thickness = value["SliceThickness"].iloc[0]
+
+        if not all(p == pixel_spacing[0] for p in pixel_spacing) or pixel_spacing[0] != slice_thickness:
+            raise ValidationError()
         return value
 
-    @validator(["PixelSpacing", "SliceThickness"], rule_message="Use isotropic voxels of at most 1 mm to reduce partial volume-related estimation errors.")
+    @validator(["PixelSpacing", "SliceThickness"], rule_message="Use a combined voxel size of at most 1 mm³ to reduce partial volume-related estimation errors.")
     def validate_pixel_spacing(cls, value):
         pixel_spacing = value["PixelSpacing"].iloc[0]
         slice_thickness = value["SliceThickness"].iloc[0]
-        voxel_size = list(pixel_spacing) + [slice_thickness]
+        voxel_size_mm3 = math.prod(list(pixel_spacing) + [slice_thickness])
 
-        if any(v > 1 for v in voxel_size):
-            raise ValidationError("Voxel size must be ≤1 mm for isotropic resolution.")
+        if voxel_size_mm3 > 1:
+            raise ValidationError(f"Voxel size should be ≤1 mm³. Got {voxel_size_mm3:.2f} mm³.")
+        
         return value
 
     @validator(["PixelBandwidth", "MagneticFieldStrength"], rule_message="Use the minimum readout bandwidth which generates acceptable distortions.")
