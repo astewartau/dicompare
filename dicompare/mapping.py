@@ -210,7 +210,6 @@ def map_session(in_session_df: pd.DataFrame, ref_session: dict) -> dict:
             mapping[tuple(input_acquisition_series[row])] = tuple(reference_acquisition_series[col])
 
     return mapping
-
 def interactive_mapping(in_session_df: pd.DataFrame, ref_session: dict, initial_mapping=None):
     """
     Interactive CLI for customizing mappings from reference to input acquisitions/series.
@@ -223,9 +222,11 @@ def interactive_mapping(in_session_df: pd.DataFrame, ref_session: dict, initial_
     Returns:
         dict: Final mapping of (reference_acquisition, reference_series) -> (input_acquisition, input_series).
     """
-    # Prepare input series from the DataFrame
+    # Prepare input series from the DataFrame with detailed identifiers
     input_series = {
-        ("input", acq_name, series_name): series_name
+        ("input", acq_name, series_name): in_session_df[
+            (in_session_df["Acquisition"] == acq_name) & (in_session_df["Series"] == series_name)
+        ].iloc[0].to_dict()  # Extract the first row as a dictionary
         for acq_name in in_session_df["Acquisition"].unique()
         for series_name in in_session_df[in_session_df["Acquisition"] == acq_name]["Series"].unique()
     }
@@ -236,6 +237,14 @@ def interactive_mapping(in_session_df: pd.DataFrame, ref_session: dict, initial_
         for ref_acq_name, ref_acq in ref_session["acquisitions"].items()
         for ref_series in ref_acq.get("series", [])
     }
+
+    # Define series_fields from the reference session
+    series_fields = set()
+    for ref_acq in ref_session["acquisitions"].values():
+        for series in ref_acq.get("series", []):
+            for field in series.get("fields", []):
+                series_fields.add(field["field"])
+    series_fields = list(series_fields)
 
     # Initialize the mapping (reference -> input)
     mapping = {}
@@ -264,18 +273,35 @@ def interactive_mapping(in_session_df: pd.DataFrame, ref_session: dict, initial_
         table = []
         for idx, ref_key in enumerate(ref_keys):
             ref_acq, ref_series = ref_key[1], ref_key[2]
+            ref_series_data = reference_series[ref_key]
+
+            def truncate_string(value, max_length=30):
+                return value if len(value) <= max_length else value[:max_length] + "..."
+
+            ref_identifiers = ", ".join(
+                truncate_string(f"{field['field']}={field['value']}", max_length=30)
+                for field in ref_series_data.get("fields", [])
+                if field["field"] in series_fields
+            )
+            
             current_mapping = mapping.get(ref_key, "Unmapped")
-
-            # Clean up input display (remove 'input' prefix and show nicely)
+            
+            # Handle input mapping
             if current_mapping != "Unmapped":
-                input_acq, input_series = current_mapping[1], current_mapping[2]
-                current_mapping = f"{input_acq} - {input_series}"
-
+                input_acq, input_series_name = current_mapping[1], current_mapping[2]
+                input_series_data = input_series.get(("input", input_acq, input_series_name), {})
+                input_identifiers = ", ".join(
+                    f"{key}={value}" for key, value in input_series_data.items()
+                    if key in series_fields  # Only include fields that change between series
+                )
+                current_mapping = f"{input_acq} - {input_series_name} ({input_identifiers})"
+            
             # Add indicator for current selection
             row_indicator = ">>" if idx == current_idx else "  "
-            table.append([row_indicator, f"{ref_acq} - {ref_series}", current_mapping])
+            table.append([row_indicator, f"{ref_acq} - {ref_series} ({ref_identifiers})", current_mapping])
 
         return tabulate(table, headers=["", "Reference Series", "Mapped Input Series"], tablefmt="simple")
+
 
     def run_curses(stdscr):
         # Disable cursor
@@ -299,28 +325,15 @@ def interactive_mapping(in_session_df: pd.DataFrame, ref_session: dict, initial_
 
             # If a reference is selected, display the input acquisitions/series
             if selected_input_idx is not None:
-                # Clear the menu area to ensure no overlapping text
-                stdscr.attron(curses.A_REVERSE)  # Turn on reversed colors
-                menu_start_y = len(ref_keys) + 4
-                menu_height = len(input_series) + 2  # Include "Unassign" option
-                menu_width = curses.COLS - 1  # Use full screen width
-                for i in range(menu_height):
-                    stdscr.addstr(menu_start_y + i, 0, " " * menu_width)  # Fill with spaces
-
-                # Draw the input selection menu
-                stdscr.addstr(menu_start_y, 0, "Select Input Acquisition/Series (use UP/DOWN, ENTER to confirm):")
-                stdscr.addstr(menu_start_y + 1, 0, "Unassign (None)" if selected_input_idx == -1 else "")
+                stdscr.addstr(
+                    len(ref_keys) + 4, 0, "Select Input Acquisition/Series (use UP/DOWN, ENTER to confirm):"
+                )
+                stdscr.addstr(len(ref_keys) + 5, 0, "Unassign (None)" if selected_input_idx == -1 else "")
                 input_keys = list(input_series.keys())
                 for idx, input_key in enumerate(input_keys):
                     marker = ">>" if idx == selected_input_idx else "  "
                     input_acq, input_series_name = input_key[1], input_key[2]
-                    stdscr.addstr(
-                        menu_start_y + 2 + idx, 
-                        0, 
-                        f"{marker} {input_acq} - {input_series_name}", 
-                        curses.A_REVERSE
-                    )
-                stdscr.attroff(curses.A_REVERSE)  # Turn off reversed colors
+                    stdscr.addstr(len(ref_keys) + 6 + idx, 0, f"{marker} {input_acq} - {input_series_name}")
 
             # Refresh the screen
             stdscr.refresh()
@@ -341,68 +354,40 @@ def interactive_mapping(in_session_df: pd.DataFrame, ref_session: dict, initial_
                     selected_input_idx = min(len(input_series) - 1, selected_input_idx + 1)
 
             elif key == curses.KEY_RIGHT and selected_input_idx is None:
-                # Move to input selection
                 selected_input_idx = 0
 
             elif key == curses.KEY_LEFT and selected_input_idx is not None:
-                # Move back to reference selection
                 selected_input_idx = None
 
             elif key == ord("u") and selected_input_idx is None:
-                # Unmap the currently selected reference
                 ref_key = ref_keys[selected_ref_idx]
                 if ref_key in mapping:
                     old_input_key = mapping[ref_key]
                     del mapping[ref_key]
                     del reverse_mapping[old_input_key]
 
-            elif key == ord("\n"):  # Enter key
+            elif key == ord("\n"):
                 if selected_input_idx is not None:
                     ref_key = ref_keys[selected_ref_idx]
-
-                    if selected_input_idx == -1:  # Unassign option
-                        # Unmap the selected reference if it is currently mapped
-                        if ref_key in mapping:
-                            old_input_key = mapping[ref_key]
-                            del mapping[ref_key]
-                            del reverse_mapping[old_input_key]
-                    else:
-                        input_key = list(input_series.keys())[selected_input_idx]
-
-                        # Unmap the old reference for this input, if it exists
-                        if input_key in reverse_mapping:
-                            old_ref_key = reverse_mapping[input_key]
-                            if old_ref_key != ref_key:  # Ensure we're not unmapping the currently selected reference
-                                del mapping[old_ref_key]
-
-                        # Unmap the old input for this reference, if it exists
-                        if ref_key in mapping:
-                            old_input_key = mapping[ref_key]
-                            if old_input_key != input_key:  # Ensure we're not unmapping the current input
-                                del reverse_mapping[old_input_key]
-
-                        # Update the mapping
-                        mapping[ref_key] = input_key
-                        reverse_mapping[input_key] = ref_key
-
-                    # Reset input selection
+                    input_key = list(input_series.keys())[selected_input_idx]
+                    mapping[ref_key] = input_key
+                    reverse_mapping[input_key] = ref_key
                     selected_input_idx = None
 
                 elif selected_input_idx is None:
-                    # If Enter is pressed while selecting a reference, move to input selection
                     selected_input_idx = 0
 
-            elif key == ord("q"):  # Quit
+            elif key == ord("q"):
                 break
 
-    # Run the curses application
     curses.wrapper(run_curses)
 
-    # Remove prefixes from the final mapping before returning
     return {
         (ref_key[1], ref_key[2]): (input_key[1], input_key[2])
         for ref_key, input_key in mapping.items()
     }
+
+
 
 def interactive_mapping_2(in_session, ref_models, initial_mapping=None):
     """
