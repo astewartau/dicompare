@@ -31,6 +31,14 @@ class QSM(BaseValidationModel):
             raise ValidationError(f"Found {len(echo_times)} echoes, but at least 3 are recommended.")
         return value
 
+    @validator(["EchoTime"], rule_message="The spacing between echoes (ΔTE) should be uniform.")
+    def uniform_echo_spacing(cls, value):
+        echo_times = value["EchoTime"].dropna().sort_values()
+        spacings = echo_times.diff().iloc[1:]
+        if not all(abs(spacings.iloc[0] - s) < 0.01 for s in spacings):
+            raise ValidationError()
+        return value
+
     @validator(["EchoTime"], rule_message="The first TE (TE1) should be as short as possible.")
     def validate_first_echo(cls, value):
         first_echo_time = value["EchoTime"].min()
@@ -105,14 +113,6 @@ class QSM(BaseValidationModel):
             raise ValidationError(f"The longest TE should be ≤1.25x the highest tissue T2* ({max_tissue} ms).")
         if echo_times.iloc[-1] < 0.75 * min_tissue:
             raise ValidationError(f"The longest TE should be ≥0.75x the lowest tissue T2* ({min_tissue} ms).")
-        return value
-
-    @validator(["EchoTime"], rule_message="The spacing between echoes (ΔTE) should be uniform.")
-    def uniform_echo_spacing(cls, value):
-        echo_times = value["EchoTime"].dropna().sort_values()
-        spacings = echo_times.diff().iloc[1:]
-        if not all(abs(spacings.iloc[0] - s) < 0.01 for s in spacings):
-            raise ValidationError()
         return value
     
     @validator(["PixelSpacing", "SliceThickness"], rule_message="Use isotropic voxels.")

@@ -43,6 +43,13 @@ def test_load_dicom_from_bytes(t1: Dataset):
     dicom_values = load_dicom(dicom_bytes)
     assert dicom_values["PatientName"] == "Test^Patient"
 
+def test_load_dicom_from_bytes(t1: Dataset):
+    buffer = BytesIO()
+    t1.save_as(buffer, enforce_file_format=True)
+    dicom_bytes = buffer.getvalue()
+    dicom_values = load_dicom(dicom_bytes)
+    assert dicom_values["PixelSpacing"] == [0.5, 0.5]
+
 # Test for `read_dicom_session` with session_dir
 def test_read_dicom_session_directory(t1: Dataset, tmp_path):
     dicom_dir = tmp_path / "dicom_dir"

@@ -6,7 +6,7 @@ async function fmCheck_generateComplianceReport() {
 
     if (!pyodide) {
         fmCheck_btnGenCompliance.textContent = "Loading Pyodide...";
-        pyodide = await initPyodide(); // Call the corrected initialization function
+        pyodide = await initPyodide();
     }
 
     fmCheck_btnGenCompliance.textContent = "Loading DICOMs...";
@@ -15,49 +15,46 @@ async function fmCheck_generateComplianceReport() {
     const referenceFile = document.getElementById("fmCheck_selectJsonReference").files[0];
     const referenceFileContent = await referenceFile.text();
 
-    // Pass data to Pyodide's Python environment
-    pyodide.globals.set("ref_json_py", referenceFileContent);
-    pyodide.globals.set("dicom_files", dicomFiles);
+    const isJson = referenceFile.name.endsWith(".json");
+    const refFilePath = isJson ? "temp_json_ref.json" : "temp_py_ref.py";
+
+    pyodide.FS.writeFile(refFilePath, referenceFileContent);
 
     fmCheck_btnGenCompliance.textContent = "Generating initial mapping...";
 
-    // Get the initial mapping and reference data
+    pyodide.globals.set("dicom_files", dicomFiles);
+    pyodide.globals.set("is_json", isJson);
+    pyodide.globals.set("ref_path", refFilePath);
+
     const mappingOutput = await pyodide.runPythonAsync(`
         import json
-        from dicompare import read_dicom_session, read_json_session, map_session, load_python_module
+        from dicompare.io import load_json_session, load_python_session, load_dicom_session
+        from dicompare.mapping import map_to_json_reference
 
-        is_json = True
-        try:
-            json.loads(ref_json_py)
-        except json.JSONDecodeError:
-            is_json = False
-        
         if is_json:
-            # Save the JSON reference content to a file
-            with open("temp_json_ref.json", "w") as f:
-                f.write(ref_json_py)
+            acquisition_fields, reference_fields, ref_session = load_json_session(ref_path)
         else:
-            # Save as .py file
-            with open("temp_py_ref.py", "w") as f:
-                f.write(ref_json_py)
+            ref_models = load_python_session(module_path=ref_path)
+            ref_session = {"acquisitions": {k: {} for k in ref_models.keys()}}
+            acquisition_fields = ["ProtocolName"]
 
-        # Load the JSON reference file
-        if is_json:
-            acquisition_fields, reference_fields, ref_session = read_json_session(json_ref="temp_json_ref.json")
+        in_session = load_dicom_session(
+            dicom_bytes=dicom_files,
+            acquisition_fields=acquisition_fields
+        )
+
+        if "PixelSpacing" not in in_session.columns:
+            print("PixelSpacing is missing from the input session data.")
         else:
-            acquisition_fields, reference_fields, ref_models = load_python_module(module_path="temp_py_ref.py")
-            ref_model_names = list(ref_models.keys())
-            ref_session = {"acquisitions": { ref_model_name: {} for ref_model_name in ref_model_names }}
+            print("PixelSpacing is present in the input session data.")
 
-        print(f"acquisition_fields: {acquisition_fields}")
-        print(f"reference_fields: {reference_fields}")
+        input_acquisitions = list(in_session['Acquisition'].unique())
 
-        in_session = read_dicom_session(dicom_bytes=dicom_files, acquisition_fields=acquisition_fields, reference_fields=reference_fields)
-        
         if is_json:
-            session_map = map_session(in_session, ref_session)
-
-            # Convert tuple keys in session_map to strings for JSON serialization
+            in_session["Series"] = (
+                in_session.groupby(reference_fields, dropna=False).ngroup().add(1).apply(lambda x: f"Series {x}")
+            )
+            session_map = map_to_json_reference(in_session, ref_session)
             session_map_serializable = {
                 f"{key[0]}::{key[1]}": f"{value[0]}::{value[1]}"
                 for key, value in session_map.items()
@@ -67,7 +64,7 @@ async function fmCheck_generateComplianceReport() {
 
         json.dumps({
             "reference_acquisitions": ref_session["acquisitions"],
-            "input_acquisitions": in_session["acquisitions"],
+            "input_acquisitions": input_acquisitions,
             "session_map": session_map_serializable
         })
     `);
@@ -83,16 +80,13 @@ function displayMappingUI(mappingData) {
     const { reference_acquisitions, input_acquisitions, session_map } = mappingData;
 
     const mappingContainer = document.getElementById("tableOutput");
-    mappingContainer.innerHTML = ""; // Clear any previous mapping UI
+    mappingContainer.innerHTML = "";
 
     const table = document.createElement("table");
     table.innerHTML = `<tr><th>Reference Acquisition/Series</th><th>Input Acquisition/Series</th></tr>`;
 
     Object.entries(reference_acquisitions).forEach(([refAcqKey, refAcqValue]) => {
-        // Check if the reference acquisition has series
-        const refSeriesExists = Array.isArray(refAcqValue.series);
-        // use name of the acquisition if no series
-        const refSeriesList = refSeriesExists ? refAcqValue.series : [{ name: refAcqKey }]; // Use series if defined, otherwise fallback to acquisition-level
+        const refSeriesList = refAcqValue.series || [{ name: refAcqKey }];
 
         refSeriesList.forEach(refSeries => {
             const refSeriesKey = refSeries.name ? `${refAcqKey}::${refSeries.name}` : refAcqKey;
@@ -104,35 +98,24 @@ function displayMappingUI(mappingData) {
 
             const inputCell = document.createElement("td");
             const select = document.createElement("select");
-            select.classList.add("mapping-dropdown"); // Add the class
-            select.setAttribute("data-reference-key", refSeriesKey); // Add the data attribute
+            select.classList.add("mapping-dropdown");
+            select.setAttribute("data-reference-key", refSeriesKey);
 
             const unmappedOption = document.createElement("option");
             unmappedOption.value = "unmapped";
             unmappedOption.textContent = "Unmapped";
             select.appendChild(unmappedOption);
 
-            // Iterate over input acquisitions
-            Object.entries(input_acquisitions).forEach(([inputAcqKey, inputAcqValue]) => {
-                // If reference has no series, only map acquisition to acquisition
-                const inputSeriesList = refSeriesExists && inputAcqValue.series ? inputAcqValue.series : [{ name: inputAcqKey }];
-                inputSeriesList.forEach(inputSeries => {
-                    // Use series-level mapping only if the reference has series
-                    const inputSeriesKey = refSeriesExists && inputSeries.name
-                        ? `${inputAcqKey}::${inputSeries.name}`
-                        : inputAcqKey;
+            input_acquisitions.forEach(inputAcq => {
+                const option = document.createElement("option");
+                option.value = inputAcq;
+                option.textContent = inputAcq;
 
-                    const option = document.createElement("option");
-                    option.value = inputSeriesKey;
-                    option.textContent = inputSeries.name ? `${inputAcqKey} - ${inputSeries.name}` : inputAcqKey;
+                if (session_map[refSeriesKey] === inputAcq) {
+                    option.selected = true;
+                }
 
-                    // Pre-select the mapped input acquisition/series if available
-                    if (session_map[refSeriesKey] === inputSeriesKey) {
-                        option.selected = true;
-                    }
-
-                    select.appendChild(option);
-                });
+                select.appendChild(option);
             });
 
             inputCell.appendChild(select);
@@ -144,14 +127,11 @@ function displayMappingUI(mappingData) {
 
     mappingContainer.appendChild(table);
 
-    // Add a button to finalize the mapping
     const finalizeButton = document.createElement("button");
     finalizeButton.textContent = "Finalize Mapping";
     finalizeButton.onclick = finalizeMapping;
     mappingContainer.appendChild(finalizeButton);
 }
-
-
 
 async function finalizeMapping() {
     const dropdownMappings = {};
@@ -166,38 +146,31 @@ async function finalizeMapping() {
         }
     });
 
-    // Pass to Pyodide
     const finalizedMapping = JSON.stringify(dropdownMappings);
     pyodide.globals.set("finalized_mapping", finalizedMapping);
 
     const complianceOutput = await pyodide.runPythonAsync(`
-    import json
-    from dicompare.compliance import check_session_compliance, check_session_compliance_python_module
+        import json
+        from dicompare.compliance import check_session_compliance_with_json_reference, check_session_compliance_with_python_module
 
-    # Deserialize the mapping
-    if is_json:
-        series_map = {
-            tuple(k.split("::")): tuple(v.split("::"))
-            for k, v in json.loads(finalized_mapping).items()
-        }
-    else:
-        # this time we don't want tuples, just a dict mapping the strings
-        series_map = {
-            k.split("::")[0]: v
-            for k, v in json.loads(finalized_mapping).items()
-        }
+        if is_json:
+            series_map = {
+                tuple(k.split("::")): tuple(v.split("::"))
+                for k, v in json.loads(finalized_mapping).items()
+            }
+            compliance_summary = check_session_compliance_with_json_reference(
+                in_session=in_session, ref_session=ref_session, session_map=series_map
+            )
+        else:
+            acquisition_map = {
+                k.split("::")[0]: v
+                for k, v in json.loads(finalized_mapping).items()
+            }
+            compliance_summary = check_session_compliance_with_python_module(
+                in_session=in_session, ref_models=ref_models, session_map=acquisition_map
+            )
 
-    # Perform compliance check
-    if is_json:
-        compliance_summary = check_session_compliance(in_session=in_session, ref_session=ref_session, series_map=series_map)
-    else:
-        compliance_summary = check_session_compliance_python_module(
-            in_session=in_session,
-            ref_models=ref_models,
-            acquisition_map=series_map
-        )
-
-    json.dumps(compliance_summary)
+        json.dumps(compliance_summary)
     `);
 
     displayComplianceReport(JSON.parse(complianceOutput));
@@ -217,7 +190,7 @@ function displayComplianceReport(complianceData) {
 
 function displayTable(parsedOutput) {
     const tableContainer = document.getElementById("tableOutput");
-    tableContainer.innerHTML = ""; // Clear any previous table
+    tableContainer.innerHTML = "";
 
     if (!Array.isArray(parsedOutput) || parsedOutput.length === 0) {
         console.error("Invalid table data:", parsedOutput);
@@ -228,7 +201,6 @@ function displayTable(parsedOutput) {
     const table = document.createElement("table");
     const headerRow = document.createElement("tr");
 
-    // Dynamically get column headers from the keys of the first object
     const headers = Object.keys(parsedOutput[0]);
     headers.forEach(header => {
         const th = document.createElement("th");
@@ -237,12 +209,17 @@ function displayTable(parsedOutput) {
     });
     table.appendChild(headerRow);
 
-    // Populate table rows with the compliance data
     parsedOutput.forEach(rowData => {
         const row = document.createElement("tr");
         headers.forEach(header => {
             const cell = document.createElement("td");
-            cell.textContent = rowData[header] || ""; // Fill cell with the value or empty string
+            if (header === "value") {
+                // Parse JSON string for value if necessary
+                const value = typeof rowData[header] === "string" ? JSON.parse(rowData[header]) : rowData[header];
+                cell.textContent = JSON.stringify(value, null, 2);  // Pretty-print object values
+            } else {
+                cell.textContent = rowData[header] || "";
+            }
             row.appendChild(cell);
         });
         table.appendChild(row);
@@ -250,7 +227,6 @@ function displayTable(parsedOutput) {
 
     tableContainer.appendChild(table);
 }
-
 
 function fmCheck_ValidateForm() {
     const fmCheck_selectDICOMs = document.getElementById("fmCheck_selectDICOMs");
@@ -265,7 +241,6 @@ function fmCheck_ValidateForm() {
     return fmCheck_btnGenCompliance.disabled;
 }
 
-// disable Generate JSON Reference button if no DICOM files are selected
 document.getElementById("fmCheck_selectDICOMs").addEventListener("change", () => {
     fmCheck_ValidateForm();
 });

@@ -75,8 +75,7 @@ def load_dicom(dicom_file: Union[str, bytes]) -> Dict[str, Any]:
     """
 
     if isinstance(dicom_file, (bytes, memoryview)):
-        # Convert dicom_file to BytesIO if it's in bytes or memoryview format
-        ds = pydicom.dcmread(BytesIO(dicom_file), stop_before_pixels=True)
+        ds = pydicom.dcmread(BytesIO(dicom_file), stop_before_pixels=False, force=True, defer_size=len(dicom_file))
     else:
         ds = pydicom.dcmread(dicom_file, stop_before_pixels=True)
     
@@ -110,8 +109,8 @@ def load_dicom_session(
 
     if dicom_bytes is not None:
         dicom_bytes = convert_jsproxy(dicom_bytes)
-        for dicom_path, dicom_content in dicom_bytes.items():
-            dicom_values = load_dicom(dicom_content)
+        for dicom_path, dicom_byte_content in dicom_bytes.items():
+            dicom_values = load_dicom(dicom_byte_content)
             dicom_values["DICOM_Path"] = str(dicom_path)
             dicom_values["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
             session_data.append(dicom_values)

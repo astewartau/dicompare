@@ -50,7 +50,7 @@ async function loadDICOMs(inputId) {
 
     for (let file of files) {
         if (file.name.endsWith(".dcm") || file.name.endsWith(".IMA")) {
-            const slice = file.slice(0, 2048);
+            const slice = file.slice(0, 4096);
             const fileContent = new Uint8Array(await slice.arrayBuffer());
             dicomFiles[file.webkitRelativePath] = fileContent;
         }
