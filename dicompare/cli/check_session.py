@@ -23,7 +23,8 @@ def main():
     if args.json_ref:
         acquisition_fields, reference_fields, ref_session = load_json_session(json_ref=args.json_ref)
     elif args.python_ref:
-        acquisition_fields, reference_fields, ref_models = load_python_session(module_path=args.python_ref)
+        ref_models = load_python_session(module_path=args.python_ref)
+        acquisition_fields = ["ProtocolName"]
 
     # Load the input session
     in_session = load_dicom_session(
@@ -31,17 +32,18 @@ def main():
         acquisition_fields=acquisition_fields,
     )
 
-    # Group by all existing unique combinations of reference fields
-    in_session = (
-        in_session.groupby(reference_fields)
-        .apply(lambda x: x.reset_index(drop=True))
-        .reset_index(drop=True)  # Reset the index to avoid index/column ambiguity
-    )
+    if args.json_ref:
+        # Group by all existing unique combinations of reference fields
+        in_session = (
+            in_session.groupby(reference_fields)
+            .apply(lambda x: x.reset_index(drop=True))
+            .reset_index(drop=True)  # Reset the index to avoid index/column ambiguity
+        )
 
-    # Assign unique group numbers for each combination of reference fields
-    in_session["Series"] = (
-        in_session.groupby(reference_fields, dropna=False).ngroup().add(1).apply(lambda x: f"Series {x}")
-    )
+        # Assign unique group numbers for each combination of reference fields
+        in_session["Series"] = (
+            in_session.groupby(reference_fields, dropna=False).ngroup().add(1).apply(lambda x: f"Series {x}")
+        )
 
     if args.json_ref:
         session_map = map_session(in_session, ref_session)

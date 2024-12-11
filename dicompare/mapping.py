@@ -388,25 +388,25 @@ def interactive_mapping(in_session_df: pd.DataFrame, ref_session: dict, initial_
     }
 
 
-
-def interactive_mapping_2(in_session, ref_models, initial_mapping=None):
+def interactive_mapping_2(in_session_df: pd.DataFrame, ref_models: dict, initial_mapping=None):
     """
     Interactive CLI for customizing mappings from reference acquisitions to input acquisitions.
 
     Args:
-        in_session (dict): Input session data containing acquisitions.
+        in_session_df (pd.DataFrame): DataFrame of input session data.
         ref_models (dict): Reference models keyed by acquisition names.
         initial_mapping (dict, optional): Initial mapping of reference acquisitions to input acquisitions.
 
     Returns:
         dict: Final mapping of reference acquisitions -> input acquisitions.
     """
-    # Prepare input and reference data
+    # Prepare input acquisitions
     input_acquisitions = {
-        ("input", acq_name): acq
-        for acq_name, acq in in_session["acquisitions"].items()
+        ("input", acq_name): in_session_df[in_session_df["Acquisition"] == acq_name]
+        for acq_name in in_session_df["Acquisition"].unique()
     }
 
+    # Prepare reference acquisitions from models
     reference_acquisitions = {
         ("reference", ref_acq_name): ref_model
         for ref_acq_name, ref_model in ref_models.items()
@@ -427,7 +427,7 @@ def interactive_mapping_2(in_session, ref_models, initial_mapping=None):
     def format_mapping_table(ref_keys, mapping, current_idx):
         """
         Format the mapping table for display.
-        
+
         Args:
             ref_keys (list): List of reference keys.
             mapping (dict): Current mapping of reference to input acquisitions.
@@ -441,7 +441,7 @@ def interactive_mapping_2(in_session, ref_models, initial_mapping=None):
             ref_acq = ref_key[1]
             current_mapping = mapping.get(ref_key, "Unmapped")
 
-            # Clean up input display (remove 'input' prefix and show nicely)
+            # Clean up input display
             if current_mapping != "Unmapped":
                 input_acq = current_mapping[1]
                 current_mapping = f"{input_acq}"
@@ -474,23 +474,12 @@ def interactive_mapping_2(in_session, ref_models, initial_mapping=None):
 
             # If a reference is selected, display the input acquisitions
             if selected_input_idx is not None:
-                # Clear the menu area to ensure no overlapping text
-                stdscr.attron(curses.A_REVERSE)  # Turn on reversed colors
-                menu_start_y = len(ref_keys) + 4
-                menu_height = len(input_acquisitions) + 2  # Include "Unassign" option
-                menu_width = curses.COLS - 1  # Use full screen width
-                for i in range(menu_height):
-                    stdscr.addstr(menu_start_y + i, 0, " " * menu_width)  # Fill with spaces
-
-                # Draw the input selection menu
-                stdscr.addstr(menu_start_y, 0, "Select Input Acquisition (use UP/DOWN, ENTER to confirm):")
-                stdscr.addstr(menu_start_y + 1, 0, "Unassign (None)" if selected_input_idx == -1 else "")
+                stdscr.addstr(len(ref_keys) + 4, 0, "Select Input Acquisition (use UP/DOWN, ENTER to confirm):")
                 input_keys = list(input_acquisitions.keys())
                 for idx, input_key in enumerate(input_keys):
                     marker = ">>" if idx == selected_input_idx else "  "
                     input_acq = input_key[1]
-                    stdscr.addstr(menu_start_y + 2 + idx, 0, f"{marker} {input_acq}", curses.A_REVERSE)
-                stdscr.attroff(curses.A_REVERSE)  # Turn off reversed colors
+                    stdscr.addstr(len(ref_keys) + 6 + idx, 0, f"{marker} {input_acq}")
 
             # Refresh the screen
             stdscr.refresh()
@@ -502,7 +491,7 @@ def interactive_mapping_2(in_session, ref_models, initial_mapping=None):
                 if selected_input_idx is None:
                     selected_ref_idx = max(0, selected_ref_idx - 1)
                 else:
-                    selected_input_idx = max(-1, selected_input_idx - 1)
+                    selected_input_idx = max(0, selected_input_idx - 1)
 
             elif key == curses.KEY_DOWN:
                 if selected_input_idx is None:
@@ -510,66 +499,31 @@ def interactive_mapping_2(in_session, ref_models, initial_mapping=None):
                 else:
                     selected_input_idx = min(len(input_acquisitions) - 1, selected_input_idx + 1)
 
-            elif key == curses.KEY_RIGHT and selected_input_idx is None:
-                # Move to input selection
-                selected_input_idx = 0
-
-            elif key == curses.KEY_LEFT and selected_input_idx is not None:
-                # Move back to reference selection
-                selected_input_idx = None
-
-            elif key == ord("u") and selected_input_idx is None:
-                # Unmap the currently selected reference
-                ref_key = ref_keys[selected_ref_idx]
-                if ref_key in mapping:
-                    old_input_key = mapping[ref_key]
-                    del mapping[ref_key]
-                    del reverse_mapping[old_input_key]
-
             elif key == ord("\n"):  # Enter key
                 if selected_input_idx is not None:
                     ref_key = ref_keys[selected_ref_idx]
+                    input_key = list(input_acquisitions.keys())[selected_input_idx]
 
-                    if selected_input_idx == -1:  # Unassign option
-                        # Unmap the selected reference if it is currently mapped
-                        if ref_key in mapping:
-                            old_input_key = mapping[ref_key]
-                            del mapping[ref_key]
-                            del reverse_mapping[old_input_key]
-                    else:
-                        input_key = list(input_acquisitions.keys())[selected_input_idx]
-
-                        # Unmap the old reference for this input, if it exists
-                        if input_key in reverse_mapping:
-                            old_ref_key = reverse_mapping[input_key]
-                            if old_ref_key != ref_key:  # Ensure we're not unmapping the currently selected reference
-                                del mapping[old_ref_key]
-
-                        # Unmap the old input for this reference, if it exists
-                        if ref_key in mapping:
-                            old_input_key = mapping[ref_key]
-                            if old_input_key != input_key:  # Ensure we're not unmapping the current input
-                                del reverse_mapping[old_input_key]
-
-                        # Update the mapping
-                        mapping[ref_key] = input_key
-                        reverse_mapping[input_key] = ref_key
-
-                    # Reset input selection
-                    selected_input_idx = None
+                    # Update the mapping
+                    mapping[ref_key] = input_key
+                    reverse_mapping[input_key] = ref_key
+                    selected_input_idx = None  # Reset input selection
 
                 elif selected_input_idx is None:
-                    # If Enter is pressed while selecting a reference, move to input selection
+                    # Move to input selection
                     selected_input_idx = 0
 
             elif key == ord("q"):  # Quit
                 break
 
+            elif key == ord("u") and selected_input_idx is None:
+                # Unmap the currently selected reference
+                ref_key = ref_keys[selected_ref_idx]
+                if ref_key in mapping:
+                    del mapping[ref_key]
+
     # Run the curses application
     curses.wrapper(run_curses)
 
-    # Remove prefixes from the final mapping before returning
-    return {
-        ref_key[1]: input_key[1]
-        for ref_key, input_key in mapping.items()
-    }
+    # Return the final mapping without prefixes
+    return {ref_key[1]: input_key[1] for ref_key, input_key in mapping.items()}
