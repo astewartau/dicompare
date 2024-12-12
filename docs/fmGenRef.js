@@ -83,12 +83,10 @@ function fmGenRef_renderEditor() {
   const editor = document.getElementById("jsonEditor");
   editor.innerHTML = ""; // Clear the editor
 
-  // Generate the acquisition fields and series sections
   Object.entries(jsonData.acquisitions).forEach(([acqKey, acqData]) => {
       const acqDiv = document.createElement("div");
       acqDiv.className = "acquisition-container";
 
-      // Acquisition Name and Delete Button
       acqDiv.innerHTML = `
           <div class="row grid">
               <label>Acquisition:</label>
@@ -97,7 +95,6 @@ function fmGenRef_renderEditor() {
           </div>
       `;
 
-      // Acquisition Fields with Headers
       const fieldsContainer = document.createElement("div");
       fieldsContainer.className = "fields-container";
 
@@ -106,13 +103,19 @@ function fmGenRef_renderEditor() {
               <span></span>
               <span>Field</span>
               <span></span>
-              <span>Value</span>
+              <span>Value/Contains</span>
+              <span></span>
+              <span>Mode</span>
+              <span></span>
+              <span>Tolerance</span>
               <span></span>
           </div>
       `;
 
       acqData.fields.forEach((field, index) => {
-          const fieldValue = Array.isArray(field.value) ? JSON.stringify(field.value) : field.value;
+          const fieldValue = Array.isArray(field.value) ? JSON.stringify(field.value) : field.value || "";
+          const mode = field.contains ? "Contains" : "Value";
+          const tolerance = field.tolerance || "";
 
           fieldsContainer.innerHTML += `
               <div class="field-row">
@@ -120,6 +123,13 @@ function fmGenRef_renderEditor() {
                   <input type="text" class="tagify" value="${field.field}" onchange="updateAcquisitionFieldName('${acqKey}', ${index}, this.value)">
                   <label></label>
                   <input type="text" value='${fieldValue}' onchange="updateAcquisitionFieldValue('${acqKey}', ${index}, this.value)">
+                  <label></label>
+                  <select onchange="updateAcquisitionFieldMode('${acqKey}', ${index}, this.value)">
+                      <option value="Value" ${mode === "Value" ? "selected" : ""}>Value</option>
+                      <option value="Contains" ${mode === "Contains" ? "selected" : ""}>Contains</option>
+                  </select>
+                  <label></label>
+                  <input type="number" step="0.01" value="${tolerance}" placeholder="Tolerance (optional)" onchange="updateAcquisitionFieldTolerance('${acqKey}', ${index}, this.value)">
                   <button class="delete" onclick="deleteAcquisitionField('${acqKey}', ${index})">🗑</button>
               </div>
           `;
@@ -128,7 +138,7 @@ function fmGenRef_renderEditor() {
       fieldsContainer.innerHTML += `<button class="add" onclick="addAcquisitionField('${acqKey}')">Add Field</button>`;
       acqDiv.appendChild(fieldsContainer);
 
-      // Series Section
+      // Add series sections
       const seriesContainer = document.createElement("div");
       const seriesData = acqData.series || [];
       seriesData.forEach((series, seriesIndex) => {
@@ -151,13 +161,19 @@ function fmGenRef_renderEditor() {
                   <span></span>
                   <span>Field</span>
                   <span></span>
-                  <span>Value</span>
+                  <span>Value/Contains</span>
+                  <span></span>
+                  <span>Mode</span>
+                  <span></span>
+                  <span>Tolerance</span>
                   <span></span>
               </div>
           `;
 
           series.fields.forEach((field, fieldIndex) => {
-              const fieldValue = Array.isArray(field.value) ? JSON.stringify(field.value) : field.value;
+              const fieldValue = Array.isArray(field.value) ? JSON.stringify(field.value) : field.value || "";
+              const mode = field.contains ? "Contains" : "Value";
+              const tolerance = field.tolerance || "";
 
               seriesFieldsContainer.innerHTML += `
                   <div class="field-row">
@@ -165,6 +181,13 @@ function fmGenRef_renderEditor() {
                       <input type="text" class="tagify" value="${field.field}" onchange="updateSeriesFieldName('${acqKey}', ${seriesIndex}, ${fieldIndex}, this.value)">
                       <label></label>
                       <input type="text" value='${fieldValue}' onchange="updateSeriesFieldValue('${acqKey}', ${seriesIndex}, ${fieldIndex}, this.value)">
+                      <label></label>
+                      <select onchange="updateSeriesFieldMode('${acqKey}', ${seriesIndex}, ${fieldIndex}, this.value)">
+                          <option value="Value" ${mode === "Value" ? "selected" : ""}>Value</option>
+                          <option value="Contains" ${mode === "Contains" ? "selected" : ""}>Contains</option>
+                      </select>
+                      <label></label>
+                      <input type="number" step="0.01" value="${tolerance}" placeholder="Tolerance (optional)" onchange="updateSeriesFieldTolerance('${acqKey}', ${seriesIndex}, ${fieldIndex}, this.value)">
                       <button class="delete" onclick="deleteSeriesField('${acqKey}', ${seriesIndex}, ${fieldIndex})">🗑</button>
                   </div>
               `;
@@ -182,7 +205,6 @@ function fmGenRef_renderEditor() {
       editor.appendChild(acqDiv);
   });
 
-  // Add action buttons (Download JSON and Add Acquisition)
   const actionsContainer = document.createElement("div");
   actionsContainer.className = "actions";
 
@@ -206,6 +228,46 @@ function fmGenRef_renderEditor() {
   actionsContainer.appendChild(downloadJsonButton);
 
   editor.appendChild(actionsContainer);
+}
+
+function updateAcquisitionFieldMode(acqName, fieldIndex, mode) {
+  const field = jsonData.acquisitions[acqName].fields[fieldIndex];
+  if (mode === "Contains") {
+      delete field.value;
+      field.contains = field.contains || "";
+  } else {
+      delete field.contains;
+      field.value = field.value || "";
+  }
+}
+
+function updateAcquisitionFieldTolerance(acqName, fieldIndex, tolerance) {
+  const field = jsonData.acquisitions[acqName].fields[fieldIndex];
+  if (tolerance) {
+      field.tolerance = parseFloat(tolerance);
+  } else {
+      delete field.tolerance;
+  }
+}
+
+function updateSeriesFieldMode(acqName, seriesIndex, fieldIndex, mode) {
+  const field = jsonData.acquisitions[acqName].series[seriesIndex].fields[fieldIndex];
+  if (mode === "Contains") {
+      delete field.value;
+      field.contains = field.contains || "";
+  } else {
+      delete field.contains;
+      field.value = field.value || "";
+  }
+}
+
+function updateSeriesFieldTolerance(acqName, seriesIndex, fieldIndex, tolerance) {
+  const field = jsonData.acquisitions[acqName].series[seriesIndex].fields[fieldIndex];
+  if (tolerance) {
+      field.tolerance = parseFloat(tolerance);
+  } else {
+      delete field.tolerance;
+  }
 }
 
 function updateAcquisitionFieldName(acqName, fieldIndex, newName) {
