@@ -20,7 +20,7 @@ def make_hashable(value):
     return value
 
 
-def create_json_reference(session_df, acquisition_fields, reference_fields, name_template="{ProtocolName}-{SeriesDescription}"):
+def create_json_reference(session_df, acquisition_fields, reference_fields, name_template="{ProtocolName}"):
     """
     Create a JSON reference from the session DataFrame.
 
@@ -79,7 +79,7 @@ def main():
     parser.add_argument("--out_json_ref", required=True, help="Path to save the generated JSON reference.")
     parser.add_argument("--acquisition_fields", nargs="+", required=True, help="Fields to uniquely identify each acquisition.")
     parser.add_argument("--reference_fields", nargs="+", required=True, help="Fields to include in JSON reference with their values.")
-    parser.add_argument("--name_template", default="{ProtocolName}-{SeriesDescription}", help="Naming template for each acquisition series.")
+    parser.add_argument("--name_template", default="{ProtocolName}", help="Naming template for each acquisition series.")
     args = parser.parse_args()
 
     # Read DICOM session

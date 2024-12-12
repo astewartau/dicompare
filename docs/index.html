@@ -9,6 +9,7 @@
   <script src="https://unpkg.com/@popperjs/core@2"></script>
   <script src="https://unpkg.com/tippy.js@6"></script>
   <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
 </head>
 
 <body>
@@ -60,12 +61,6 @@
 
     <!-- Editor -->
     <div id="jsonEditor" class="editor"></div>
-
-    <!-- Add Acquisition and Download JSON -->
-    <div class="actions">
-      <button id="fmGenRef_btnAddAcquisition" class="add">Add Acquisition</button>
-      <button id="fmGenRef_btnDownloadJSON" class="green" onclick="fmGenRef_downloadJson()" disabled>Download
-        JSON</button>
     </div>
   </div>
 
@@ -83,12 +78,12 @@
 
     <div class="row">
       <label for="fmCheck_selectDomainReference">Reference: <span class="info-icon"
-          data-tippy-content="...">ℹ️</span></label>
+          data-tippy-content="Whether to validate against a JSON reference (i.e. from the 'Generate Reference' page), or a pre-defined reference.">ℹ️</span></label>
       <select id="fmCheck_selectDomainReference">
         <option value="Custom">Custom (JSON or Python)</option>
         <option value="QSM">Quantitative Susceptibility Mapping (QSM)</option>
-        <option value="HCP">Human Connectome Project (HCP)</option>
-        <option value="ABCD">Adolescent Brain Cognitive Development (ABCD) Study</option>
+        <!-- <option value="HCP">Human Connectome Project (HCP)</option> -->
+        <!-- <option value="ABCD">Adolescent Brain Cognitive Development (ABCD) Study</option> -->
       </select>
     </div>
     
@@ -106,6 +101,7 @@
 
     <div id="fmCheck_outputMessage"></div>
     <div id="tableOutput"></div>
+    <div id="afterTable"></div>
 
   </div>
 

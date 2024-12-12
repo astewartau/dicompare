@@ -21,6 +21,13 @@ class QSM(BaseValidationModel):
             raise ValidationError(f"Each EchoTime must have exactly one phase image. Found {phase_counts}.")
 
         return value
+    
+    @validator(["ImageType", "EchoTime"], rule_message="Each magnitude and phase image should have the same number of slices.")
+    def validate_image_slices(cls, value):
+        num_slices = value['Count']
+        if not all(num_slices == num_slices.iloc[0]):
+            raise ValidationError()
+        return value
 
     @validator(["EchoTime"], rule_message="While QSM can be achieved with one echo, two is the minimum number of echoes needed to separate the intrinsic transmit RF phase from the magnetic field-induced phase.")
     def validate_echo_count(cls, value):
