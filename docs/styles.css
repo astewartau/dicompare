@@ -78,11 +78,6 @@ body {
     /* Show the active form */
 }
 
-#jsonEditor {
-    /* create light grey border */
-    border-bottom: 1px solid #e2e2e2;
-}
-
 .form-container label {
     font-weight: 700;
     display: block;

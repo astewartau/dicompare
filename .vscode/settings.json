@@ -1,6 +1,6 @@
 {
     "python.testing.pytestArgs": [
-        "dcm_check"
+        "dicompare"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true

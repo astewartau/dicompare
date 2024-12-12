@@ -1,9 +1,9 @@
 let pyodide;
 let tagInputfmGenRef_acquisitionFields, tagInputfmGenRef_referenceFields;
-//const dcm_check_url = "http://localhost:8000/dist/dcm_check-0.1.7-py3-none-any.whl";
+//const dicompare_url = "http://localhost:8000/dist/dicompare-0.1.7-py3-none-any.whl";
 //const valid_fields_url = "http://localhost:8000/valid_fields.json";
-const dcm_check_url = "dcm-check==0.1.7"
-const valid_fields_url = "https://raw.githubusercontent.com/astewartau/dcm-check/v0.1.7/valid_fields.json";
+const dicompare_url = "dicompare==0.1.8"
+const valid_fields_url = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.8/valid_fields.json";
 
 async function initTagify() {
     // Fetch the list of valid fields for Tagify
@@ -34,10 +34,10 @@ async function initPyodide() {
     const pyodideInstance = await loadPyodide(); // Use the library's `loadPyodide`
     await pyodideInstance.loadPackage("micropip");
 
-    // Install `dcm-check` using micropip
+    // Install `dicompare` using micropip
     await pyodideInstance.runPythonAsync(`
           import micropip
-          await micropip.install("${dcm_check_url}")
+          await micropip.install("${dicompare_url}")
       `);
 
     return pyodideInstance;
@@ -50,7 +50,7 @@ async function loadDICOMs(inputId) {
 
     for (let file of files) {
         if (file.name.endsWith(".dcm") || file.name.endsWith(".IMA")) {
-            const slice = file.slice(0, 2048);
+            const slice = file.slice(0, 4096);
             const fileContent = new Uint8Array(await slice.arrayBuffer());
             dicomFiles[file.webkitRelativePath] = fileContent;
         }

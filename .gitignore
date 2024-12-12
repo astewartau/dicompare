@@ -1,6 +1,8 @@
 .venv
 *__pycache__/
 .coverage
-dcm_check.egg-info
+dicompare.egg-info
 build/
 dist/
+compliance_report.json
+spec.json
