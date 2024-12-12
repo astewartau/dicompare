@@ -1,9 +1,9 @@
 let pyodide;
 let tagInputfmGenRef_acquisitionFields, tagInputfmGenRef_referenceFields;
-const dicompare_url = "http://localhost:8000/dist/dicompare-0.1.7-py3-none-any.whl";
-const valid_fields_url = "http://localhost:8000/valid_fields.json";
-//const dicompare_url = "dicompare==0.1.7"
-//const valid_fields_url = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.7/valid_fields.json";
+//const dicompare_url = "http://localhost:8000/dist/dicompare-0.1.7-py3-none-any.whl";
+//const valid_fields_url = "http://localhost:8000/valid_fields.json";
+const dicompare_url = "dicompare==0.1.8"
+const valid_fields_url = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.8/valid_fields.json";
 
 async function initTagify() {
     // Fetch the list of valid fields for Tagify

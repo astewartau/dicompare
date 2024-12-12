@@ -5,7 +5,8 @@ const fmCheck_selectJsonReference = document.getElementById("fmCheck_selectJsonR
 const fmCheck_btnGenCompliance = document.getElementById("fmCheck_btnGenCompliance");
 const fmCheck_outputMessage = document.getElementById("fmCheck_outputMessage");
 const tableOutput = document.getElementById("tableOutput");
-const qsm_ref = "http://localhost:8000/dicompare/tests/fixtures/ref_qsm.py";
+//const qsm_ref = "http://localhost:8000/dicompare/tests/fixtures/ref_qsm.py";
+const qsm_ref = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.8/dicompare/tests/fixtures/ref_qsm.py";
 
 let generatedReportData = null;
 let referenceFilePath = null;
