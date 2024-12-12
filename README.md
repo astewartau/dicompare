@@ -7,8 +7,8 @@ dicompare is a DICOM validation tool designed to ensure compliance with study-sp
 dicompare supports DICOM session validation against:
 
 - **Session schemas**: JSON schema files that can be generated based on a reference session;
-- **[UNDER CONSTRUCTION] landmark studies**: Schema files based on landmark studies such as the [HCP](https://doi.org/10.1038/s41586-018-0579-z), [ABCD](https://doi.org/10.1016/j.dcn.2018.03.001), and [UK BioBank](https://doi.org/10.1038/s41586-018-0579-z) projects;
-- **[UNDER CONSTRUCTION] domain guidelines**: Flexible guidelines for domains such as [QSM](https://doi.org/10.1002/mrm.30006).
+- **[TESTING] domain guidelines**: Flexible guidelines for specific domains (currently [QSM](https://doi.org/10.1002/mrm.30006));
+- **[FUTURE] landmark studies**: Schema files based on landmark studies such as the [HCP](https://doi.org/10.1038/s41586-018-0579-z), [ABCD](https://doi.org/10.1016/j.dcn.2018.03.001), and [UK BioBank](https://doi.org/10.1038/s41586-018-0579-z) projects.
 
 # Command-line interface (CLI) and application programming interface (API)
 
