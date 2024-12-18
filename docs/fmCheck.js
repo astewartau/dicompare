@@ -96,6 +96,7 @@ async function fmCheck_generateComplianceReport() {
                         lambda group: group.groupby(reference_fields, dropna=False).ngroup().add(1)
                     ).reset_index(level=0, drop=True)  # Reset multi-index back to DataFrame
                 ).apply(lambda x: f"Series {x}")
+                in_session.sort_values(by=["Acquisition", "Series"] + acquisition_fields + reference_fields, inplace=True)
 
                 session_map = map_to_json_reference(in_session, ref_session)
                 session_map_serializable = {
