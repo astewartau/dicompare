@@ -28,10 +28,17 @@ async function fmGenRef_ValidateForm() {
 
 async function fmGenRef_genRef() {
   btnGenJSON.disabled = true;
+  resetMessages("fmGenRef_messages");
 
   if (!pyodide) {
     btnGenJSON.textContent = "Loading Pyodide...";
-    pyodide = await initPyodide(); // Call the corrected initialization function
+    try {
+      pyodide = await initPyodide(); // Call the corrected initialization function
+    } catch (error) {
+      addMessage("fmGenRef_messages", error, "error", "Error loading Pyodide");
+      fmCheck_ValidateForm();
+      return;
+    }
   }
 
   btnGenJSON.textContent = "Loading DICOMs...";
@@ -44,37 +51,43 @@ async function fmGenRef_genRef() {
   pyodide.globals.set("reference_fields", fmGenRef_referenceFields);
 
   btnGenJSON.textContent = "Generating JSON...";
-  const output = await pyodide.runPythonAsync(`
-    import json
-    from dicompare import load_dicom_session
-    from dicompare.cli.gen_session import create_json_reference
 
-    acquisition_fields = list(acquisition_fields)
-    reference_fields = list(reference_fields)
+  try {
+    const output = await pyodide.runPythonAsync(`
+      import json
+      from dicompare import load_dicom_session
+      from dicompare.cli.gen_session import create_json_reference
 
-    in_session = load_dicom_session(
-      dicom_bytes=dicom_files,
-      acquisition_fields=acquisition_fields,
-    )
+      acquisition_fields = list(acquisition_fields)
+      reference_fields = list(reference_fields)
 
-    # Filter fields in DataFrame
-    relevant_fields = set(acquisition_fields + reference_fields)
-    in_session = in_session[list(relevant_fields.intersection(in_session.columns)) + ["Acquisition"]]
+      in_session = load_dicom_session(
+        dicom_bytes=dicom_files,
+        acquisition_fields=acquisition_fields,
+      )
 
-    # Generate JSON reference
-    json_reference = create_json_reference(
-        session_df=in_session,
-        reference_fields=reference_fields
-    )
+      # Filter fields in DataFrame
+      relevant_fields = set(acquisition_fields + reference_fields)
+      in_session = in_session[list(relevant_fields.intersection(in_session.columns)) + ["Acquisition"]]
 
-    # Return JSON reference
-    json.dumps(json_reference, indent=4)
-  `);
+      # Generate JSON reference
+      json_reference = create_json_reference(
+          session_df=in_session,
+          reference_fields=reference_fields
+      )
 
-  btnGenJSON.textContent = "Parsing JSON...";
-  jsonData = JSON.parse(output);
-  fmGenRef_renderEditor(); // Render all acquisitions and their contents
-  btnGenJSON.disabled = false;
+      # Return JSON reference
+      json.dumps(json_reference, indent=4)
+    `);
+    btnGenJSON.textContent = "Parsing JSON...";
+    jsonData = JSON.parse(output);
+  } catch (error) {
+    addMessage("fmGenRef_messages", error, "error", "Error generating JSON");
+    fmCheck_ValidateForm();
+    return;
+  }
+  fmGenRef_renderEditor();
+  fmCheck_ValidateForm();
   btnGenJSON.textContent = "Generate JSON Reference";
 }
 

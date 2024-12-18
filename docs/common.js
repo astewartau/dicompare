@@ -5,6 +5,24 @@ let tagInputfmGenRef_acquisitionFields, tagInputfmGenRef_referenceFields;
 const dicompare_url = "dicompare==0.1.10"
 const valid_fields_url = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.10/valid_fields.json";
 
+// add optional title parameter to addMessage
+function addMessage(id, message, type, title) {
+    var messageArea = document.getElementById(id);
+    var messageDiv = document.createElement('div');
+    messageDiv.classList.add(type);
+    if (title) {
+        messageDiv.innerHTML = "<b>" + title + "</b>: " + message;
+    } else {
+        messageDiv.innerHTML = "<b>" + type.toUpperCase() + "</b>: " + message;
+    }
+    messageArea.appendChild(messageDiv);
+}
+
+function resetMessages(id) {
+    var messageArea = document.getElementById(id);
+    messageArea.innerHTML = '';
+}
+
 async function initTagify() {
     // Fetch the list of valid fields for Tagify
     const response = await fetch(valid_fields_url);

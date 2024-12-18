@@ -20,18 +20,24 @@ async function fetchReferenceFile(url) {
         return await response.text();
     } catch (error) {
         console.error(error);
-        fmCheck_outputMessage.textContent = `Error fetching reference file: ${error.message}`;
+        addMessage("fmCheck_messages", error.message, "error", "Error fetching reference file");
         return null;
     }
 }
 
 async function fmCheck_generateComplianceReport() {
     fmCheck_btnGenCompliance.disabled = true;
-    fmCheck_outputMessage.textContent = "";
+    resetMessages("fmCheck_messages");
 
     if (!pyodide) {
         fmCheck_btnGenCompliance.textContent = "Loading Pyodide...";
-        pyodide = await initPyodide();
+        try {
+            pyodide = await initPyodide();
+        } catch (error) {
+            addMessage("fmCheck_messages", error.message, "error", "Error loading Pyodide");
+            fmCheck_ValidateForm();
+            return;
+        }
     }
 
     if (!referenceFilePath || !referenceFilePath.content) {
@@ -42,8 +48,8 @@ async function fmCheck_generateComplianceReport() {
                 content: await fmCheck_selectJsonReference.files[0].text(),
             };
         } else {
-            fmCheck_outputMessage.textContent = "Reference file content is missing. Please ensure a valid reference is selected.";
-            fmCheck_btnGenCompliance.disabled = false;
+            addMessage("fmCheck_messages", "Reference file content is missing. Please ensure a valid reference is selected.", "error");
+            fmCheck_ValidateForm();
             return;
         }
     }
@@ -81,10 +87,6 @@ async function fmCheck_generateComplianceReport() {
             if in_session.empty:
                 raise ValueError("The DICOM session is empty. Ensure the input data is correct.")
 
-            missing_fields = [field for field in reference_fields if field not in in_session.columns]
-            if missing_fields:
-                raise ValueError(f"Missing required reference fields: {missing_fields}")
-
         
             input_acquisitions = list(in_session['Acquisition'].unique())
         
@@ -98,6 +100,10 @@ async function fmCheck_generateComplianceReport() {
                 ).apply(lambda x: f"Series {x}")
                 in_session.sort_values(by=["Acquisition", "Series"] + acquisition_fields + reference_fields, inplace=True)
 
+                missing_fields = [field for field in reference_fields if field not in in_session.columns]
+                if missing_fields:
+                    raise ValueError(f"Input session is missing required reference fields: {missing_fields}")
+                
                 session_map = map_to_json_reference(in_session, ref_session)
                 session_map_serializable = {
                     f"{key[0]}::{key[1]}": f"{value[0]}::{value[1]}"
@@ -120,12 +126,11 @@ async function fmCheck_generateComplianceReport() {
         const parsedMapping = JSON.parse(mappingOutput);
         displayMappingUI(parsedMapping);
     } catch (error) {
-        console.error("Error generating compliance report:", error);
-        fmCheck_outputMessage.textContent = "Error generating compliance report: " + error.message;
+        addMessage("fmCheck_messages", error.message, "error", "Error generating compliance report");
     }
 
     fmCheck_btnGenCompliance.textContent = "Generate Compliance Report";
-    fmCheck_btnGenCompliance.disabled = false;
+    fmCheck_ValidateForm();
 }
 
 
@@ -137,10 +142,9 @@ function fmCheck_handleDomainReferenceChange() {
         fetchReferenceFile(qsm_ref).then((fileContent) => {
             if (fileContent) {
                 referenceFilePath = { name: "qsm.py", content: fileContent };
-                fmCheck_outputMessage.textContent = "";
             } else {
                 referenceFilePath = null;
-                fmCheck_outputMessage.textContent = "Failed to load QSM reference file.";
+                addMessage("fmCheck_messages", "Failed to load QSM reference file.", "error");
                 fmCheck_selectDomainReference.value = "Custom";
             }
             fmCheck_ValidateForm();
@@ -149,21 +153,9 @@ function fmCheck_handleDomainReferenceChange() {
         referenceFilePath = null;
     } else {
         referenceFilePath = null;
-        fmCheck_outputMessage.textContent = "";
     }
 
     fmCheck_ValidateForm();
-}
-
-function fmCheck_ValidateForm() {
-    const fmCheck_selectDICOMs = document.getElementById("fmCheck_selectDICOMs");
-    const referenceFileSelected = referenceFilePath || fmCheck_selectJsonReference.files.length > 0;
-
-    if (fmCheck_selectDICOMs.files.length > 0 && referenceFileSelected) {
-        fmCheck_btnGenCompliance.disabled = false;
-    } else {
-        fmCheck_btnGenCompliance.disabled = true;
-    }
 }
 
 function displayMappingUI(mappingData) {
@@ -291,7 +283,6 @@ async function finalizeMapping(button, mappingData) {
 }
 
 function displayComplianceReport(complianceData) {
-    const messageContainer = document.getElementById("fmCheck_outputMessage");
     const tableContainer = document.getElementById("tableOutput");
     const afterTableContainer = document.getElementById("afterTable");
 
@@ -299,7 +290,7 @@ function displayComplianceReport(complianceData) {
     afterTableContainer.innerHTML = "";
 
     if (complianceData.length === 0) {
-        messageContainer.textContent = "The input DICOMs are fully compliant with the reference.";
+        addMessage("fmCheck_messages", "The input DICOMs are fully compliant with the reference.", "info");
         tableContainer.innerHTML = "";
     } else {
         displayTable(complianceData);
@@ -371,7 +362,8 @@ function downloadComplianceSummary(complianceData) {
 function fmCheck_ValidateForm() {
     const fmCheck_selectDICOMs = document.getElementById("fmCheck_selectDICOMs");
     const referenceFileSelected = referenceFilePath || (fmCheck_selectJsonReference.files.length > 0 && fmCheck_selectDomainReference.value === "Custom");
-
+    
+    fmCheck_btnGenCompliance.textContent = "Generate Compliance Report";
     if (fmCheck_selectDICOMs.files.length > 0 && referenceFileSelected) {
         fmCheck_btnGenCompliance.disabled = false;
     } else {
