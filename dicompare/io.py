@@ -204,15 +204,14 @@ def load_json_session(json_ref: str) -> Tuple[List[str], List[str], Dict[str, An
     reference_data = normalize_numeric_values(reference_data)
 
     acquisitions = {}
-    acquisition_fields = set()
-    series_fields = set()
+    reference_fields = set()
 
     for acq_name, acquisition in reference_data.get("acquisitions", {}).items():
         acq_entry = {
             "fields": process_fields(acquisition.get("fields", [])),
             "series": []
         }
-        acquisition_fields.update(field["field"] for field in acquisition.get("fields", []))
+        reference_fields.update(field["field"] for field in acquisition.get("fields", []))
 
         for series in acquisition.get("series", []):
             series_entry = {
@@ -220,11 +219,11 @@ def load_json_session(json_ref: str) -> Tuple[List[str], List[str], Dict[str, An
                 "fields": process_fields(series.get("fields", []))
             }
             acq_entry["series"].append(series_entry)
-            series_fields.update(field["field"] for field in series.get("fields", []))
+            reference_fields.update(field["field"] for field in series.get("fields", []))
 
         acquisitions[acq_name] = acq_entry
 
-    return sorted(acquisition_fields), sorted(series_fields), {"acquisitions": acquisitions}
+    return sorted(reference_fields), {"acquisitions": acquisitions}
 
 def load_python_session(module_path: str) -> Tuple[List[str], List[str], Dict[str, BaseValidationModel]]:
     """

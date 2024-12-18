@@ -109,7 +109,6 @@ def test_read_json_session(temp_json):
     json_data = {
         "acquisitions": {
             "acq-Example": {
-                "fields": [{"field": "ProtocolName", "value": "Example"}],
                 "series": [
                     {
                         "name": "Series 1",
@@ -122,13 +121,10 @@ def test_read_json_session(temp_json):
         }
     }
     json_path = temp_json(json_data)
-    acq_fields, series_fields, acquisitions = load_json_session(json_path)
+    reference_fields, acquisitions = load_json_session(json_path)
 
-    # Validate acquisition fields
-    assert acq_fields == ["ProtocolName"]
-
-    # Validate series fields
-    assert set(series_fields) == {"SeriesDescription", "EchoTime", "ImageType"}
+    # Validate reference fields
+    assert set(reference_fields) == {"SeriesDescription", "EchoTime", "ImageType"}
 
     # Validate acquisitions structure
     assert "acq-Example" in acquisitions["acquisitions"]
@@ -164,7 +160,7 @@ def test_read_dicom_session_read_json_session_numeric_datatype_encoding(tmp_path
         session_dir=str(dicom_dir)
     )
 
-    result_json = create_json_reference(result, ["ProtocolName"], ["EchoTime", "SeriesDescription"])
+    result_json = create_json_reference(result, ["EchoTime", "SeriesDescription"])
 
     # Save the dataframe as a JSON file
     json_path = tmp_path / "session_output.json"
@@ -172,7 +168,10 @@ def test_read_dicom_session_read_json_session_numeric_datatype_encoding(tmp_path
         json.dump(result_json, json_file, indent=4)
 
     # Use `read_json_session` to load the JSON
-    acq_fields, series_fields, loaded_result = load_json_session(str(json_path))
+    reference_fields, loaded_result = load_json_session(str(json_path))
+
+    # Validate that the reference fields are loaded correctly
+    assert set(reference_fields) == {"EchoTime", "SeriesDescription"}
 
     # Validate the EchoTime values and their types in the JSON
     acquisitions = loaded_result["acquisitions"]

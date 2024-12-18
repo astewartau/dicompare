@@ -162,26 +162,6 @@ def map_to_json_reference(in_session_df: pd.DataFrame, ref_session: dict) -> dic
                 series_fields.add(field["field"])
     series_fields = list(series_fields)
 
-    # Group input session by acquisition and series fields
-    def group_series(df: pd.DataFrame, group_keys: List[str]) -> pd.Series:
-            
-        # Avoid duplicate columns by resetting the index and renaming
-        df = df.reset_index(drop=True)
-
-        # Group by the specified keys and assign unique group numbers
-        return df.groupby(group_keys, dropna=False).ngroup()
-
-    in_session_df["SeriesGroup"] = group_series(in_session_df, series_fields)
-    #in_session_df["Series"] = "Series " + (in_session_df.groupby("Acquisition")["SeriesGroup"].rank(method="dense").astype(int)).astype(str)
-    in_session_df["Series"] = (
-        "Series " +
-        (in_session_df.groupby("Acquisition")["SeriesGroup"]
-        .rank(method="dense")
-        .fillna(0)  # Replace NaN with a default value (e.g., 0)
-        .astype(int))
-        .astype(str)
-    )
-
     # Prepare lists for input acquisitions + series and reference acquisitions + series
     input_acquisition_series = in_session_df[["Acquisition", "Series"]].drop_duplicates().values.tolist()
     reference_acquisition_series = []

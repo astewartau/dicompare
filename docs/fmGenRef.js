@@ -64,7 +64,6 @@ async function fmGenRef_genRef() {
     # Generate JSON reference
     json_reference = create_json_reference(
         session_df=in_session,
-        acquisition_fields=acquisition_fields,
         reference_fields=reference_fields
     )
 

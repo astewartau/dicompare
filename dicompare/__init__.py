@@ -1,4 +1,4 @@
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 
 # Import core functionalities
 from .io import get_dicom_values, load_dicom, load_json_session, load_dicom_session, load_python_session

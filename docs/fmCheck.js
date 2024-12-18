@@ -6,7 +6,7 @@ const fmCheck_btnGenCompliance = document.getElementById("fmCheck_btnGenComplian
 const fmCheck_outputMessage = document.getElementById("fmCheck_outputMessage");
 const tableOutput = document.getElementById("tableOutput");
 //const qsm_ref = "http://localhost:8000/dicompare/tests/fixtures/ref_qsm.py";
-const qsm_ref = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.8/dicompare/tests/fixtures/ref_qsm.py";
+const qsm_ref = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.9/dicompare/tests/fixtures/ref_qsm.py";
 
 let generatedReportData = null;
 let referenceFilePath = null;
@@ -66,47 +66,48 @@ async function fmCheck_generateComplianceReport() {
         
             # Load the reference and input sessions
             if is_json:
-                acquisition_fields, reference_fields, ref_session = load_json_session(ref_path)
+                reference_fields, ref_session = load_json_session(ref_path)
             else:
                 ref_models = load_python_session(module_path=ref_path)
                 ref_session = {"acquisitions": {k: {} for k in ref_models.keys()}}
-                acquisition_fields = ["ProtocolName"]
-        
+            acquisition_fields = ["ProtocolName"]
+            
             in_session = load_dicom_session(
                 dicom_bytes=dicom_files,
                 acquisition_fields=acquisition_fields
             )
+            if in_session is None:
+                raise ValueError("Failed to load the DICOM session. Ensure the input data is valid.")
+            if in_session.empty:
+                raise ValueError("The DICOM session is empty. Ensure the input data is correct.")
+
+            missing_fields = [field for field in reference_fields if field not in in_session.columns]
+            if missing_fields:
+                raise ValueError(f"Missing required reference fields: {missing_fields}")
+
         
             input_acquisitions = list(in_session['Acquisition'].unique())
         
             if is_json:
-                in_session = (
-                    in_session.groupby(reference_fields)
-                    .apply(lambda x: x.reset_index(drop=True))
-                    .reset_index(drop=True)
-                )
+                in_session = in_session.reset_index(drop=True)  # Drop the index entirely
+
                 in_session["Series"] = (
-                    in_session.groupby(reference_fields, dropna=False).ngroup().add(1).apply(lambda x: f"Series {x}")
-                )
+                    in_session.groupby(acquisition_fields).apply(
+                        lambda group: group.groupby(reference_fields, dropna=False).ngroup().add(1)
+                    ).reset_index(level=0, drop=True)  # Reset multi-index back to DataFrame
+                ).apply(lambda x: f"Series {x}")
 
                 session_map = map_to_json_reference(in_session, ref_session)
                 session_map_serializable = {
                     f"{key[0]}::{key[1]}": f"{value[0]}::{value[1]}"
                     for key, value in session_map.items()
                 }
-
-                # print unique combinations of Acquisition and Series
-                print(in_session.groupby(["Acquisition", "Series"]).size().reset_index(name="count"))
             else:
                 # Map acquisitions directly for Python references
                 session_map_serializable = {
                     acquisition: ref
                     for acquisition, ref in zip(input_acquisitions, ref_session["acquisitions"])
                 }
-        
-            print(f"Reference acquisitions: {ref_session['acquisitions']}")
-            print(f"Input acquisitions: {input_acquisitions}")
-            print(f"Session map: {session_map_serializable}")
         
             json.dumps({
                 "reference_acquisitions": ref_session["acquisitions"],
@@ -194,7 +195,6 @@ function displayMappingUI(mappingData) {
             unmappedOption.textContent = "Unmapped";
             select.appendChild(unmappedOption);
 
-            // Populate dropdown with acquisition-series pairs
             Object.entries(session_map).forEach(([sessionKey, sessionValue]) => {
                 const option = document.createElement("option");
                 option.value = sessionKey;
@@ -216,15 +216,32 @@ function displayMappingUI(mappingData) {
 
     mappingContainer.appendChild(table);
 
-    const finalizeButton = document.createElement("button");
-    finalizeButton.textContent = "Finalize Mapping";
-    finalizeButton.classList.add("green");
-    finalizeButton.onclick = finalizeMapping;
-    mappingContainer.appendChild(finalizeButton);
+    // Check if "fmCheck_btnNextAction" exists
+    let actionButton = document.getElementById("fmCheck_btnNextAction");
+    if (!actionButton) {
+        // Create the button if it doesn't exist
+        actionButton = document.createElement("button");
+        actionButton.id = "fmCheck_btnNextAction";
+        actionButton.classList.add("green");
+        actionButton.style.gridColumn = "span 2";
+    }
+
+    // Update the button properties
+    actionButton.textContent = "Finalize Mapping";
+    actionButton.onclick = async () => {
+        await finalizeMapping(actionButton, mappingData);
+    };
+
+    // Append to fmCheck_buttonRow if the button is not already there
+    const buttonRow = document.getElementById("fmCheck_buttonRow");
+    if (!buttonRow.contains(actionButton)) {
+        buttonRow.appendChild(actionButton);
+    }
 }
 
 
-async function finalizeMapping() {
+
+async function finalizeMapping(button, mappingData) {
     const dropdownMappings = {};
     const dropdowns = document.querySelectorAll(".mapping-dropdown");
 
@@ -264,7 +281,12 @@ async function finalizeMapping() {
         json.dumps(compliance_summary)
     `);
 
-    displayComplianceReport(JSON.parse(complianceOutput));
+    const complianceData = JSON.parse(complianceOutput);
+    displayComplianceReport(complianceData);
+
+    // Update the button to act as "Download compliance summary"
+    button.textContent = "Download compliance summary";
+    button.onclick = () => downloadComplianceSummary(complianceData);
 }
 
 function displayComplianceReport(complianceData) {
@@ -280,15 +302,6 @@ function displayComplianceReport(complianceData) {
         tableContainer.innerHTML = "";
     } else {
         displayTable(complianceData);
-
-        // Add the "Download compliance summary" button
-        const downloadButton = document.createElement("button");
-        downloadButton.textContent = "Download compliance summary";
-        downloadButton.classList.add("green"); // Assign the "green" class
-        downloadButton.onclick = () => downloadComplianceSummary(complianceData);
-
-        // Append the button to the afterTable container
-        afterTableContainer.appendChild(downloadButton);
     }
 }
 

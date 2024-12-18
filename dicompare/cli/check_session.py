@@ -21,10 +21,10 @@ def main():
 
     # Load the reference models and fields
     if args.json_ref:
-        acquisition_fields, reference_fields, ref_session = load_json_session(json_ref=args.json_ref)
+        reference_fields, ref_session = load_json_session(json_ref=args.json_ref)
     elif args.python_ref:
         ref_models = load_python_session(module_path=args.python_ref)
-        acquisition_fields = ["ProtocolName"]
+    acquisition_fields = ["ProtocolName"]
 
     # Load the input session
     in_session = load_dicom_session(
@@ -33,17 +33,14 @@ def main():
     )
 
     if args.json_ref:
-        # Group by all existing unique combinations of reference fields
-        in_session = (
-            in_session.groupby(reference_fields)
-            .apply(lambda x: x.reset_index(drop=True))
-            .reset_index(drop=True)  # Reset the index to avoid index/column ambiguity
-        )
-
-        # Assign unique group numbers for each combination of reference fields
+        # reset index to avoid issues with groupby
+        in_session.reset_index(drop=True, inplace=True)
+        # Group by acquisition fields to create Series labels starting from 1 for each acquisition
         in_session["Series"] = (
-            in_session.groupby(reference_fields, dropna=False).ngroup().add(1).apply(lambda x: f"Series {x}")
-        )
+            in_session.groupby(acquisition_fields).apply(
+                lambda group: group.groupby(reference_fields, dropna=False).ngroup().add(1)
+            ).reset_index(level=0, drop=True)  # Reset multi-index back to DataFrame
+        ).apply(lambda x: f"Series {x}")
 
     if args.json_ref:
         session_map = map_to_json_reference(in_session, ref_session)
