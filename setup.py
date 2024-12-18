@@ -12,7 +12,7 @@ with open(os.path.join("dicompare", "__init__.py")) as f:
 setup(
     name="dicompare",
     version=version["__version__"],
-    description="A tool for checking DICOM compliance against a reference model using Pydantic",
+    description="A tool for checking DICOM compliance against a template",
     author="Ashley Stewart",
     url="https://github.com/astewartau/dicompare",
     packages=find_packages(),

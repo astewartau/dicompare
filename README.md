@@ -4,9 +4,9 @@
 
 dicompare is a DICOM validation tool designed to ensure compliance with study-specific imaging protocols and domain-specific guidelines while preserving data privacy. It provides multiple interfaces, including support for validation directly in the browser, leveraging WebAssembly (WASM), Pyodide, and the underlying pip package [`dicompare`](#dicompare). dicompare is suitable for multi-site studies and clinical environments without requiring software installation or external data uploads.
 
-dicompare supports DICOM session validation against:
+dicompare supports DICOM session validation against templates based on:
 
-- **Session schemas**: JSON schema files that can be generated based on a reference session;
+- **Reference sessions**: JSON schema files can be generated based on a reference MRI scanning session;
 - **[TESTING] domain guidelines**: Flexible guidelines for specific domains (currently [QSM](https://doi.org/10.1002/mrm.30006));
 - **[FUTURE] landmark studies**: Schema files based on landmark studies such as the [HCP](https://doi.org/10.1038/s41586-018-0579-z), [ABCD](https://doi.org/10.1016/j.dcn.2018.03.001), and [UK BioBank](https://doi.org/10.1038/s41586-018-0579-z) projects.
 
@@ -25,7 +25,7 @@ The package provides the following CLI entry points:
 - `dcm-gen-session`: Generate JSON schemas for DICOM validation.
 - `dcm-check-session`: Validate DICOM sessions against predefined schemas.
 
-1. Generate a JSON Reference Schema
+1. Generate a session template
 
 ```bash
 dcm-gen-session \
@@ -46,7 +46,7 @@ dicompare-session \
     --out_json compliance_report.json
 ```
 
-The tool will output a compliance summary, indicating deviations from the reference schema.
+The tool will output a compliance summary, indicating deviations from the session template.
 
 ## Python API
 

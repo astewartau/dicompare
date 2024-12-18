@@ -15,16 +15,16 @@
 <body>
   <div class="tab-bar">
     <div class="tab title">dicompare</div>
-    <div class="tab button active" onclick="switchTab('sessionReferenceTab')">Generate Reference</div>
-    <div class="tab button" onclick="switchTab('complianceReportTab')">Check Compliance</div>
+    <div class="tab button active" onclick="switchTab('genTemplateTab')">Generate template</div>
+    <div class="tab button" onclick="switchTab('checkComplianceTab')">Check Compliance</div>
     <div class="tab button right"><a href="https://github.com/astewartau/dicompare" target="_blank">View on GitHub</a></div>
   </div>
 
-  <div id="sessionReferenceTab" class="form-container active">
-    <h1>Generate session reference</h1>
+  <div id="genTemplateTab" class="form-container active">
+    <h1>Generate session template</h1>
 
-    <p>This tool generates a JSON file that represents a reference session. This reference session can be used to check
-      future sessions for compliance with the reference session.</p>
+    <p>This tool generates a template in JSON format that represents a reference MRI scanning session. This template can be used to check
+      future sessions for compliance.</p>
 
     <!-- DICOM Directory Selection -->
     <div class="row">
@@ -49,7 +49,7 @@
     </div>
 
     <div class="row">
-      <label for="fmGenRef_referenceFields">Reference fields: <span class="info-icon"
+      <label for="fmGenRef_referenceFields">Validation fields: <span class="info-icon"
           data-tippy-content="The DICOM fields that should be validated in future acquisitions using the Compliance Checker.">ℹ️</span></label>
       <input type="text" id="fmGenRef_referenceFields" placeholder="e.g., EchoTime, ImageType" />
     </div>
@@ -57,7 +57,7 @@
     <!-- Generate JSON Button -->
     <div id="fmGenRef_buttonRow" class="row">
       <button id="fmGenRef_btnGenJSON" class="green" onclick="fmGenRef_genRef()" style="grid-column: span 2;"
-        disabled>Generate JSON Reference</button>
+        disabled>Generate session template</button>
     </div>
 
     <!-- Error/message area -->
@@ -69,11 +69,11 @@
     </div>
   </div>
 
-  <div id="complianceReportTab" class="form-container">
+  <div id="checkComplianceTab" class="form-container">
     <h1>Check compliance</h1>
 
-    <p>This tool checks a session for compliance with a reference session. The reference session is a JSON file that
-      contains the expected values for each acquisition in the session.</p>
+    <!-- center -->
+     <p style="text-align: center;">Checks an MRI scanning session for compliance with a chosen template.</p>
 
     <div class="row">
       <label for="fmCheck_selectDICOMs">Session DICOMs: <span class="info-icon"
@@ -82,8 +82,8 @@
     </div>
 
     <div class="row">
-      <label for="fmCheck_selectDomainReference">Reference: <span class="info-icon"
-          data-tippy-content="Whether to validate against a JSON reference (i.e. from the 'Generate Reference' page), or a pre-defined reference.">ℹ️</span></label>
+      <label for="fmCheck_selectDomainReference">Session template: <span class="info-icon"
+          data-tippy-content="Whether to validate against a JSON template (i.e. from the 'Generate session template' page), or a pre-defined template.">ℹ️</span></label>
       <select id="fmCheck_selectDomainReference">
         <option value="Custom">Custom (JSON or Python)</option>
         <option value="QSM">Quantitative Susceptibility Mapping (QSM)</option>
@@ -93,8 +93,8 @@
     </div>
     
     <div class="row">
-      <label for="fmCheck_selectJsonReference">Reference file: <span class="info-icon" 
-          data-tippy-content="The JSON or Python file that contains the reference session information.">ℹ️</span></label>
+      <label for="fmCheck_selectJsonReference">Template file: <span class="info-icon" 
+          data-tippy-content="The session template file in JSON or Python format.">ℹ️</span></label>
       <input type="file" id="fmCheck_selectJsonReference" accept=".json,.py" />
     </div>
 
