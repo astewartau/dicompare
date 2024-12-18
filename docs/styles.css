@@ -24,17 +24,32 @@ h1 {
 
 .tab {
     padding: 10px 20px;
-    cursor: pointer;
+    height: 25px;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex: 1;
-    background-color: #ffffff;
     max-width: 200px;
+}
+
+.tab.button {
+    background-color: #ffffff;
+    cursor: pointer;
 }
 
 .tab.active {
     font-weight: bold;
     background-color: #4caf50;
     color: #fff
+}
+
+.tab.title {
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-weight: bold;
+    font-size: 1.25em;
 }
 
 .tab.right {
@@ -294,3 +309,16 @@ button.add {
     margin-top: 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1)
 }
+
+/* make footer sticky  and give it background color */
+.footer {
+    background-color: #f1f1f1;
+    padding: 10px;
+    text-align: center;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    z-index: 1000;
+}
+

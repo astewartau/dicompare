@@ -14,9 +14,10 @@
 
 <body>
   <div class="tab-bar">
-    <div class="tab active" onclick="switchTab('sessionReferenceTab')">Generate Reference</div>
-    <div class="tab" onclick="switchTab('complianceReportTab')">Check Compliance</div>
-    <div class="tab right"><a href="https://github.com/astewartau/dicompare" target="_blank">View on GitHub</a></div>
+    <div class="tab title">dicompare</div>
+    <div class="tab button active" onclick="switchTab('sessionReferenceTab')">Generate Reference</div>
+    <div class="tab button" onclick="switchTab('complianceReportTab')">Check Compliance</div>
+    <div class="tab button right"><a href="https://github.com/astewartau/dicompare" target="_blank">View on GitHub</a></div>
   </div>
 
   <div id="sessionReferenceTab" class="form-container active">
@@ -111,6 +112,11 @@
     <div id="afterTable"></div>
 
   </div>
+
+  <!-- Add footer area
+  <div class="footer">
+    <p><i>dicompare</i></p>
+  </div> -->
 
   <script>
     function switchTab(tabId) {
