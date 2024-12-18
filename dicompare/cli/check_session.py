@@ -41,6 +41,9 @@ def main():
                 lambda group: group.groupby(reference_fields, dropna=False).ngroup().add(1)
             ).reset_index(level=0, drop=True)  # Reset multi-index back to DataFrame
         ).apply(lambda x: f"Series {x}")
+        # Sort by acquisition, then series, then all other fields
+        in_session.sort_values(by=["Acquisition", "Series"] + acquisition_fields + reference_fields, inplace=True)
+
 
     if args.json_ref:
         session_map = map_to_json_reference(in_session, ref_session)

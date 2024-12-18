@@ -163,11 +163,16 @@ def map_to_json_reference(in_session_df: pd.DataFrame, ref_session: dict) -> dic
     series_fields = list(series_fields)
 
     # Prepare lists for input acquisitions + series and reference acquisitions + series
-    input_acquisition_series = in_session_df[["Acquisition", "Series"]].drop_duplicates().values.tolist()
-    reference_acquisition_series = []
-    for ref_acq_name, ref_acq in reference_acquisitions.items():
-        for series in ref_acq.get("series", []):
-            reference_acquisition_series.append((ref_acq_name, series["name"]))
+    input_acquisition_series = sorted(
+        in_session_df[["Acquisition", "Series"]].drop_duplicates().values.tolist()
+    )
+    reference_acquisition_series = sorted(
+        [
+            (ref_acq_name, series["name"])
+            for ref_acq_name, ref_acq in reference_acquisitions.items()
+            for series in ref_acq.get("series", [])
+        ]
+    )
 
     # Initialize the cost matrix
     cost_matrix = []
