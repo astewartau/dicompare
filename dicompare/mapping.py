@@ -280,7 +280,7 @@ def interactive_mapping_to_json_reference(in_session_df: pd.DataFrame, ref_sessi
     mapping = {}
     if initial_mapping:
         # Normalize the keys in the initial mapping to include prefixes
-        for ref_key, input_key in initial_mapping.items():
+        for input_key, ref_key in initial_mapping.items():
             normalized_ref_key = ("reference", ref_key[0], ref_key[1])
             normalized_input_key = ("input", input_key[0], input_key[1])
             mapping[normalized_ref_key] = normalized_input_key

@@ -29,7 +29,7 @@ def check_session_compliance_with_json_reference(
     compliance_summary = []
 
     # Iterate over the session mapping
-    for (in_acq_name, in_series_name), (ref_acq_name, ref_series_name) in session_map.items():
+    for (ref_acq_name, ref_series_name), (in_acq_name, in_series_name) in session_map.items():
         # Filter the input session for the current acquisition and series
         in_acq_series = in_session[
             (in_session["Acquisition"] == in_acq_name) & 
