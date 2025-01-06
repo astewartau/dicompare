@@ -75,7 +75,8 @@ def main():
 
     # Inline summary output
     for entry in compliance_summary:
-        if entry.get('acquisition'): print(f"Acquisition: {entry.get('acquisition')}")
+        if entry.get('input acquisition'): print(f"Acquisition: {entry.get('input acquisition')}")
+        if entry.get('input series'): print(f"Series: {entry.get('input series')}")
         if entry.get('field'): print(f"Field: {entry.get('field')}")
         if entry.get('value'): print(f"Value: {entry.get('value')}")
         if entry.get('rule'): print(f"Rule: {entry.get('rule')}")

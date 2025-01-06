@@ -6,7 +6,7 @@ const fmCheck_btnGenCompliance = document.getElementById("fmCheck_btnGenComplian
 const fmCheck_outputMessage = document.getElementById("fmCheck_outputMessage");
 const tableOutput = document.getElementById("tableOutput");
 //const qsm_ref = "http://localhost:8000/dicompare/tests/fixtures/ref_qsm.py";
-const qsm_ref = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.10/dicompare/tests/fixtures/ref_qsm.py";
+const qsm_ref = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.11/dicompare/tests/fixtures/ref_qsm.py";
 
 let generatedReportData = null;
 let referenceFilePath = null;
@@ -72,7 +72,7 @@ async function fmCheck_generateComplianceReport() {
         
             # Load the reference and input sessions
             if is_json:
-                reference_fields, ref_session = load_json_session(ref_path)
+                reference_fields, ref_session = load_json_session(json_ref=ref_path)
             else:
                 ref_models = load_python_session(module_path=ref_path)
                 ref_session = {"acquisitions": {k: {} for k in ref_models.keys()}}
@@ -87,11 +87,10 @@ async function fmCheck_generateComplianceReport() {
             if in_session.empty:
                 raise ValueError("The DICOM session is empty. Ensure the input data is correct.")
 
-        
             input_acquisitions = list(in_session['Acquisition'].unique())
-        
+            
             if is_json:
-                in_session = in_session.reset_index(drop=True)  # Drop the index entirely
+                in_session = in_session.reset_index(drop=True)
 
                 in_session["Series"] = (
                     in_session.groupby(acquisition_fields).apply(
@@ -109,6 +108,8 @@ async function fmCheck_generateComplianceReport() {
                     f"{key[0]}::{key[1]}": f"{value[0]}::{value[1]}"
                     for key, value in session_map.items()
                 }
+                # print session map
+                print(json.dumps(session_map_serializable, indent=2))
             else:
                 # Map acquisitions directly for Python references
                 session_map_serializable = {
@@ -188,12 +189,18 @@ function displayMappingUI(mappingData) {
             unmappedOption.textContent = "Unmapped";
             select.appendChild(unmappedOption);
 
-            Object.entries(session_map).forEach(([sessionKey, sessionValue]) => {
-                const option = document.createElement("option");
-                option.value = sessionKey;
-                option.textContent = sessionKey;
+            Object.entries(session_map).forEach(([mapped_input, mapped_reference]) => {
+                console.log(mapped_input, mapped_reference);
+                mapped_input_acquisition = mapped_input.split("::")[0];
+                mapped_input_series = mapped_input.split("::")[1];
+                mapped_reference_acquisition = mapped_reference.split("::")[0];
+                mapped_reference_series = mapped_reference.split("::")[1];
 
-                if (session_map[refSeriesKey] === sessionValue) {
+                const option = document.createElement("option");
+                option.value = mapped_input;
+                option.textContent = mapped_input;
+
+                if (mapped_reference_acquisition === refAcqKey && mapped_reference_series === refSeries.name) {
                     option.selected = true;
                 }
 
@@ -231,8 +238,6 @@ function displayMappingUI(mappingData) {
         buttonRow.appendChild(actionButton);
     }
 }
-
-
 
 async function finalizeMapping(button, mappingData) {
     const dropdownMappings = {};
@@ -323,9 +328,12 @@ function displayTable(parsedOutput) {
         headers.forEach(header => {
             const cell = document.createElement("td");
             if (header === "value") {
-                // Parse JSON string for value if necessary
-                const value = typeof rowData[header] === "string" ? JSON.parse(rowData[header]) : rowData[header];
-                cell.textContent = JSON.stringify(value, null, 2);  // Pretty-print object values
+                try {
+                    const value = typeof rowData[header] === "string" ? JSON.parse(rowData[header]) : rowData[header];
+                    cell.textContent = JSON.stringify(value, null, 2);  // Pretty-print object values
+                } catch (error) {
+                    cell.textContent = rowData[header] || "";
+                }
             } else {
                 cell.textContent = rowData[header] || "";
             }

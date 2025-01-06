@@ -308,8 +308,8 @@ def interactive_mapping_to_json_reference(in_session_df: pd.DataFrame, ref_sessi
             def truncate_string(value, max_length=30):
                 return value if len(value) <= max_length else value[:max_length] + "..."
 
-            ref_identifiers = ", ".join(
-                truncate_string(f"{field['field']}={field['value']}", max_length=30)
+            ref_identifiers = ", ".join( # TODO FIX NONE VALUES
+                truncate_string(f"{field['field']}={field['value'] if 'value' in field else 'None'}", max_length=30)
                 for field in ref_series_data.get("fields", [])
                 if field["field"] in series_fields
             )

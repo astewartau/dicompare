@@ -1,9 +1,9 @@
 let pyodide;
 let tagInputfmGenRef_acquisitionFields, tagInputfmGenRef_referenceFields;
-//const dicompare_url = "http://localhost:8000/dist/dicompare-0.1.10-py3-none-any.whl";
+//const dicompare_url = "http://localhost:8000/dist/dicompare-0.1.11-py3-none-any.whl";
 //const valid_fields_url = "http://localhost:8000/valid_fields.json";
-const dicompare_url = "dicompare==0.1.10"
-const valid_fields_url = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.10/valid_fields.json";
+const dicompare_url = "dicompare==0.1.11"
+const valid_fields_url = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.11/valid_fields.json";
 
 // add optional title parameter to addMessage
 function addMessage(id, message, type, title) {
@@ -56,7 +56,7 @@ async function initPyodide() {
     await pyodideInstance.runPythonAsync(`
           import micropip
           await micropip.install("${dicompare_url}")
-      `);
+    `);
 
     return pyodideInstance;
 }
