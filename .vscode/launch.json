@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "--json_ref", "spec.json", "--in_session", "~/downloads/DICOMs/dicoms-sorted/sub-masop_ma001-0002_bl/"
+                "--json_ref", "/home/ashley/downloads/dicom_template(13).json", "--in_session", "~/downloads/DICOMs/dicoms-sorted/sub-masop_ma001-0002_bl/"
             ]
         }
     ]

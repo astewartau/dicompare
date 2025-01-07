@@ -98,8 +98,8 @@ def check_session_compliance_with_json_reference(
 
         if in_acq.empty:
             compliance_summary.append({
-                "reference acquisition": (ref_acq_name, ref_series_name),
-                "input acquisition": (in_acq_name, in_series_name),
+                "reference acquisition": ref_acq_name,
+                "input acquisition": in_acq_name,
                 "field": "Acquisition-Level Error",
                 "value": None,
                 "rule": "Input acquisition must be present.",
