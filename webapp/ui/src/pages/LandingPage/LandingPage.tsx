@@ -15,20 +15,10 @@ const LandingPage = () => {
                         dicompare
                     </Text>
                 </Heading>
-                <Flex>
-                    <Link href="https://brainlife.io/team/" marginRight="2rem" color="blue.500" isExternal>
-                        <ExternalLinkIcon mx="2px" />
-                        <Text fontSize="xl" as="b">
-                            TEAM
-                        </Text>
-                    </Link>
-                </Flex>
             </Flex>
 
 
-            <Box textAlign="center" py={5} bg="gray.50" height={20}>
-                <Text>&copy; Pestillilab. All rights reserved.</Text>
-            </Box>
+
         </Box>
     );
 };
