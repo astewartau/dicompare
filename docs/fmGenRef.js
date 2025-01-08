@@ -154,8 +154,19 @@ async function displayUniqueAcquisitions(acquisitionList) {
     const container = document.getElementById("fmGenRef_templateEditor");
     container.innerHTML = "";
 
-    const response = await fetch("https://raw.githubusercontent.com/astewartau/dicompare/v0.1.12/valid_fields.json");
-    const validFields = await response.json();
+    // Fetch the valid fields from the pandas dataframe
+    let validFields = [];
+    try {
+        validFields = await pyodide.runPythonAsync(`
+            import json
+            # Get the column names from the pandas dataframe
+            json.dumps(list(session_dataframe.columns))
+        `);
+        validFields = JSON.parse(validFields); // Convert Python JSON string to JavaScript array
+    } catch (error) {
+        console.error("Error fetching valid fields:", error);
+        validFields = []; // Fallback in case of error
+    }
 
     acquisitionData = {}; // Reset
 
@@ -182,7 +193,6 @@ async function displayUniqueAcquisitions(acquisitionList) {
         acq_input.type = "text";
         acq_input.placeholder = "Acquisition name";
         acq_input.value = acquisition;
-        acq_input.dataset.acquisition = acquisition;
         acquisitionNameRow.appendChild(acq_input);
 
         // add
@@ -246,10 +256,8 @@ async function displayUniqueAcquisitions(acquisitionList) {
         acquisitionRow.appendChild(tagifyLabel);
 
         // tagify input
-        const input = document.createElement("input");
-        input.type = "text";
+        const input = document.createElement("textarea");
         input.placeholder = "Enter validation fields, e.g., EchoTime";
-        input.dataset.acquisition = acquisition;
         acquisitionRow.appendChild(input);
 
         // set width to 100%
@@ -257,6 +265,7 @@ async function displayUniqueAcquisitions(acquisitionList) {
 
         const tagifyInstance = new Tagify(input, {
             enforceWhitelist: true,
+            delimiters: null,
             whitelist: validFields,
             dropdown: { enabled: 0, position: "all" },
         });
@@ -352,7 +361,7 @@ async function updateTable(acquisition, selectedFields) {
         // Now the variable table
         if (variableFields.length > 0) {
             const table = document.createElement("table");
-            table.style.margin = "0 auto";w
+            table.style.margin = "0 auto";
             const tableFields = variableFields.filter(f => f !== "Series");
             const displayFields = ["Series", ...tableFields.filter(f => f !== "Series")];
 
