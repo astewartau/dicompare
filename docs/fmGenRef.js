@@ -99,7 +99,7 @@ async function fetchUniqueRows(acquisition, selectedFields) {
 
 async function analyzeDicoms() {
     document.getElementById("fmGenRef_analyzeButton").disabled = true;
-    document.getElementById("fmGenRef_analyzeButton").textContent = "Loading pyodide...";
+    document.getElementById("fmGenRef_analyzeButton").textContent = "Loading Pyodide...";
 
     pyodide = await initPyodide();
 
@@ -135,7 +135,7 @@ async function analyzeDicoms() {
         // add button like this programmatically to the fmGenRef_buttonArea div <button id="fmGenRef_saveTemplateButton" onclick="saveTemplate() " class="green" disabled style="grid-column: span 2;">Save Template</button>
         const saveButton = document.createElement("button");
         saveButton.id = "fmGenRef_saveTemplateButton";
-        saveButton.textContent = "Save Template";
+        saveButton.textContent = "Save template";
         saveButton.className = "green";
         saveButton.style.gridColumn = "span 2";
         saveButton.onclick = saveTemplate;

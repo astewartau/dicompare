@@ -144,7 +144,7 @@ body {
     background-color: #45a049
 }
 
-#tableOutput {
+#fmCheck_tableOutput {
     width: 100%;
     max-height: 300px;
     overflow-y: auto;
@@ -152,24 +152,40 @@ body {
     box-sizing: border-box
 }
 
-#tableOutput table {
+#fmCheck_tableOutput table {
     width: 100%;
     border-collapse: collapse
 }
 
-#tableOutput td,
-#tableOutput th {
+#fmCheck_tableOutput td,
+#fmCheck_tableOutput th {
     border: 1px solid #ddd;
     padding: 8px;
     text-align: left
 }
 
-#tableOutput th {
+#fmCheck_tableOutput th {
     background-color: #f2f2f2;
     font-weight: 700;
     position: sticky;
     top: 0;
     z-index: 1
+}
+
+/* this should look like a terminal output with horizontal scroll */
+#fmCheck_signedOutput {
+    width: 100%;
+    max-height: 300px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 4px;
+    box-sizing: border-box;
+    background-color: #272727;
+    color: #f1f1f1;
+    padding: 10px;
+    font-family: monospace;
+    white-space: nowrap;
+    display: none;
 }
 
 h1 {

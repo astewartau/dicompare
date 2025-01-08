@@ -4,7 +4,7 @@ const fmCheck_selectDomainReference = document.getElementById("fmCheck_selectDom
 const fmCheck_selectJsonReference = document.getElementById("fmCheck_selectJsonReference");
 const fmCheck_btnGenCompliance = document.getElementById("fmCheck_btnGenCompliance");
 const fmCheck_outputMessage = document.getElementById("fmCheck_outputMessage");
-const tableOutput = document.getElementById("tableOutput");
+const tableOutput = document.getElementById("fmCheck_tableOutput");
 //const qsm_ref = "http://localhost:8000/dicompare/tests/fixtures/ref_qsm.py";
 const qsm_ref = "https://raw.githubusercontent.com/astewartau/dicompare/v0.1.12/dicompare/tests/fixtures/ref_qsm.py";
 
@@ -130,7 +130,7 @@ async function fmCheck_generateComplianceReport() {
         addMessage("fmCheck_messages", error.message, "error", "Error generating compliance report");
     }
 
-    fmCheck_btnGenCompliance.textContent = "Generate Compliance Report";
+    fmCheck_btnGenCompliance.textContent = "Generate compliance report";
     fmCheck_ValidateForm();
 }
 
@@ -162,7 +162,7 @@ function fmCheck_handleDomainReferenceChange() {
 function displayMappingUI(mappingData) {
     const { reference_acquisitions, input_acquisitions, session_map } = mappingData;
 
-    const mappingContainer = document.getElementById("tableOutput");
+    const mappingContainer = document.getElementById("fmCheck_tableOutput");
     mappingContainer.innerHTML = "";
 
     const table = document.createElement("table");
@@ -190,7 +190,6 @@ function displayMappingUI(mappingData) {
             select.appendChild(unmappedOption);
 
             Object.entries(session_map).forEach(([mapped_input, mapped_reference]) => {
-                console.log(mapped_input, mapped_reference);
                 mapped_input_acquisition = mapped_input.split("::")[0];
                 mapped_input_series = mapped_input.split("::")[1];
                 mapped_reference_acquisition = mapped_reference.split("::")[0];
@@ -217,29 +216,27 @@ function displayMappingUI(mappingData) {
     mappingContainer.appendChild(table);
 
     // Check if "fmCheck_btnNextAction" exists
-    let actionButton = document.getElementById("fmCheck_btnNextAction");
-    if (!actionButton) {
+    let fmCheck_finalizeMapping = document.getElementById("fmCheck_finalizeMapping");
+    if (!fmCheck_finalizeMapping) {
         // Create the button if it doesn't exist
-        actionButton = document.createElement("button");
-        actionButton.id = "fmCheck_btnNextAction";
-        actionButton.classList.add("green");
-        actionButton.style.gridColumn = "span 2";
+        fmCheck_finalizeMapping = document.createElement("button");
+        fmCheck_finalizeMapping.id = "fmCheck_finalizeMapping";
+        fmCheck_finalizeMapping.classList.add("green");
+        fmCheck_finalizeMapping.style.gridColumn = "span 2";
     }
 
     // Update the button properties
-    actionButton.textContent = "Finalize Mapping";
-    actionButton.onclick = async () => {
-        await finalizeMapping(actionButton, mappingData);
+    fmCheck_finalizeMapping.textContent = "Finalize mapping";
+    fmCheck_finalizeMapping.onclick = async () => {
+        await finalizeMapping(mappingData);
     };
 
-    // Append to fmCheck_buttonRow if the button is not already there
-    const buttonRow = document.getElementById("fmCheck_buttonRow");
-    if (!buttonRow.contains(actionButton)) {
-        buttonRow.appendChild(actionButton);
-    }
+    // Append to fmCheck_buttonRowStart if the button is not already there
+    const buttonRow = document.getElementById("fmCheck_buttonRowEnd");
+    buttonRow.appendChild(fmCheck_finalizeMapping);
 }
 
-async function finalizeMapping(button, mappingData) {
+async function finalizeMapping(mappingData) {
     const dropdownMappings = {};
     const dropdowns = document.querySelectorAll(".mapping-dropdown");
 
@@ -253,6 +250,10 @@ async function finalizeMapping(button, mappingData) {
     });
 
     const finalizedMapping = JSON.stringify(dropdownMappings);
+
+    const fmCheck_finalizeMapping = document.getElementById("fmCheck_finalizeMapping");
+    fmCheck_finalizeMapping.remove();
+
     pyodide.globals.set("finalized_mapping", finalizedMapping);
 
     const complianceOutput = await pyodide.runPythonAsync(`
@@ -282,7 +283,12 @@ async function finalizeMapping(button, mappingData) {
     const complianceData = JSON.parse(complianceOutput);
     displayComplianceReport(complianceData);
 
-    // Update the button to act as "Download compliance summary"
+    // Create "Download compliance summary" button
+    const buttonRow = document.getElementById("fmCheck_buttonRowMiddle");
+    const button = document.createElement("button");
+    button.classList.add("green");
+    button.style.gridColumn = "span 2";
+    buttonRow.appendChild(button);
     button.textContent = "Download compliance summary";
     button.onclick = () => downloadComplianceSummary(complianceData);
 }
@@ -303,7 +309,7 @@ function displayComplianceReport(complianceData) {
 }
 
 function displayTable(parsedOutput) {
-    const tableContainer = document.getElementById("tableOutput");
+    const tableContainer = document.getElementById("fmCheck_tableOutput");
     tableContainer.innerHTML = "";
 
     if (!Array.isArray(parsedOutput) || parsedOutput.length === 0) {
@@ -371,7 +377,7 @@ function fmCheck_ValidateForm() {
     const fmCheck_selectDICOMs = document.getElementById("fmCheck_selectDICOMs");
     const referenceFileSelected = referenceFilePath || (fmCheck_selectJsonReference.files.length > 0 && fmCheck_selectDomainReference.value === "Custom");
     
-    fmCheck_btnGenCompliance.textContent = "Generate Compliance Report";
+    fmCheck_btnGenCompliance.textContent = "Generate compliance report";
     if (fmCheck_selectDICOMs.files.length > 0 && referenceFileSelected) {
         fmCheck_btnGenCompliance.disabled = false;
     } else {

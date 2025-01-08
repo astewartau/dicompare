@@ -79,7 +79,7 @@
       <input type="file" id="fmCheck_selectJsonReference" accept=".json,.py" />
     </div>
 
-    <div id="fmCheck_buttonRow" class="row">
+    <div id="fmCheck_buttonRowStart" class="row">
       <button id="fmCheck_btnGenCompliance" class="green" onclick="fmCheck_generateComplianceReport()" disabled style="grid-column: span 2;">Generate
         Compliance
         Report</button>
@@ -89,15 +89,12 @@
     <div id="fmCheck_messages" class="message_area">
     </div>
     
-    <div id="tableOutput"></div>
-    <div id="afterTable"></div>
+    <div id="fmCheck_tableOutput"></div>
+    <div id="fmCheck_buttonRowMiddle"></div>
+    <div id="fmCheck_signedOutput"></div>
+    <div id="fmCheck_buttonRowEnd"></div>
 
   </div>
-
-  <!-- Add footer area
-  <div class="footer">
-    <p><i>dicompare</i></p>
-  </div> -->
 
   <script>
     function switchTab(tabId) {
