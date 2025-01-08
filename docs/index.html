@@ -33,39 +33,20 @@
       <input type="file" id="fmGenRef_DICOMs" multiple webkitdirectory />
     </div>
 
-    <!-- Acquisition and Reference Fields -->
+    <!-- Analyze Button -->
     <div class="row">
-      <label for="fmGenRef_acquisitionFields">Acquisition fields: <span class="info-icon"
-          data-tippy-content="The combination of DICOM fields that uniquely identify an acquisition within the reference session. These typically include ProtocolName and possibly SeriesDescription.">ℹ️</span></label>
-      <input type="text" id="fmGenRef_acquisitionFields" placeholder="e.g., ProtocolName, SeriesInstanceUID" />
+      <button id="fmGenRef_analyzeButton" style="grid-column: span 2;" class="green" onclick="analyzeDicoms()">Analyze</button>
     </div>
 
-    <!-- Input for name template -->
-    <div class="row">
-      <label for="fmGenRef_acquisitionName">Acquisition name: <span class="info-icon"
-          data-tippy-content="The template that will be automatically used as the initial name for each acquisition. The names can be changed later.">ℹ️</span></label>
-      <input type="text" id="fmGenRef_acquisitionName" placeholder="acq-{ProtocolName}"
-        value="acq-{ProtocolName}" />
-    </div>
-
-    <div class="row">
-      <label for="fmGenRef_referenceFields">Validation fields: <span class="info-icon"
-          data-tippy-content="The DICOM fields that should be validated in future acquisitions using the Compliance Checker.">ℹ️</span></label>
-      <input type="text" id="fmGenRef_referenceFields" placeholder="e.g., EchoTime, ImageType" />
-    </div>
-
-    <!-- Generate JSON Button -->
-    <div id="fmGenRef_buttonRow" class="row">
-      <button id="fmGenRef_btnGenJSON" class="green" onclick="fmGenRef_genRef()" style="grid-column: span 2;"
-        disabled>Generate session template</button>
-    </div>
+    <!-- Template editor -->
+    <div id="fmGenRef_templateEditor"></div>
 
     <!-- Error/message area -->
     <div id="fmGenRef_messages" class="message_area">
     </div>
 
-    <!-- Editor -->
-    <div id="jsonEditor" class="editor"></div>
+    <!-- Save button -->
+    <div id="fmGenRef_buttonArea" class="row">
     </div>
   </div>
 

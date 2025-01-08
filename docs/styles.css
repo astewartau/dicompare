@@ -112,6 +112,12 @@ body {
     box-sizing: border-box
 }
 
+/* button in a td in a form-container */
+.form-container td button {
+    margin-bottom: 0 !important;
+}
+
+
 .form-container select {
     font-size: 0.9em;
 }
