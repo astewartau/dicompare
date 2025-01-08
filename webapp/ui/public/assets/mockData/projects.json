@@ -1,0 +1,118 @@
+[
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e1bb')",
+      "title": "CCI Data Collection",
+      "abstract": "An extensive data collection project focusing on climate change impacts across various ecosystems.",
+      "institution": "Global Climate Institute",
+      "funder": "World Environmental Fund",
+      "fundingStatus": "Pending",
+      "fundingOpportunityUrl": "https://example.com/funding-cci",
+      "createdBy": "ObjectId('61d9c78efbb30f0018d3e1cc')",
+      "members": [
+        {
+          "_id": "ObjectId('61d9c78efbb30f0018d3e1dd')",
+          "role": "admin",
+          "position": "Lead Researcher",
+          "name": "Dr. Emily Roberts"
+        },
+        {
+          "_id": "ObjectId('61d9c78efbb30f0018d3e1ee')",
+          "role": "member",
+          "position": "Data Analyst",
+          "name": "John Doe"
+        }
+      ],
+      "documents": [
+        {
+          "_id": "ObjectId('61d9c78efbb30f0018d3e1ff')",
+          "projectId": "ObjectId('61d9c78efbb30f0018d3e1bb')",
+          "fileUrl": "https://example.com/uploads/cci-report.pdf",
+          "fileName": "CCI_Report_2024.pdf",
+          "uploadedBy": "ObjectId('61d9c78efbb30f0018d3e1cc')",
+          "uploadDate": "2024-05-20T14:48:00.000Z",
+          "type": "IRB",
+          "tags": ["Climate Change", "Ecosystem", "Data Collection"],
+          "templateUsed": "ObjectId('61d9c78efbb30f0018d3e2aa')"
+        },
+        {
+          "_id": "ObjectId('61d9c78efbb30f0018d3e1ff')",
+          "projectId": "ObjectId('61d9c78efbb30f0018d3e1bb')",
+          "fileUrl": "https://example.com/uploads/cci-report.pdf",
+          "fileName": "CCI_Report_2024.pdf",
+          "uploadedBy": "ObjectId('61d9c78efbb30f0018d3e1cc')",
+          "uploadDate": "2024-05-20T14:48:00.000Z",
+          "type": "DUA",
+          "tags": ["Climate Change", "Ecosystem", "Data Collection"],
+          "templateUsed": "ObjectId('61d9c78efbb30f0018d3e2aa')"
+        }
+      ]
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e2bb')",
+      "title": "Nigerian Brain Data",
+      "abstract": "A project aimed at studying brain function patterns among various demographics in Nigeria.",
+      "institution": "Nigerian Neuroscience Network",
+      "funder": "African Health Initiative",
+      "fundingStatus": "Approved",
+      "fundingOpportunityUrl": "https://example.com/funding-nigerian-brain",
+      "createdBy": "ObjectId('61d9c78efbb30f0018d3e2cc')",
+      "members": [
+        {
+          "_id": "ObjectId('61d9c78efbb30f0018d3e2dd')",
+          "role": "admin",
+          "position": "Project Coordinator",
+          "name": "Dr. Samuel Okoye"
+        }
+      ],
+      "documents": [
+        {
+          "_id": "ObjectId('61d9c78efbb30f0018d3e2ff')",
+          "projectId": "ObjectId('61d9c78efbb30f0018d3e2bb')",
+          "fileUrl": "https://example.com/uploads/nigerian-brain-report.pdf",
+          "fileName": "Nigerian_Brain_Report_2024.pdf",
+          "uploadedBy": "ObjectId('61d9c78efbb30f0018d3e2cc')",
+          "uploadDate": "2024-05-25T10:30:00.000Z",
+          "type": "Pre-Registration",
+          "tags": ["Neuroscience", "Demographic Study", "Brain Function"],
+          "templateUsed": "ObjectId('61d9c78efbb30f0018d3e3bb')"
+        }
+      ]
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e3cc')",
+      "title": "Bridge Data",
+      "abstract": "Exploring structural integrity and data collection techniques on bridges across the U.S.",
+      "institution": "U.S. Civil Engineering Society",
+      "funder": "Department of Transportation",
+      "fundingStatus": "Funded",
+      "fundingOpportunityUrl": "https://example.com/funding-bridge-data",
+      "createdBy": "ObjectId('61d9c78efbb30f0018d3e3dd')",
+      "members": [
+        {
+          "_id": "ObjectId('61d9c78efbb30f0018d3e3ee')",
+          "role": "admin",
+          "position": "Chief Engineer",
+          "name": "Dr. Lisa Cartwright"
+        },
+        {
+          "_id": "ObjectId('61d9c78efbb30f0018d3e3ff')",
+          "role": "member",
+          "position": "Assistant Engineer",
+          "name": "Michael Thompson"
+        }
+      ],
+      "documents": [
+        {
+          "_id": "ObjectId('61d9c78efbb30f0018d3e4ff')",
+          "projectId": "ObjectId('61d9c78efbb30f0018d3e3cc')",
+          "fileUrl": "https://example.com/uploads/bridge-data-report.pdf",
+          "fileName": "Bridge_Data_Report_2024.pdf",
+          "uploadedBy": "ObjectId('61d9c78efbb30f0018d3e3dd')",
+          "uploadDate": "2024-06-01T12:00:00.000Z",
+          "type": "DUA",
+          "tags": ["Civil Engineering", "Structural Integrity", "Data Techniques"],
+          "templateUsed": "ObjectId('61d9c78efbb30f0018d3e4aa')"
+        }
+      ]
+    }
+]

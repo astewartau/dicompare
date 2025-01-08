@@ -1,0 +1,33 @@
+$purple-button-color: #7749F8;
+$purple-button-hover-color: #5F3DC4;
+
+$purple-text-color: #7749F8;
+
+$purple-heading-color: #7749F8;
+$black-heading-color: #152536;
+
+
+.purple-heading {
+  color: $purple-heading-color;
+}
+
+.black-text-heading {
+  color: $black-heading-color;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+}
+
+.custom-select {
+  .chakra-react-select__control {
+    max-width: 100%;
+  }
+  .chakra-react-select__multi-value__container {
+    flex-wrap: nowrap; // Prevent wrapping of selected items
+    overflow-x: auto; // Enable horizontal scrolling
+  }
+}
+
+// .fullwidth {
+//   min-width: 100%;
+//   max-width: 100%;
+// }

@@ -1,0 +1,142 @@
+{
+  "_id": "ObjectId('61d9c78efbb30f0018d3e1bb')",
+  "title": "CCI Data Collection",
+  "details": "An extensive data collection project focusing on neuroscience change impacts across various biological process.An extensive data collection project focusing on neuroscience change impacts across various biological process.",
+  "primaryInstitute": "NEURO SCIENCE Institute",
+  "funder": "NSF",
+  "fundingStatus": "Pending",
+  "fundingOpportunityUrl": "https://example.com/funding-cci",
+  "createdBy": "ObjectId('61d9c78efbb30f0018d3e1cc')",
+  "members": [
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e1dd')",
+      "access": "admin",
+      "role": "Lead Researcher",
+      "name": "Dr. Emily Roberts",
+      "email": "emily.roberts@neuroscience.org"
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e1ee')",
+      "access": "member",
+      "role": "Data Analyst",
+      "name": "John Doe",
+      "email": "john.doe@dataanalysis.org"
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e1ff')",
+      "access": "admin",
+      "role": "Project Manager",
+      "name": "Dr. Alan Grant",
+      "email": "alan.grant@projectmanage.org"
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e2aa')",
+      "access": "member",
+      "role": "Statistical Lead",
+      "name": "Dr. Sarah Harding",
+      "email": "sarah.harding@statslead.org"
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e2bb')",
+      "access": "member",
+      "role": "Ethics Compliance Officer",
+      "name": "Dr. Ian Malcolm",
+      "email": "ian.malcolm@ethicscompliance.org"
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e2cc')",
+      "access": "admin",
+      "role": "Data Security Officer",
+      "name": "Maria Gonzalez",
+      "email": "maria.gonzalez@datasecurity.org"
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e2dd')",
+      "access": "member",
+      "role": "Research Coordinator",
+      "name": "Dr. Laura Sorkin",
+      "email": "laura.sorkin@researchcoord.org"
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e2ee')",
+      "access": "member",
+      "role": "IT Support Specialist",
+      "name": "Mark Johnson",
+      "email": "mark.johnson@itsupport.org"
+    }
+  ],  
+  "documents": [
+    {
+      "_id": "ObjectId('61d9c78efbb30f0d018d3e1ff')",
+      "projectId": "ObjectId('61d9c78efbb30f0018d3e1bb')",
+      "fileUrl": "https://example.com/uploads/cci-report.pdf",
+      "fileName": "CCI_Report_2024.pdf",
+      "uploadedBy": {
+        "name" :"Dr. Emily Roberts"
+      },
+      "uploadDate": "2024-05-20T14:48:00.000Z",
+      "type": "IRB",
+      "lifecycle": ["During-Study", "Pre-Study"],
+      "tags": ["UT Austin"],
+      "template": {
+          "name": "IRB Template - UTA"
+        }
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e1ff')",
+      "projectId": "ObjectId('61d9c78efbb30f0018d3ef1bb')",
+      "fileUrl": "https://example.com/uploads/pre-registration.pdf",
+      "fileName": "Pre-Registration-Doc.pdf",
+      "uploadedBy": {
+        "name" :"Dr. Emily Roberts"
+      },
+      "uploadDate": "2024-05-20T14:48:00.000Z",
+      "type": "Pre-Registration",
+      "lifecycle": ["Post-Study", "Pre-Study"],
+      "tags": ["UT Austin"],
+      "template": {
+        "name": "Pre-Reg Template - UTA"
+      }   
+    },{
+      "_id": "ObjectId('61d9c78efbb3d0f0018d3e1ff')",
+      "projectId": "ObjectId('61d9c78efbb30f0018d3ef1bb')",
+      "fileUrl": "https://example.com/uploads/pre-registration.pdf",
+      "fileName": "Pre-Registration-Final.pdf",
+      "uploadedBy": {
+        "name" :"Dr. Emily Roberts"
+      },
+      "uploadDate": "2024-05-20T14:48:00.000Z",
+      "type": "Pre-Registration",
+      "lifecycle": ["Post-Study", "Pre-Study"],
+      "tags": ["UT Austin"]
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018dd3e1ff')",
+      "projectId": "ObjectId('61d9c78efbb30f0018d3e1bb')",
+      "fileUrl": "https://example.com/uploads/dmp-doc.pdf",
+      "fileName": "DMP-Doc.pdf",
+      "uploadedBy": {
+        "name" :"Dr. Emily Roberts"
+      },
+      "uploadDate": "2024-05-20T14:48:00.000Z",
+      "type": "DMP",
+      "lifecycle": ["Post-Study", "Pre-Study"],
+      "tags": ["UT Austin"],
+      "template": "ObjectId('61d9c78efbb30f0018d3e2aa')"
+    },
+    {
+      "_id": "ObjectId('61d9c78efbb30f0018d3e1ff')",
+      "projectId": "ObjectId('61d9c78efbb30f0018d3e1bb')",
+      "fileUrl": "https://example.com/uploads/grant-doc.pdf",
+      "fileName": "Grant-Doc.pdf",
+      "uploadedBy": {
+        "name" :"Dr. Emily Roberts"
+      },
+      "uploadDate": "2024-05-20T14:48:00.000Z",
+      "type": "Grant",
+      "lifecycle": ["Post-Study", "Pre-Study"],
+      "tags": ["UT Austin"],
+      "template": "ObjectId('61d9c78efbb30f0018d3e2aa')"
+    }
+  ]
+}

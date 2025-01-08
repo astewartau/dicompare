@@ -1,0 +1,630 @@
+%PDF-1.3
+%ºß¬à
+3 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 8005
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+0 g
+28.3464566929133888 813.5435433070865656 Td
+(DMP PLAN TEST) Tj
+ET
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0 g
+28.3464566929133888 785.1970866141732586 Td
+(Data Type) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 768.1892125984252289 Td
+(Types and amount of scientific data expected to be generated in the project:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 756.8506299212598378 Td
+(Although the project will not generate new data, we estimate that the proposed archive will store approximately) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 742.6774015748030706 Td
+(250TB within its first year. After the first year, we estimate up to 500TB will be deposited annually. These data will) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 728.5041732283464171 Td
+(be decentralized such that up to 300 TB are stored at Texas Advanced Computing Center \(TACC\). We will utilize) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 714.3309448818897636 Td
+(commercial cloud storage through Microsoft Azure and with an unlimited amount of storage at Amazon Web) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 700.15771653543311 Td
+(Service \(AWS\) through the Amazon Open Data Program. The types of data that will be stored include actigraph,) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 685.9844881889763428 Td
+(human videos, primate videos, rodents videos, eye tracking, trials and events, sensory stimuli, virtual reality, eye) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 671.8112598425196893 Td
+(tracking, trials and events, sensory stimuli, virtual reality, psychophysics, human pose estimation.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 643.4648031496062686 Td
+(Scientific data that will be preserved and shared, and the rationale for doing so:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 632.1262204724408775 Td
+(&nbsp;BEHIVE will provide a secure, cloud-based, and user-friendly data ecosystem for storing, tracking,) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 617.952992125984224 Td
+(analyzing, and sharing multimodal behavioral data. It will support diverse data modalities used in humans and) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 603.7797637795274568 Td
+(non-human animal models primates \(macaque and marmoset\), rodents \(rats, mice, and hamsters\) and birds,) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 589.6065354330708033 Td
+(such as videographic, audiographic, electrophysiologic, imaging, eye movements, vocalizations aligned with) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 575.4333070866141497 Td
+(corresponding stimuli. By aligning with NIH data management and sharing policies, BEHIVE will facilitate the) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 561.2600787401574962 Td
+(secure, cloud-based, and user-friendly storage and analysis of behavioral data.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 532.9136220472440755 Td
+(Metadata, other relevant data, and associated documentation:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 521.5750393700786844 Td
+(The proposed BEHIVE will be designed to work seamlessly with computational platforms such as Brainlife,) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 507.4018110236219741 Td
+(NEMAR, CBRAIN, and DataJoint. Integrations will also extend to the existing data archives such as DABI, DANDI,) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 493.2285826771653205 Td
+(BossDB, and OpenNeuro. BEHIVE DataType metadata records will be synchronized and harmonized from the) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 479.0553543307086102 Td
+(metadata records for the datasets and files \(assets in DANDI archive terms\) which potentially would follow their) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 464.8821259842518998 Td
+(own schema. The effort will be made to converge on use of the same set of ontologies and metadata dictionaries) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 450.7088976377952463 Td
+(to minimize the necessary amount of metadata harmonization, and instead benefit from centralized ontologies,) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 436.5356692913385359 Td
+(e.g. as the one being developed within INCF Behavioral tasks and paradigms ontology. &nbsp;BEHIVE DataTypes) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 422.3624409448818255 Td
+(will be uniformly and sufficiently documented and readily available on the platform, with references to underlying) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 408.1892125984251152 Td
+(used Ontologies where applicable. Detailed user-oriented documentation and walkthroughs will be provided on) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 394.0159842519684616 Td
+(various aspects of metadata entry and editing, and released under a permissive Creative Commons license.) Tj
+ET
+BT
+/F1 14 Tf
+16.0999999999999979 TL
+0 g
+28.3464566929133888 365.6695275590550409 Td
+(Related Tools, Software and/or Code) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 348.6616535433070112 Td
+(&nbsp;Support from the BRAINLIFE and DataJoint teams will enable the deployment of) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 334.4884251968503008 Td
+(cutting-edge tools for data analysis and visualization, enabling the application of) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 320.3151968503935905 Td
+(machine learning and artificial intelligence. The proposed BEHIVE will be designed to) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 306.1419685039369369 Td
+(work seamlessly with computational platforms such as BRAINLIFE, NEMAR, CBRAIN,) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 291.9687401574802834 Td
+(and DataJoint. Integrations will also extend to the existing data archives such as DABI,) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 277.7955118110235162 Td
+(DANDI, BossDB, and OpenNeuro. These expansive integrations will rely on a) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 263.6222834645668627 Td
+(decentralized data tracking technology such as DataLad. All of these tools, software,) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 249.4490551181102092 Td
+(analysis code, and data archives are available online, and most of them \(such as) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 235.2758267716534419 Td
+(DANDI, DataLad, etc\) are Free and Open Source Software released under permissive) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 221.1025984251967884 Td
+(OSI-compliant licenses. The code developed in the scope of the BEHIVE project will) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 206.9293700787401349 Td
+(also be released under OSI-compliant licenses as appropriate \(primarily Apache-2\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 192.7561417322833677 Td
+(Additional visualization tools that collaborators will help contribute to the proposal) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 178.5829133858267141 Td
+(include but are not limited to:&nbsp;) Tj
+ET
+BT
+/F1 14 Tf
+16.0999999999999979 TL
+0 g
+28.3464566929133888 150.2364566929132934 Td
+(Standards) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 133.2285826771652637 Td
+(We will consider all standards that our advisory board and collaborators will suggest.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 119.0553543307086102 Td
+(Currently, we are listing some of the most prominent project standards for behavioral) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 104.882125984251843 Td
+(data that we will be considering, see Table XX. Dr. Pestilli is collaborator of the) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 90.7088976377951894 Td
+(Hierarchical Event Descriptor \(HED\) and Dr. Halchenko of Neurodata Without Borders) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 76.5356692913385359 Td
+(\(NWB\). The standards all have published documentation that can be accessed on) Tj
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 6 0 R
+>>
+endobj
+6 0 obj
+<<
+/Length 858
+>>
+stream
+0.5670000000000001 w
+0 G
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 813.5435433070865656 Td
+(public websites or GitHub. The majority of these standards have been developed under) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 799.3703149606299121 Td
+(BRAIN Initiative awards. We have enlisted collaborators that will help contribute the) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 785.1970866141732586 Td
+(standards to the proposal \(see LoCs\).&nbsp;) Tj
+ET
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+0 g
+28.3464566929133888 756.8506299212598378 Td
+(Outputs) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 739.8427559055118081 Td
+(Sample Output 1, Type 1, 2021-01-01, Repository 1, Open Access) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0 g
+28.3464566929133888 711.4962992125983874 Td
+(Sample Output 2, Type 2, 2022-02-02, Repository 2, Controlled Access) Tj
+ET
+endstream
+endobj
+1 0 obj
+<</Type /Pages
+/Kids [3 0 R 5 0 R ]
+/Count 2
+>>
+endobj
+7 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+8 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+9 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+10 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+11 0 obj
+<<
+/Type /Font
+/BaseFont /Courier
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+12 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+13 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+14 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+15 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Roman
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+16 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+17 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Italic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+18 0 obj
+<<
+/Type /Font
+/BaseFont /Times-BoldItalic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+19 0 obj
+<<
+/Type /Font
+/BaseFont /ZapfDingbats
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+20 0 obj
+<<
+/Type /Font
+/BaseFont /Symbol
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+2 0 obj
+<<
+/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
+/Font <<
+/F1 7 0 R
+/F2 8 0 R
+/F3 9 0 R
+/F4 10 0 R
+/F5 11 0 R
+/F6 12 0 R
+/F7 13 0 R
+/F8 14 0 R
+/F9 15 0 R
+/F10 16 0 R
+/F11 17 0 R
+/F12 18 0 R
+/F13 19 0 R
+/F14 20 0 R
+>>
+/XObject <<
+>>
+>>
+endobj
+21 0 obj
+<<
+/Producer (jsPDF 2.5.1)
+/CreationDate (D:20240214155841-06'00')
+>>
+endobj
+22 0 obj
+<<
+/Type /Catalog
+/Pages 1 0 R
+/OpenAction [3 0 R /FitH null]
+/PageLayout /OneColumn
+>>
+endobj
+xref
+0 23
+0000000000 65535 f 
+0000009255 00000 n 
+0000011080 00000 n 
+0000000015 00000 n 
+0000000152 00000 n 
+0000008209 00000 n 
+0000008346 00000 n 
+0000009318 00000 n 
+0000009443 00000 n 
+0000009573 00000 n 
+0000009706 00000 n 
+0000009844 00000 n 
+0000009968 00000 n 
+0000010097 00000 n 
+0000010229 00000 n 
+0000010365 00000 n 
+0000010493 00000 n 
+0000010620 00000 n 
+0000010749 00000 n 
+0000010882 00000 n 
+0000010984 00000 n 
+0000011330 00000 n 
+0000011416 00000 n 
+trailer
+<<
+/Size 23
+/Root 22 0 R
+/Info 21 0 R
+/ID [ <711345DBDACBE0424F0C73300973D914> <711345DBDACBE0424F0C73300973D914> ]
+>>
+startxref
+11520
+%%EOF
