@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0 --fix",
+    "lint:fix": "npx eslint src --ext .ts,.tsx,.js,.jsx --fix",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -53,6 +54,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "sass": "^1.69.7",
+    "ts-unused-exports": "^11.0.1",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
   }
