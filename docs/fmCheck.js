@@ -282,29 +282,189 @@ async function finalizeMapping(mappingData) {
 
     const complianceData = JSON.parse(complianceOutput);
     displayComplianceReport(complianceData);
-
-    // Create "Download compliance summary" button
-    const buttonRow = document.getElementById("fmCheck_buttonRowMiddle");
-    const button = document.createElement("button");
-    button.classList.add("green");
-    button.style.gridColumn = "span 2";
-    buttonRow.appendChild(button);
-    button.textContent = "Download compliance summary";
-    button.onclick = () => downloadComplianceSummary(complianceData);
+    signAndDisplayComplianceReport(complianceData);
 }
 
-function displayComplianceReport(complianceData) {
-    const tableContainer = document.getElementById("tableOutput");
-    const afterTableContainer = document.getElementById("afterTable");
+async function signComplianceReport(complianceData) {
+    const metadata = {
+        generation_date: new Date().toISOString(),
+        compliance_data: complianceData,
+    };
 
-    // Clear any previous content in the afterTable container
-    afterTableContainer.innerHTML = "";
+    const metadataJson = JSON.stringify(metadata, null, 2);
+
+    // PEM-formatted RSA private key in PKCS#8 format
+    const privateKeyPem = `
+-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCxOhmypqo9KJZ5
+RrlMWiyvxfZZes/APZXoIToRy0BFNa2Nc3FCfHZlA2OhbocGy44eJfj2397BjBEv
+TK/fmJ+Yi1nEHFHxl+ILGBjGU6GfE//ytspv0brRCzPim1tfSMRjxMqeESa8Qckf
+qA3rgMfMkizuVjy76vcuReyubXehj8yAmfhp0kViraRlCmDvFmfM2Q9XZz9mr6tJ
+K7lthnd5QdkFoDKw6npQvekaAC0RHsXhU/9oW5Rm/mDkY59TvIfjHNHj/em1Zq3a
+3zhIdejRE+S3MovzVXOA1IO1DVczAd5clzrtBpDCPSxjDL/VRffvi5RcIQn3VoYQ
+vnSVpc3zAgMBAAECggEABz4pngcjqUYxssPKKi2mlTRmQffmlPkErwI/SPThK92V
+ZH+ASchOX7MeF5Mtyir4JDvxtcfREbXeCex8ujWW6CQMchr6L6vBCCpe8NQAJJaA
+/PQCx+5upRZryL9dTO1AtsHByhNHXaWOnlA+6WNPnF5TnxXqe3+PGdavuofXaMR8
+gDb1mDvp+9pp7n5SzA0WLt0UHk9HoOUH5cdv2S+o9lmBHUDp6kuChjArALN5WzN1
+Jg4+XGRnv/lGQEDm90JdWyZ+ddqnpOpjhxGrFXGhcq8E059nqUwLPoNW5JbV4+DQ
+cbniwcGOfE30RE3lW7BNW86agc4etcCoQLS7JgdwwQKBgQDuq/uN1fYb95elGQcH
+sWUiD4EpFw0pJ2clTV3GxUIAA+XOM6K5lqay7zFICJSeCRuibrv1YX/I14OpDR8v
+fXA9jTuaIOIlycMrNxgpR7vR3gfYOcy0rMC4FwUOpudsqeshTf06i69WkDbxJdV1
+2sujkFt4MlQMku2dygD9E8un0wKBgQC+GBZjxdUhssxK2Oh+g5LrMk99bLo/hZmx
+NGuxidLmtvrKjHe0wfA5yh0I+l8IMkb32FnfBJZDAGQbg55bv95P/UIEBOO9FGKh
+sSPq7QhRWgom78FZbES10PukFp38HjmIBW0QUBsloHFra2X3FcBKfA6ogIdz3LZT
+/oN+kkSNYQKBgC+fp5k8qVgZRmwOG2YAkrKCL36Yd+rPTviVgHHKKIpCPNexW/X2
+RpsLuWSrOaRzIs19lQm4g7v6rO3NjXx3Zi8SAGOXzihGIyh7XNnX03Vj/WK63crr
+caUKCttKmIEJQr6phi7pcnouWpgxuW9D0kB37JiGSlkb9Ef458uX6Jo7AoGAG1ov
+7o9KyZyGlMZ9PacE/t6wXWXFrto0cTEPxe4E8LmngHmRx+qX/Fi+sMoF3pINcCAr
+XlG0pVNrFCJuKNmEzZGtbBKgClbikk2A047jwYDpMQ0SjyFrCZZWfxfaB6r5sD7H
+oK9GGLXrW/+KHnF8x7ruCQTleKBrg859cTrurkECgYEAqpAQw11eelM5FNsX8LK+
+avj77WxImfDtCJnr8q+D8UJMyWJrVlV2FF8TDGreL7QexlJefdhqFrW22kUPKYqP
+LvGkNmEf/brJcfYWJY3okhEZUBXVgpkROv27SFtWY0DhzCSPgeY/aCrDyu6qyydg
+4R43e/rEi7P6ZqYdIorGEt4=
+-----END PRIVATE KEY-----
+    `.trim();
+
+    // Convert PEM to binary
+    const privateKeyBinary = Uint8Array.from(
+        atob(privateKeyPem.split("\n").slice(1, -1).join("")),
+        c => c.charCodeAt(0)
+    );
+
+    try {
+        // Import the private key
+        const privateKey = await crypto.subtle.importKey(
+            "pkcs8",
+            privateKeyBinary.buffer,
+            { name: "RSA-PSS", hash: "SHA-256" },
+            false,
+            ["sign"]
+        );
+
+        // Encode the metadata for signing
+        const encoder = new TextEncoder();
+        const dataToSign = encoder.encode(metadataJson);
+
+        // Debugging: Log data to be signed
+        console.log("Data to be signed:", metadataJson);
+
+        // Perform the signing operation
+        const signature = await crypto.subtle.sign(
+            {
+                name: "RSA-PSS",
+                saltLength: 32, // Recommended salt length
+            },
+            privateKey,
+            dataToSign
+        );
+
+        // Convert the signature to Base64
+        const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signature)));
+
+        // Attach the signature to the metadata
+        metadata.signature = base64Signature;
+
+        return metadata;
+    } catch (error) {
+        console.error("Error signing compliance report:", error);
+        throw new Error("Failed to sign compliance report.");
+    }
+}
+
+async function verifyComplianceReport(signedMetadata) {
+    const { compliance_data, generation_date, signature, publicKey } = signedMetadata;
+
+    const metadata = {
+        generation_date,
+        compliance_data,
+    };
+
+    const metadataJson = JSON.stringify(metadata, null, 2);
+
+    // Decode the public key
+    const publicKeyBuffer = Uint8Array.from(atob(publicKey.trim().split("\n").slice(1, -1).join("")), c => c.charCodeAt(0));
+
+    // Import the public key
+    const publicKeyObj = await crypto.subtle.importKey(
+        "spki",
+        publicKeyBuffer,
+        { name: "RSA-PSS", hash: "SHA-256" },
+        false,
+        ["verify"]
+    );
+
+    // Decode the signature
+    const signatureBuffer = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+
+    // Verify the signature
+    const isValid = await crypto.subtle.verify(
+        {
+            name: "RSA-PSS",
+            saltLength: 32,
+        },
+        publicKeyObj,
+        signatureBuffer,
+        new TextEncoder().encode(metadataJson)
+    );
+
+    return isValid;
+}
+
+function displaySignedComplianceReport(signedMetadata) {
+    const buttonRow = document.getElementById("fmCheck_buttonRowEnd");
+    const outputContainer = document.getElementById("fmCheck_signedOutput");
+    outputContainer.style.display = "block";
+
+    // Clear the container
+    outputContainer.innerHTML = `
+        <pre class="badge-box" style="margin: 0;">${JSON.stringify(signedMetadata, null, 4)}</pre>
+    `;
+
+    // Create the download button
+    const downloadButton = document.createElement("button");
+    downloadButton.textContent = "Download signed report";
+    downloadButton.classList.add("green");
+    downloadButton.style.marginTop = "20px";
+
+    // Add click event for downloading the signed report
+    downloadButton.onclick = () => {
+        const blob = new Blob([JSON.stringify(signedMetadata, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "signed_compliance_report.json";
+        link.click();
+
+        // Clean up the URL object
+        URL.revokeObjectURL(url);
+    };
+
+    // Append the button to the container
+    buttonRow.appendChild(downloadButton);
+}
+
+async function displayComplianceReport(complianceData) {
+    const tableContainer = document.getElementById("fmCheck_tableOutput");
+    tableContainer.innerHTML = "";
 
     if (complianceData.length === 0) {
         addMessage("fmCheck_messages", "The input DICOMs are fully compliant with the reference.", "info");
-        tableContainer.innerHTML = "";
     } else {
         displayTable(complianceData);
+    }
+}
+
+async function signAndDisplayComplianceReport(complianceData) {
+    // Sign the compliance report
+    try {
+        const signedMetadata = await signComplianceReport(complianceData);
+        
+        // Display the signed report
+        displaySignedComplianceReport(signedMetadata);
+    } catch (error) {
+        console.error("Error signing compliance report:", error);
+        addMessage("fmCheck_messages", error.message, "error", "Failed to sign compliance report");
     }
 }
 
@@ -376,7 +536,7 @@ function downloadComplianceSummary(complianceData) {
 function fmCheck_ValidateForm() {
     const fmCheck_selectDICOMs = document.getElementById("fmCheck_selectDICOMs");
     const referenceFileSelected = referenceFilePath || (fmCheck_selectJsonReference.files.length > 0 && fmCheck_selectDomainReference.value === "Custom");
-    
+
     fmCheck_btnGenCompliance.textContent = "Generate compliance report";
     if (fmCheck_selectDICOMs.files.length > 0 && referenceFileSelected) {
         fmCheck_btnGenCompliance.disabled = false;
