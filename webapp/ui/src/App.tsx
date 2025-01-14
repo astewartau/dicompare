@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { ChakraProvider } from '@chakra-ui/react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage/LandingPage';
+import GenerateTemplate from './pages/GenerateTemplate/GenerateTemplate';
 
 const AppContent = () => {
-    const location = useLocation();
 
     useEffect(() => {
     }, []);
@@ -15,6 +15,7 @@ const AppContent = () => {
 
             <Routes>
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/generate-template" element={<GenerateTemplate />} />
             </Routes>
         </>
     );

@@ -28,6 +28,7 @@
     "chakra-ui-autocomplete": "^1.4.5",
     "date-fns": "^3.3.1",
     "dayzed": "^3.2.3",
+    "file-saver": "^2.0.5",
     "formik": "^2.4.5",
     "framer-motion": "^10.18.0",
     "html2canvas": "^1.4.1",
@@ -42,7 +43,7 @@
     "react-multi-select-component": "^4.3.4",
     "react-quill": "^2.0.0",
     "react-router-dom": "^6.21.1",
-    "react-select": "^5.8.0"
+    "react-select": "^5.9.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",
