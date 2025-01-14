@@ -5,12 +5,14 @@ import NavigationBar from "../../components/NavigationBar";
 import { Box, Flex } from "@chakra-ui/react";
 import DICOMAnalysis from "./DicomAnalysis";
 import EditTemplate from "./EditTemplate";
+import Review from "./Review";
 
 const GenerateTemplate = () => {
   const steps = [
     { title: "Introduction", component: <Introduction onNext={() => {}} /> },
     { title: "Dicom Analysis", component: <DICOMAnalysis onNext={() => {}} /> },
-    { title: "Edit Template", component: <EditTemplate onNext={() => {}} /> },
+    { title: "Generate Template", component: <EditTemplate onNext={() => {}} /> },
+    { title: "Review", component: <Review /> },
   ];
 
   return (

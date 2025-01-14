@@ -1,0 +1,190 @@
+{
+    "acquisitions": {
+      "QSM_p2_1mmIso_TE20": {
+        "fields": [
+          {
+            "field": "InstitutionName",
+            "value": "St Lucia Campus"
+          },
+          {
+            "field": "Modality",
+            "value": "MRI"
+          },
+          {
+            "field": "PatientName",
+            "value": "John Doe"
+          },
+          {
+            "field": "StudyDate",
+            "value": "2023-09-12"
+          },
+          {
+            "field": "ProtocolName",
+            "value": "QSM Protocol v2"
+          },
+          {
+            "field": "Manufacturer",
+            "value": "Siemens"
+          }
+        ],
+        "series": [
+          {
+            "seriesDescription": "QSM Pre-Contrast",
+            "seriesNumber": "1",
+            "modality": "MRI",
+            "fieldStrength": "3T"
+          },
+          {
+            "seriesDescription": "QSM Post-Contrast",
+            "seriesNumber": "2",
+            "modality": "MRI",
+            "fieldStrength": "3T"
+          }
+        ]
+      },
+      "mp2rage_highRes_0p5iso_slab": {
+        "fields": [
+          {
+            "field": "InstitutionalDepartmentName",
+            "value": "Radiology Department"
+          },
+          {
+            "field": "Modality",
+            "value": "MRI"
+          },
+          {
+            "field": "PatientID",
+            "value": "67890"
+          },
+          {
+            "field": "StudyTime",
+            "value": "12:30:00"
+          },
+          {
+            "field": "SequenceName",
+            "value": "mp2rage"
+          },
+          {
+            "field": "ScanningSequence",
+            "value": "3D MPRAGE"
+          }
+        ],
+        "series": [
+          {
+            "seriesDescription": "High-Resolution Anatomy",
+            "seriesNumber": "10",
+            "modality": "MRI",
+            "resolution": "0.5 mm isotropic"
+          },
+          {
+            "seriesDescription": "Slab Imaging",
+            "seriesNumber": "11",
+            "modality": "MRI",
+            "coverage": "Brainstem to Cortex"
+          }
+        ]
+      },
+      "T1w_MPRAGE": {
+        "fields": [
+          {
+            "field": "InstitutionName",
+            "value": "NeuroScan Institute"
+          },
+          {
+            "field": "Modality",
+            "value": "MRI"
+          },
+          {
+            "field": "PatientAge",
+            "value": "45"
+          },
+          {
+            "field": "ProtocolName",
+            "value": "T1-weighted MPRAGE"
+          },
+          {
+            "field": "ManufacturerModelName",
+            "value": "Philips Achieva"
+          }
+        ],
+        "series": [
+          {
+            "seriesDescription": "T1-weighted Anatomical",
+            "seriesNumber": "3",
+            "modality": "MRI",
+            "fieldStrength": "1.5T"
+          }
+        ]
+      },
+      "ASL_Perfusion": {
+        "fields": [
+          {
+            "field": "InstitutionName",
+            "value": "Perfusion Imaging Lab"
+          },
+          {
+            "field": "Modality",
+            "value": "MRI"
+          },
+          {
+            "field": "StudyDate",
+            "value": "2023-11-01"
+          },
+          {
+            "field": "PatientWeight",
+            "value": "72 kg"
+          },
+          {
+            "field": "ProtocolName",
+            "value": "ASL Perfusion Protocol"
+          }
+        ],
+        "series": [
+          {
+            "seriesDescription": "Arterial Spin Labeling",
+            "seriesNumber": "20",
+            "modality": "MRI",
+            "resolution": "2 mm isotropic"
+          }
+        ]
+      },
+      "fMRI_Task": {
+        "fields": [
+          {
+            "field": "InstitutionName",
+            "value": "Brain Research Lab"
+          },
+          {
+            "field": "Modality",
+            "value": "fMRI"
+          },
+          {
+            "field": "PatientID",
+            "value": "12345"
+          },
+          {
+            "field": "StudyTime",
+            "value": "09:45:00"
+          },
+          {
+            "field": "ProtocolName",
+            "value": "Task-based fMRI Protocol"
+          }
+        ],
+        "series": [
+          {
+            "seriesDescription": "Functional Task Imaging",
+            "seriesNumber": "5",
+            "modality": "fMRI",
+            "task": "Motor Movement"
+          },
+          {
+            "seriesDescription": "Resting State fMRI",
+            "seriesNumber": "6",
+            "modality": "fMRI",
+            "task": "None"
+          }
+        ]
+      }
+    }
+  }

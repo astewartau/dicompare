@@ -52,7 +52,7 @@ const LandingPage = () => {
                     flex='1'
                     >
                 <Image
-                    src="https://picsum.photos/500"
+                    src="../assets/ct-scan.png"
                     alt="MRI Visualization"
                     borderRadius="md"
                     boxShadow="lg"
