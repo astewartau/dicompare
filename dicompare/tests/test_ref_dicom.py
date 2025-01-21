@@ -9,7 +9,7 @@ from .fixtures.fixtures import t1
 
 def test_load_dicom(tmp_path, t1):
     dicom_path = tmp_path / "ref_dicom.dcm"
-    t1.save_as(dicom_path, enforce_file_format=True)
+    t1.save_as(dicom_path, write_like_original=True)
     dicom_values = load_dicom(dicom_path)
     assert dicom_values["SeriesDescription"] == "T1-weighted"
 

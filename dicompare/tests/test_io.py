@@ -32,20 +32,20 @@ def test_get_dicom_values(t1: Dataset):
 # Test for `load_dicom`
 def test_load_dicom_from_path(t1: Dataset, tmp_path):
     dicom_path = tmp_path / "test.dcm"
-    t1.save_as(dicom_path, enforce_file_format=True)
+    t1.save_as(dicom_path, write_like_original=True)
     dicom_values = load_dicom(str(dicom_path))
     assert dicom_values["PatientID"] == "123456"
 
 def test_load_dicom_from_bytes(t1: Dataset):
     buffer = BytesIO()
-    t1.save_as(buffer, enforce_file_format=True)
+    t1.save_as(buffer, write_like_original=True)
     dicom_bytes = buffer.getvalue()
     dicom_values = load_dicom(dicom_bytes)
     assert dicom_values["PatientName"] == "Test^Patient"
 
 def test_load_dicom_from_bytes(t1: Dataset):
     buffer = BytesIO()
-    t1.save_as(buffer, enforce_file_format=True)
+    t1.save_as(buffer, write_like_original=True)
     dicom_bytes = buffer.getvalue()
     dicom_values = load_dicom(dicom_bytes)
     assert dicom_values["PixelSpacing"] == [0.5, 0.5]
@@ -55,7 +55,7 @@ def test_read_dicom_session_directory(t1: Dataset, tmp_path):
     dicom_dir = tmp_path / "dicom_dir"
     dicom_dir.mkdir()
     dicom_path = dicom_dir / "test.dcm"
-    t1.save_as(dicom_path, enforce_file_format=True)
+    t1.save_as(dicom_path, write_like_original=True)
     result = load_dicom_session(
         session_dir=str(dicom_dir)
     )
@@ -65,7 +65,7 @@ def test_read_dicom_session_directory(t1: Dataset, tmp_path):
 def test_read_dicom_session_bytes(t1: Dataset):
     # Save DICOM to bytes
     buffer = BytesIO()
-    t1.save_as(buffer, enforce_file_format=True)
+    t1.save_as(buffer, write_like_original=True)
     dicom_content = buffer.getvalue()
 
     # Simulate the `dicom_bytes` dictionary
@@ -85,7 +85,7 @@ def test_read_dicom_session_bytes(t1: Dataset):
 def test_read_dicom_session_bytes_partial(t1: Dataset):
     # Save full DICOM to bytes
     buffer = BytesIO()
-    t1.save_as(buffer, enforce_file_format=True)
+    t1.save_as(buffer, write_like_original=True)
     dicom_content_full = buffer.getvalue()
 
     # Simulate partial DICOM bytes (first 2048 bytes)
@@ -148,12 +148,12 @@ def test_read_dicom_session_read_json_session_numeric_datatype_encoding(tmp_path
     # First file: EchoTime as a float
     t1.EchoTime = 25.0
     dicom_path_float = dicom_dir / "float_echotime.dcm"
-    t1.save_as(dicom_path_float, enforce_file_format=True)
+    t1.save_as(dicom_path_float, write_like_original=True)
 
     # Second file: EchoTime as an int
     t1.EchoTime = 26  # Set as int
     dicom_path_int = dicom_dir / "int_echotime.dcm"
-    t1.save_as(dicom_path_int, enforce_file_format=True)
+    t1.save_as(dicom_path_int, write_like_original=True)
 
     # Read the DICOM session
     result = load_dicom_session(
