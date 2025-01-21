@@ -25,7 +25,7 @@ setup(
         ]
     },
     install_requires=[
-        "pydicom==3.0.1",
+        "pydicom==2.4.4",
         "pandas",
         "tabulate",
         "scipy"
@@ -33,7 +33,7 @@ setup(
     extras_require={
         "interactive": ["curses"]
     },
-    python_requires=">=3.10",
+    python_requires=">=3.8",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
