@@ -77,7 +77,7 @@ def load_dicom(dicom_file: Union[str, bytes]) -> Dict[str, Any]:
     if isinstance(dicom_file, (bytes, memoryview)):
         ds = pydicom.dcmread(BytesIO(dicom_file), stop_before_pixels=False, force=True, defer_size=len(dicom_file))
     else:
-        ds = pydicom.dcmread(dicom_file, stop_before_pixels=True)
+        ds = pydicom.dcmread(dicom_file, stop_before_pixels=True, force=True)
     
     return get_dicom_values(ds)
 
