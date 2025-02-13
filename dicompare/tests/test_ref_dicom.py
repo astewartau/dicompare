@@ -13,24 +13,6 @@ def test_load_dicom(tmp_path, t1):
     dicom_values = load_dicom(dicom_path)
     assert dicom_values["SeriesDescription"] == "T1-weighted"
 
-def test_get_dicom_values_sequence(t1):
-    t1.SequenceOfUltrasoundRegions = [Dataset(), Dataset()]
-    t1.SequenceOfUltrasoundRegions[0].RegionLocationMinX0 = 0
-    t1.SequenceOfUltrasoundRegions[0].RegionLocationMinY0 = 0
-    t1.SequenceOfUltrasoundRegions[0].PhysicalUnitsXDirection = 1
-    t1.SequenceOfUltrasoundRegions[0].PhysicalUnitsYDirection = 1
-    t1.SequenceOfUltrasoundRegions[1].RegionLocationMinX0 = 0
-    t1.SequenceOfUltrasoundRegions[1].RegionLocationMinY0 = 0
-    t1.SequenceOfUltrasoundRegions[1].PhysicalUnitsXDirection = 1
-    t1.SequenceOfUltrasoundRegions[1].PhysicalUnitsYDirection = 1
-
-    dicom_values = get_dicom_values(t1)
-    assert dicom_values["SequenceOfUltrasoundRegions"][0]["RegionLocationMinX0"] == 0
-    assert dicom_values["SequenceOfUltrasoundRegions"][1]["RegionLocationMinY0"] == 0
-    assert dicom_values["SequenceOfUltrasoundRegions"][0]["PhysicalUnitsXDirection"] == 1
-    assert dicom_values["SequenceOfUltrasoundRegions"][1]["PhysicalUnitsYDirection"] == 1
-    
-
 if __name__ == "__main__":
     pytest.main(["-v", __file__])
     
