@@ -247,7 +247,7 @@ def load_dicom_session(
         all_files = [os.path.join(root, file) for root, _, files in os.walk(session_dir) for file in files]
 
         if not all_files:
-            raise ValueError(f"No DICOM files found in {session_dir}.")
+            raise ValueError(f"No DICOM data found to process.")
 
         if parallel_workers > 1:
             with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
