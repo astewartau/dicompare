@@ -28,7 +28,9 @@ setup(
         "pydicom==2.4.4",
         "pandas",
         "tabulate",
-        "scipy"
+        "scipy",
+        "tqdm",
+        "nibabel"
     ],
     extras_require={
         "interactive": ["curses"]
