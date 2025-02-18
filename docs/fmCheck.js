@@ -79,9 +79,11 @@ async function fmCheck_generateComplianceReport() {
             acquisition_fields = ["ProtocolName"]
             
             in_session = load_dicom_session(
-                dicom_bytes=dicom_files,
+                dicom_bytes=dicom_files.to_py(),
                 acquisition_fields=acquisition_fields
             )
+            print("Loaded input session")
+
             if in_session is None:
                 raise ValueError("Failed to load the DICOM session. Ensure the input data is valid.")
             if in_session.empty:
@@ -91,28 +93,12 @@ async function fmCheck_generateComplianceReport() {
             
             if is_json:
                 in_session = in_session.reset_index(drop=True)
-
-                in_session["Series"] = (
-                    in_session.groupby(acquisition_fields).apply(
-                        lambda group: group.groupby(reference_fields, dropna=False).ngroup().add(1)
-                    ).reset_index(level=0, drop=True)  # Reset multi-index back to DataFrame
-                ).apply(lambda x: f"Series {x}")
-                in_session.sort_values(by=["Acquisition", "Series"] + acquisition_fields + reference_fields, inplace=True)
-
-                missing_fields = [field for field in reference_fields if field not in in_session.columns]
-                if missing_fields:
-                    raise ValueError(f"Input session is missing required reference fields: {missing_fields}")
-                
+                in_session.sort_values(by=["Acquisition"] + acquisition_fields + reference_fields, inplace=True)
                 session_map = map_to_json_reference(in_session, ref_session)
-                session_map_serializable = {
-                    f"{key[0]}::{key[1]}": f"{value[0]}::{value[1]}"
-                    for key, value in session_map.items()
-                }
-                # print session map
-                print(json.dumps(session_map_serializable, indent=2))
+                print(json.dumps(session_map, indent=2))
             else:
-                # Map acquisitions directly for Python references
-                session_map_serializable = {
+                # Direct mapping for Python references
+                session_map = {
                     acquisition: ref
                     for acquisition, ref in zip(input_acquisitions, ref_session["acquisitions"])
                 }
@@ -120,7 +106,7 @@ async function fmCheck_generateComplianceReport() {
             json.dumps({
                 "reference_acquisitions": ref_session["acquisitions"],
                 "input_acquisitions": input_acquisitions,
-                "session_map": session_map_serializable
+                "session_map": session_map
             })
         `);
 
@@ -166,72 +152,57 @@ function displayMappingUI(mappingData) {
     mappingContainer.innerHTML = "";
 
     const table = document.createElement("table");
-    table.innerHTML = `<tr><th>Reference Acquisition/Series</th><th>Input Acquisition/Series</th></tr>`;
+    table.innerHTML = `<tr><th>Reference Acquisition</th><th>Input Acquisition</th></tr>`;
 
-    Object.entries(reference_acquisitions).forEach(([refAcqKey, refAcqValue]) => {
-        const refSeriesList = refAcqValue.series || [{ name: refAcqKey }];
+    // One row per reference acquisition
+    for (const refAcqName in reference_acquisitions) {
+        const row = document.createElement("tr");
 
-        refSeriesList.forEach(refSeries => {
-            const refSeriesKey = refSeries.name ? `${refAcqKey}::${refSeries.name}` : refAcqKey;
-            const row = document.createElement("tr");
+        const referenceCell = document.createElement("td");
+        referenceCell.textContent = refAcqName;
+        row.appendChild(referenceCell);
 
-            const referenceCell = document.createElement("td");
-            referenceCell.textContent = refSeries.name ? `${refAcqKey} - ${refSeries.name}` : refAcqKey;
-            row.appendChild(referenceCell);
+        const inputCell = document.createElement("td");
+        const select = document.createElement("select");
+        select.classList.add("mapping-dropdown");
+        select.setAttribute("data-reference-key", refAcqName);
 
-            const inputCell = document.createElement("td");
-            const select = document.createElement("select");
-            select.classList.add("mapping-dropdown");
-            select.setAttribute("data-reference-key", refSeriesKey);
+        const unmappedOption = document.createElement("option");
+        unmappedOption.value = "unmapped";
+        unmappedOption.textContent = "Unmapped";
+        select.appendChild(unmappedOption);
 
-            const unmappedOption = document.createElement("option");
-            unmappedOption.value = "unmapped";
-            unmappedOption.textContent = "Unmapped";
-            select.appendChild(unmappedOption);
-
-            Object.entries(session_map).forEach(([mapped_input, mapped_reference]) => {
-                mapped_input_acquisition = mapped_input.split("::")[0];
-                mapped_input_series = mapped_input.split("::")[1];
-                mapped_reference_acquisition = mapped_reference.split("::")[0];
-                mapped_reference_series = mapped_reference.split("::")[1];
-
-                const option = document.createElement("option");
-                option.value = mapped_input;
-                option.textContent = mapped_input;
-
-                if (mapped_reference_acquisition === refAcqKey && mapped_reference_series === refSeries.name) {
-                    option.selected = true;
-                }
-
-                select.appendChild(option);
-            });
-
-            inputCell.appendChild(select);
-            row.appendChild(inputCell);
-
-            table.appendChild(row);
+        // Populate the dropdown with input acquisitions
+        input_acquisitions.forEach(inAcq => {
+            const option = document.createElement("option");
+            option.value = inAcq;
+            option.textContent = inAcq;
+            if (session_map[refAcqName] === inAcq) {
+                option.selected = true;
+            }
+            select.appendChild(option);
         });
-    });
+
+        inputCell.appendChild(select);
+        row.appendChild(inputCell);
+        table.appendChild(row);
+    }
 
     mappingContainer.appendChild(table);
 
-    // Check if "fmCheck_btnNextAction" exists
     let fmCheck_finalizeMapping = document.getElementById("fmCheck_finalizeMapping");
     if (!fmCheck_finalizeMapping) {
-        // Create the button if it doesn't exist
         fmCheck_finalizeMapping = document.createElement("button");
         fmCheck_finalizeMapping.id = "fmCheck_finalizeMapping";
         fmCheck_finalizeMapping.classList.add("green");
         fmCheck_finalizeMapping.style.gridColumn = "span 2";
     }
 
-    // Update the button properties
     fmCheck_finalizeMapping.textContent = "Finalize mapping";
     fmCheck_finalizeMapping.onclick = async () => {
         await finalizeMapping(mappingData);
     };
 
-    // Append to fmCheck_buttonRowStart if the button is not already there
     const buttonRow = document.getElementById("fmCheck_buttonRowEnd");
     buttonRow.appendChild(fmCheck_finalizeMapping);
 }
@@ -261,18 +232,12 @@ async function finalizeMapping(mappingData) {
         from dicompare.compliance import check_session_compliance_with_json_reference, check_session_compliance_with_python_module
 
         if is_json:
-            series_map = {
-                tuple(k.split("::")): tuple(v.split("::"))
-                for k, v in json.loads(finalized_mapping).items()
-            }
+            acquisition_map = json.loads(finalized_mapping)
             compliance_summary = check_session_compliance_with_json_reference(
-                in_session=in_session, ref_session=ref_session, session_map=series_map
+                in_session=in_session, ref_session=ref_session, session_map=acquisition_map
             )
         else:
-            acquisition_map = {
-                k.split("::")[0]: v
-                for k, v in json.loads(finalized_mapping).items()
-            }
+            acquisition_map = json.loads(finalized_mapping)
             compliance_summary = check_session_compliance_with_python_module(
                 in_session=in_session, ref_models=ref_models, session_map=acquisition_map
             )
@@ -325,14 +290,12 @@ LvGkNmEf/brJcfYWJY3okhEZUBXVgpkROv27SFtWY0DhzCSPgeY/aCrDyu6qyydg
 -----END PRIVATE KEY-----
     `.trim();
 
-    // Convert PEM to binary
     const privateKeyBinary = Uint8Array.from(
         atob(privateKeyPem.split("\n").slice(1, -1).join("")),
         c => c.charCodeAt(0)
     );
 
     try {
-        // Import the private key
         const privateKey = await crypto.subtle.importKey(
             "pkcs8",
             privateKeyBinary.buffer,
@@ -341,27 +304,20 @@ LvGkNmEf/brJcfYWJY3okhEZUBXVgpkROv27SFtWY0DhzCSPgeY/aCrDyu6qyydg
             ["sign"]
         );
 
-        // Encode the metadata for signing
         const encoder = new TextEncoder();
         const dataToSign = encoder.encode(metadataJson);
-
-        // Debugging: Log data to be signed
         console.log("Data to be signed:", metadataJson);
 
-        // Perform the signing operation
         const signature = await crypto.subtle.sign(
             {
                 name: "RSA-PSS",
-                saltLength: 32, // Recommended salt length
+                saltLength: 32,
             },
             privateKey,
             dataToSign
         );
 
-        // Convert the signature to Base64
         const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signature)));
-
-        // Attach the signature to the metadata
         metadata.signature = base64Signature;
 
         return metadata;
@@ -381,10 +337,11 @@ async function verifyComplianceReport(signedMetadata) {
 
     const metadataJson = JSON.stringify(metadata, null, 2);
 
-    // Decode the public key
-    const publicKeyBuffer = Uint8Array.from(atob(publicKey.trim().split("\n").slice(1, -1).join("")), c => c.charCodeAt(0));
+    const publicKeyBuffer = Uint8Array.from(
+        atob(publicKey.trim().split("\n").slice(1, -1).join("")),
+        c => c.charCodeAt(0)
+    );
 
-    // Import the public key
     const publicKeyObj = await crypto.subtle.importKey(
         "spki",
         publicKeyBuffer,
@@ -393,10 +350,8 @@ async function verifyComplianceReport(signedMetadata) {
         ["verify"]
     );
 
-    // Decode the signature
     const signatureBuffer = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
 
-    // Verify the signature
     const isValid = await crypto.subtle.verify(
         {
             name: "RSA-PSS",
@@ -414,19 +369,15 @@ function displaySignedComplianceReport(signedMetadata) {
     const buttonRow = document.getElementById("fmCheck_buttonRowEnd");
     const outputContainer = document.getElementById("fmCheck_signedOutput");
     outputContainer.style.display = "block";
-
-    // Clear the container
     outputContainer.innerHTML = `
         <pre class="badge-box" style="margin: 0;">${JSON.stringify(signedMetadata, null, 4)}</pre>
     `;
 
-    // Create the download button
     const downloadButton = document.createElement("button");
     downloadButton.textContent = "Download signed report";
     downloadButton.classList.add("green");
     downloadButton.style.marginTop = "20px";
 
-    // Add click event for downloading the signed report
     downloadButton.onclick = () => {
         const blob = new Blob([JSON.stringify(signedMetadata, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -436,11 +387,9 @@ function displaySignedComplianceReport(signedMetadata) {
         link.download = "signed_compliance_report.json";
         link.click();
 
-        // Clean up the URL object
         URL.revokeObjectURL(url);
     };
 
-    // Append the button to the container
     buttonRow.appendChild(downloadButton);
 }
 
@@ -456,11 +405,8 @@ async function displayComplianceReport(complianceData) {
 }
 
 async function signAndDisplayComplianceReport(complianceData) {
-    // Sign the compliance report
     try {
         const signedMetadata = await signComplianceReport(complianceData);
-        
-        // Display the signed report
         displaySignedComplianceReport(signedMetadata);
     } catch (error) {
         console.error("Error signing compliance report:", error);
@@ -493,14 +439,10 @@ function displayTable(parsedOutput) {
         const row = document.createElement("tr");
         headers.forEach(header => {
             const cell = document.createElement("td");
-            if (header === "value") {
-                try {
-                    const value = typeof rowData[header] === "string" ? JSON.parse(rowData[header]) : rowData[header];
-                    cell.textContent = JSON.stringify(value, null, 2);  // Pretty-print object values
-                } catch (error) {
-                    cell.textContent = rowData[header] || "";
-                }
-            } else {
+            try {
+                const value = typeof rowData[header] === "string" ? JSON.parse(rowData[header]) : rowData[header];
+                cell.textContent = JSON.stringify(value, null, 2);
+            } catch (error) {
                 cell.textContent = rowData[header] || "";
             }
             row.appendChild(cell);
@@ -529,7 +471,6 @@ function downloadComplianceSummary(complianceData) {
     link.download = "compliance_summary.json";
     link.click();
 
-    // Clean up the URL object after download
     URL.revokeObjectURL(url);
 }
 
@@ -553,7 +494,6 @@ document.getElementById("fmCheck_selectJsonReference").addEventListener("change"
     fmCheck_ValidateForm();
 });
 
-// Event listeners
 fmCheck_selectDomainReference.addEventListener("change", fmCheck_handleDomainReferenceChange);
 document.getElementById("fmCheck_selectDICOMs").addEventListener("change", fmCheck_ValidateForm);
 document.getElementById("fmCheck_selectJsonReference").addEventListener("change", async () => {
@@ -561,7 +501,7 @@ document.getElementById("fmCheck_selectJsonReference").addEventListener("change"
     if (file) {
         referenceFilePath = {
             name: file.name,
-            content: await file.text(), // Read file content asynchronously
+            content: await file.text(),
         };
     } else {
         referenceFilePath = null;
@@ -569,6 +509,6 @@ document.getElementById("fmCheck_selectJsonReference").addEventListener("change"
     fmCheck_ValidateForm();
 });
 
-// make it so when the page loads we run fmCheck_handleDomainReferenceChange()
+// run fmCheck_handleDomainReferenceChange() when the page loads
 document.addEventListener("DOMContentLoaded", fmCheck_handleDomainReferenceChange);
 
