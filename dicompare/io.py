@@ -99,7 +99,7 @@ def load_dicom(dicom_file: Union[str, bytes], skip_pixel_data: bool = True) -> D
     if isinstance(dicom_file, (bytes, memoryview)):
         ds = pydicom.dcmread(BytesIO(dicom_file), stop_before_pixels=skip_pixel_data, force=True, defer_size=len(dicom_file))
     else:
-        ds = pydicom.dcmread(dicom_file, stop_before_pixels=skip_pixel_data, force=True)
+        ds = pydicom.dcmread(dicom_file, stop_before_pixels=skip_pixel_data, force=True, defer_size=True)
     
     return get_dicom_values(ds, skip_pixel_data=skip_pixel_data)
 
@@ -121,7 +121,6 @@ def _load_one_dicom_bytes(key: str, content: bytes, skip_pixel_data: bool) -> Di
     """
     dicom_values = load_dicom(content, skip_pixel_data=skip_pixel_data)
     dicom_values["DICOM_Path"] = key
-    # If you want 'InstanceNumber' for bytes-based
     dicom_values["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
     return dicom_values
 

@@ -5,14 +5,18 @@ The module supports compliance checks for JSON-based reference sessions and Pyth
 
 """
 
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 from dicompare.validation import BaseValidationModel
 import pandas as pd
+
+import pandas as pd
+from typing import Dict, Any, List
+
 
 def check_session_compliance_with_json_reference(
     in_session: pd.DataFrame,
     ref_session: Dict[str, Any],
-    session_map: Dict[Tuple[str, str], Tuple[str, str]]
+    session_map: Dict[str, str]
 ) -> List[Dict[str, Any]]:
     """
     Validate a DICOM session against a JSON reference session.
@@ -20,136 +24,356 @@ def check_session_compliance_with_json_reference(
     Args:
         in_session (pd.DataFrame): Input session DataFrame containing DICOM metadata.
         ref_session (Dict[str, Any]): Reference session data loaded from a JSON file.
-        session_map (Dict[Tuple[str, str], Tuple[str, str]]): Mapping of input acquisitions/series 
-            to reference acquisitions/series.
+        session_map (Dict[str, str]): Mapping of reference acquisitions to input acquisitions.
 
     Returns:
-        List[Dict[str, Any]]: A list of compliance issues, where each issue is represented as a dictionary.
+        List[Dict[str, Any]]: A list of compliance issues, where each issue is represented
+                              as a dictionary. Acquisition-level fields yield a record with
+                              "series": None. Series-level checks produce one pass/fail record
+                              per reference series, with a "series" key indicating the
+                              reference series name.
     """
 
-    def check_fields(in_data, in_name, ref_series, ref_name):
-        summary = []
-        ref_fields = ref_series.get("fields", [])
-        for ref_field in ref_fields:
-            field_name = ref_field["field"]
-            expected_value = ref_field.get("value")
-            tolerance = ref_field.get("tolerance")
-            contains = ref_field.get("contains")
+    compliance_summary: List[Dict[str, Any]] = []
 
-            # Check the corresponding field in the input session DataFrame
-            if field_name not in in_data.columns:
-                summary.append({
-                    "reference acquisition": ref_name,
-                    "input acquisition": in_name,
-                    "field": field_name,
+    # -------------------------------------------------------
+    # Helper: Checks if a single row's value meets the constraint (contains, tolerance, etc.)
+    def _row_passes_constraint(
+        actual_value: Any,
+        expected_value: Any = None,
+        tolerance: float = None,
+        contains: str = None
+    ) -> bool:
+        if contains is not None:
+            if not isinstance(actual_value, (str, list, tuple)):
+                return False
+            return (contains in actual_value)
+
+        elif tolerance is not None:
+            if not isinstance(actual_value, (int, float)):
+                return False
+            return (expected_value - tolerance <= actual_value <= expected_value + tolerance)
+
+        elif isinstance(expected_value, list):
+            if not isinstance(actual_value, list):
+                return False
+            return set(actual_value) == set(expected_value)
+
+        elif expected_value is not None:
+            return (actual_value == expected_value)
+
+        return True  # no constraints specified => pass
+
+    # -------------------------------------------------------
+    # Acquisition-level fields → one record per field ("series": None).
+    def _check_acquisition_fields(
+        ref_acq_name: str,
+        in_acq_name: str,
+        ref_fields: List[Dict[str, Any]],
+        in_acq: pd.DataFrame
+    ) -> None:
+        for fdef in ref_fields:
+            field = fdef["field"]
+            expected_value = fdef.get("value")
+            tolerance = fdef.get("tolerance")
+            contains = fdef.get("contains")
+
+            if field not in in_acq.columns:
+                compliance_summary.append({
+                    "reference acquisition": ref_acq_name,
+                    "input acquisition": in_acq_name,
+                    "series": None,
+                    "field": field,
+                    "expected": f"(value={expected_value}, tolerance={tolerance}, contains={contains})",
                     "value": None,
-                    "rule": "Field must be present.",
                     "message": "Field not found in input session.",
                     "passed": "❌"
                 })
                 continue
 
-            actual_value = in_data[field_name].iloc[0]
+            actual_values = in_acq[field].unique().tolist()
+            invalid_values = []
 
-            # Contains check
+            # Evaluate constraints
             if contains is not None:
-                if contains not in actual_value:
-                    summary.append({
-                        "reference acquisition": ref_name,
-                        "input acquisition": in_name,
-                        "field": field_name,
-                        "value": actual_value,
-                        "rule": "Field must contain value.",
-                        "message": f"Expected to contain {contains}, got {actual_value}.",
+                for val in actual_values:
+                    if not isinstance(val, (str, list, tuple)) or (contains not in val):
+                        invalid_values.append(val)
+
+                if invalid_values:
+                    compliance_summary.append({
+                        "reference acquisition": ref_acq_name,
+                        "input acquisition": in_acq_name,
+                        "series": None,
+                        "field": field,
+                        "expected": f"contains='{contains}'",
+                        "value": actual_values,
+                        "message": f"Expected to contain '{contains}', got {invalid_values}",
                         "passed": "❌"
                     })
+                    continue
 
-            # Tolerance check
-            elif tolerance is not None and isinstance(actual_value, (int, float)):
-                if not (expected_value - tolerance <= actual_value <= expected_value + tolerance):
-                    summary.append({
-                        "reference acquisition": ref_name,
-                        "input acquisition": in_name,
-                        "field": field_name,
-                        "value": actual_value,
-                        "rule": "Field must be within tolerance.",
-                        "message": f"Expected {expected_value} ± {tolerance}, got {actual_value}.",
+            elif tolerance is not None:
+                non_numeric = [val for val in actual_values if not isinstance(val, (int, float))]
+                if non_numeric:
+                    compliance_summary.append({
+                        "reference acquisition": ref_acq_name,
+                        "input acquisition": in_acq_name,
+                        "series": None,
+                        "field": field,
+                        "expected": f"value={expected_value} ± {tolerance}",
+                        "value": actual_values,
+                        "message": f"Field must be numeric; found {non_numeric}",
                         "passed": "❌"
                     })
+                    continue
 
-            # Exact match check
-            elif expected_value is not None and actual_value != expected_value:
-                summary.append({
-                    "reference acquisition": ref_name,
-                    "input acquisition": in_name,
-                    "field": field_name,
-                    "value": actual_value,
-                    "rule": "Field must match expected value.",
-                    "message": f"Expected {expected_value}, got {actual_value}.",
-                    "passed": "❌"
-                })
-        return summary
-    
-    compliance_summary = []
+                for val in actual_values:
+                    if not (expected_value - tolerance <= val <= expected_value + tolerance):
+                        invalid_values.append(val)
 
-    for ref_acq_name, in_acq_name in list(set([(ref[0], in_[0]) for ref, in_ in session_map.items()])):
-        in_acq = in_session[in_session["Acquisition"] == in_acq_name]
-        ref_acq = ref_session['acquisitions'].get(ref_acq_name)
+                if invalid_values:
+                    compliance_summary.append({
+                        "reference acquisition": ref_acq_name,
+                        "input acquisition": in_acq_name,
+                        "series": None,
+                        "field": field,
+                        "expected": f"value={expected_value} ± {tolerance}",
+                        "value": actual_values,
+                        "message": f"Invalid values found: {invalid_values} (all values: {actual_values})",
+                        "passed": "❌"
+                    })
+                    continue
 
-        if in_acq.empty:
+            elif isinstance(expected_value, list):
+                for val in actual_values:
+                    if not isinstance(val, list) or set(val) != set(expected_value):
+                        invalid_values.append(val)
+                if invalid_values:
+                    compliance_summary.append({
+                        "reference acquisition": ref_acq_name,
+                        "input acquisition": in_acq_name,
+                        "series": None,
+                        "field": field,
+                        "expected": f"value={expected_value}",
+                        "value": actual_values,
+                        "message": f"Expected list-based match, got {invalid_values}",
+                        "passed": "❌"
+                    })
+                    continue
+
+            elif expected_value is not None:
+                for val in actual_values:
+                    if val != expected_value:
+                        invalid_values.append(val)
+                if invalid_values:
+                    compliance_summary.append({
+                        "reference acquisition": ref_acq_name,
+                        "input acquisition": in_acq_name,
+                        "series": None,
+                        "field": field,
+                        "expected": f"value={expected_value}",
+                        "value": actual_values,
+                        "message": f"Mismatched values: {invalid_values}",
+                        "passed": "❌"
+                    })
+                    continue
+
+            # If we reach here, no fails → pass
             compliance_summary.append({
                 "reference acquisition": ref_acq_name,
                 "input acquisition": in_acq_name,
-                "field": "Acquisition-Level Error",
-                "value": None,
-                "rule": "Input acquisition must be present.",
-                "message": "Input acquisition not found.",
-                "passed": "❌"
+                "series": None,
+                "field": field,
+                "expected": f"(value={expected_value}, tolerance={tolerance}, contains={contains})",
+                "value": actual_values,
+                "message": "All values meet constraints.",
+                "passed": "✅"
             })
-            continue
 
-        compliance_summary.extend(check_fields(in_acq, in_acq_name, ref_acq, ref_acq_name))
+    # -------------------------------------------------------
+    # Series-level fields → one record per reference series ("series": s_name).
+    def _check_series_fields(
+        ref_acq_name: str,
+        in_acq_name: str,
+        sdef: Dict[str, Any],
+        in_acq: pd.DataFrame
+    ) -> None:
+        s_name = sdef.get("name", "<unnamed>")
+        s_fields = sdef.get("fields", [])
 
-    # Iterate over the session mapping
-    for (ref_acq_name, ref_series_name), (in_acq_name, in_series_name) in session_map.items():
-        # Filter the input session for the current acquisition and series
-        in_acq_series = in_session[
-            (in_session["Acquisition"] == in_acq_name) & 
-            (in_session["Series"] == in_series_name)
-        ]
+        matching_df = in_acq
+        missing_field = False
 
-        if in_acq_series.empty:
+        # Step 1) Filter by row constraints
+        for fdef in s_fields:
+            field = fdef["field"]
+            e_val = fdef.get("value")
+            tol = fdef.get("tolerance")
+            ctn = fdef.get("contains")
+
+            if field not in matching_df.columns:
+                compliance_summary.append({
+                    "reference acquisition": ref_acq_name,
+                    "input acquisition": in_acq_name,
+                    "series": s_name,
+                    "field": field,
+                    "expected": f"(value={e_val}, tolerance={tol}, contains={ctn})",
+                    "value": None,
+                    "message": f"Field '{field}' not found in input for series '{s_name}'.",
+                    "passed": "❌"
+                })
+                missing_field = True
+                break
+
+            matching_df = matching_df[
+                matching_df[field].apply(lambda x: _row_passes_constraint(x, e_val, tol, ctn))
+            ]
+            if matching_df.empty:
+                break
+
+        if missing_field:
+            # Already logged an error
+            return
+
+        if matching_df.empty:
+            # No rows matched all constraints
+            field_names = [f["field"] for f in s_fields]
             compliance_summary.append({
-                "reference acquisition": (ref_acq_name, ref_series_name),
-                "input acquisition": (in_acq_name, in_series_name),
-                "field": "Acquisition-Level Error",
+                "reference acquisition": ref_acq_name,
+                "input acquisition": in_acq_name,
+                "series": s_name,
+                "field": ", ".join(field_names),
+                "expected": "Multiple constraints (see series definition)",
                 "value": None,
-                "rule": "Input acquisition and series must be present.",
-                "message": "Input acquisition or series not found.",
+                "message": f"Series '{s_name}' not found with the specified constraints.",
                 "passed": "❌"
             })
-            continue
+            return
 
-        # Filter the reference session for the current acquisition and series
+        # Step 2) We have at least one row that meets all constraints
+        # Summarize into one pass/fail record for all fields in this series.
+        actual_values_agg = {}
+        constraints_agg = {}
+        fail_messages = []
+        any_fail = False
+
+        for fdef in s_fields:
+            field = fdef["field"]
+            e_val = fdef.get("value")
+            tol = fdef.get("tolerance")
+            ctn = fdef.get("contains")
+
+            # Rows that survived the filter
+            values = matching_df[field].unique().tolist()
+            actual_values_agg[field] = values
+
+            # Build a short descriptor of constraints
+            constraint_pieces = []
+            if e_val is not None:
+                if tol is not None:
+                    constraint_pieces.append(f"value={e_val} ± {tol}")
+                elif isinstance(e_val, list):
+                    constraint_pieces.append(f"value(list)={e_val}")
+                else:
+                    constraint_pieces.append(f"value={e_val}")
+            if ctn is not None:
+                constraint_pieces.append(f"contains='{ctn}'")
+
+            constraints_agg[field] = ", ".join(constraint_pieces) if constraint_pieces else "(none)"
+
+            # Double-check for fails just to collect a final message
+            invalid_values = []
+            if ctn is not None:
+                for val in values:
+                    if not isinstance(val, (str, list, tuple)) or (ctn not in val):
+                        invalid_values.append(val)
+                if invalid_values:
+                    any_fail = True
+                    fail_messages.append(f"Field '{field}': must contain '{ctn}', got {invalid_values}")
+
+            elif tol is not None:
+                non_numeric = [val for val in values if not isinstance(val, (int, float))]
+                if non_numeric:
+                    any_fail = True
+                    fail_messages.append(f"Field '{field}': found non-numeric {non_numeric}, tolerance used")
+                else:
+                    for val in values:
+                        if not (e_val - tol <= val <= e_val + tol):
+                            invalid_values.append(val)
+                    if invalid_values:
+                        any_fail = True
+                        fail_messages.append(f"Field '{field}': value={e_val} ± {tol}, got {invalid_values}")
+
+            elif isinstance(e_val, list):
+                for val in values:
+                    if not isinstance(val, list) or set(val) != set(e_val):
+                        invalid_values.append(val)
+                if invalid_values:
+                    any_fail = True
+                    fail_messages.append(f"Field '{field}': expected {e_val}, got {invalid_values}")
+
+            elif e_val is not None:
+                for val in values:
+                    if val != e_val:
+                        invalid_values.append(val)
+                if invalid_values:
+                    any_fail = True
+                    fail_messages.append(f"Field '{field}': expected {e_val}, got {invalid_values}")
+
+        # Summarize pass/fail
+        if any_fail:
+            compliance_summary.append({
+                "reference acquisition": ref_acq_name,
+                "input acquisition": in_acq_name,
+                "series": s_name,
+                "field": ", ".join([f["field"] for f in s_fields]),
+                "expected": constraints_agg,
+                "value": actual_values_agg,
+                "message": "; ".join(fail_messages),
+                "passed": "❌"
+            })
+        else:
+            compliance_summary.append({
+                "reference acquisition": ref_acq_name,
+                "input acquisition": in_acq_name,
+                "series": s_name,
+                "field": ", ".join([f["field"] for f in s_fields]),
+                "expected": constraints_agg,
+                "value": actual_values_agg,
+                "message": "All fields passed their constraints",
+                "passed": "✅"
+            })
+
+    # -------------------------------------------------------
+    # 1) Check for unmapped reference acquisitions
+    for ref_acq_name in ref_session["acquisitions"]:
+        if ref_acq_name not in session_map:
+            compliance_summary.append({
+                "reference acquisition": ref_acq_name,
+                "input acquisition": None,
+                "series": None,
+                "field": None,
+                "expected": "(mapped acquisition required)",
+                "value": None,
+                "message": f"Reference acquisition '{ref_acq_name}' not mapped.",
+                "passed": "❌"
+            })
+
+    # -------------------------------------------------------
+    # 2) Process each mapped acquisition
+    for ref_acq_name, in_acq_name in session_map.items():
         ref_acq = ref_session["acquisitions"].get(ref_acq_name, {})
-        ref_series = next(
-            (series for series in ref_acq.get("series", []) if series["name"] == ref_series_name),
-            None
-        )
+        in_acq = in_session[in_session["Acquisition"] == in_acq_name]
 
-        if not ref_series:
-            compliance_summary.append({
-                "reference acquisition": (ref_acq_name, ref_series_name),
-                "input acquisition": (in_acq_name, in_series_name),
-                "field": "Reference-Level Error",
-                "value": None,
-                "rule": "Reference acquisition and series must be present.",
-                "message": "Reference acquisition or series not found.",
-                "passed": "❌"
-            })
-            continue
+        # Acquisition-level checks
+        ref_fields = ref_acq.get("fields", [])
+        _check_acquisition_fields(ref_acq_name, in_acq_name, ref_fields, in_acq)
 
-        compliance_summary.extend(check_fields(in_acq_series, f"{in_acq_name}::{in_series_name}", ref_series, f"{ref_acq_name}::{ref_series_name}"))
+        # Series-level checks
+        ref_series = ref_acq.get("series", [])
+        for sdef in ref_series:
+            _check_series_fields(ref_acq_name, in_acq_name, sdef, in_acq)
 
     return compliance_summary
 
@@ -187,8 +411,8 @@ def check_session_compliance_with_python_module(
                 "input acquisition": in_acq_name,
                 "field": "Acquisition-Level Error",
                 "value": None,
-                "rule": "Input acquisition must be present.",
-                "message": f"Input acquisition '{in_acq_name}' not found.",
+                "expected": "Specified input acquisition must be present.",
+                "message": f"Input acquisition '{in_acq_name}' not found in data.",
                 "passed": "❌"
             })
             continue
@@ -201,7 +425,7 @@ def check_session_compliance_with_python_module(
                 "input acquisition": in_acq_name,
                 "field": "Model Error",
                 "value": None,
-                "rule": "Reference model must exist.",
+                "expected": "Reference model must exist.",
                 "message": f"No model found for reference acquisition '{ref_acq_name}'.",
                 "passed": "❌"
             })
@@ -223,7 +447,7 @@ def check_session_compliance_with_python_module(
                 "input series": None,
                 "field": error['field'],
                 "value": error['value'],
-                "rule": error['rule'],
+                "expected": error['expected'],
                 "message": error['message'],
                 "passed": "❌"
             })
@@ -237,7 +461,7 @@ def check_session_compliance_with_python_module(
                 "input series": None,
                 "field": passed_test['field'],
                 "value": passed_test['value'],
-                "rule": passed_test['rule'],
+                "expected": passed_test['expected'],
                 "message": passed_test['message'],
                 "passed": "✅"
             })
@@ -247,121 +471,4 @@ def check_session_compliance_with_python_module(
             raise ValueError(f"Validation failed for acquisition '{in_acq_name}'.")
 
     return compliance_summary
-
-def check_dicom_compliance(
-    reference_fields: List[Dict[str, Any]],
-    dicom_values: Dict[str, Any]
-) -> List[Dict[str, Any]]:
-    """
-    Validate individual DICOM values against reference fields.
-
-    Args:
-        reference_fields (List[Dict[str, Any]]): A list of dictionaries defining the expected values 
-            and rules for validation (e.g., tolerance, contains).
-        dicom_values (Dict[str, Any]): Dictionary of DICOM metadata values to be validated.
-
-    Returns:
-        List[Dict[str, Any]]: A list of compliance issues, where each issue is represented as a dictionary.
-    """
-    compliance_summary = []
-
-    for ref_field in reference_fields:
-        field_name = ref_field["field"]
-        expected_value = ref_field.get("value")
-        tolerance = ref_field.get("tolerance")
-        contains = ref_field.get("contains")
-        actual_value = dicom_values.get(field_name, "N/A")
-
-        # Convert lists to tuples for comparison
-        if expected_value is not None and isinstance(expected_value, list):
-            expected_value = tuple(expected_value)
-        if actual_value is not None and isinstance(actual_value, list):
-            actual_value = tuple(actual_value)
-
-        # Check for missing field
-        if actual_value == "N/A":
-            compliance_summary.append({
-                "field": field_name,
-                "value": actual_value,
-                "rule": "Field must be present.",
-                "message": "Field not found.",
-                "passed": "❌",
-            })
-            continue
-
-        # Contains check
-        if contains is not None:
-            if not isinstance(actual_value, list) or contains not in actual_value:
-                compliance_summary.append({
-                    "field": field_name,
-                    "value": actual_value,
-                    "rule": "Field must contain value.",
-                    "message": f"Expected to contain {contains}, got {actual_value}.",
-                    "passed": "❌",
-                })
-
-        # Tolerance check
-        elif tolerance is not None and isinstance(actual_value, (int, float)):
-            if not (expected_value - tolerance <= actual_value <= expected_value + tolerance):
-                compliance_summary.append({
-                    "field": field_name,
-                    "value": actual_value,
-                    "rule": "Field must be within tolerance.",
-                    "message": f"Expected {expected_value} ± {tolerance}, got {actual_value}.",
-                    "passed": "❌",
-                })
-
-        # Exact match check
-        elif expected_value is not None and actual_value != expected_value:
-            compliance_summary.append({
-                "field": field_name,
-                "value": actual_value,
-                "rule": "Field must match expected value.",
-                "message": f"Expected {expected_value}, got {actual_value}.",
-                "passed": "❌",
-            })
-
-    return compliance_summary
-
-def is_session_compliant(
-        in_session: Dict[str, Dict[str, Any]],
-        ref_session: Dict[str, Dict[str, Any]],
-        session_map: Dict[Tuple[str, str], Tuple[str, str]]
-) -> bool:
-    """
-    Check if the entire DICOM session complies with the reference session.
-
-    Args:
-        in_session (Dict): Input session data containing DICOM metadata.
-        ref_session (Dict): Reference session data containing expected metadata and rules.
-        session_map (Dict): Mapping of input acquisitions/series to reference acquisitions/series.
-
-    Returns:
-        bool: True if the session is fully compliant, False otherwise.
-    """
-
-    compliance_issues = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
-    return len(compliance_issues) == 0
-
-def is_dicom_compliant(
-        reference_model: BaseValidationModel,
-        dicom_values: Dict[str, Any]
-) -> bool:
-    """
-    Check if a DICOM file's metadata complies with a validation model.
-
-    Args:
-        reference_model (BaseValidationModel): The validation model defining expected metadata.
-        dicom_values (Dict[str, Any]): Dictionary of DICOM metadata values to be validated.
-
-    Returns:
-        bool: True if the DICOM metadata is compliant, False otherwise.
-    """
-
-    compliance_issues = check_dicom_compliance(
-        reference_model.fields,
-        dicom_values
-    )
-
-    return len(compliance_issues) == 0
 

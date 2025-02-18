@@ -1,8 +1,9 @@
 import pytest
 import json
+import nibabel as nib
 from io import BytesIO
 from pydicom.dataset import Dataset
-from .fixtures.fixtures import t1
+from .fixtures.fixtures import t1, empty_json, empty_nifti
 
 from dicompare import (
     load_dicom,

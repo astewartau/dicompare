@@ -75,11 +75,12 @@ def main():
 
     # Inline summary output
     for entry in compliance_summary:
-        if entry.get('input acquisition'): print(f"Acquisition: {entry.get('input acquisition')}")
+        if entry.get('input acquisition'):print(f"Acquisition: {entry.get('input acquisition')}" + f" ({entry.get('reference acquisition')})" if entry.get('reference acquisition') else "")
         if entry.get('input series'): print(f"Series: {entry.get('input series')}")
         if entry.get('field'): print(f"Field: {entry.get('field')}")
+        if entry.get('series'): print(f"Series: {entry.get('series')}")
+        if entry.get('expected'): print(f"Expected: {entry.get('expected')}")
         if entry.get('value'): print(f"Value: {entry.get('value')}")
-        if entry.get('rule'): print(f"Rule: {entry.get('rule')}")
         if entry.get('message'): print(f"Message: {entry.get('message')}")
         if entry.get('passed'): print(f"Passed: {entry.get('passed')}")
         print("-" * 40)

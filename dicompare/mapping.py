@@ -7,9 +7,9 @@ import re
 import numpy as np
 import pandas as pd
 
+from typing import Any, Dict
 from tabulate import tabulate
 from scipy.optimize import linear_sum_assignment
-from typing import List
 
 try:
     import curses
@@ -134,288 +134,273 @@ def calculate_match_score(ref_row, in_row):
 
     return round(diff_score, 2)
 
-def map_to_json_reference(in_session_df: pd.DataFrame, ref_session: dict) -> dict:
+
+def compute_series_cost_matrix(
+    ref_acq_series_defs: list,
+    in_acq_df: pd.DataFrame
+):
     """
-    Automatically map input acquisitions/series to a JSON reference using the Hungarian algorithm.
-
-    Notes:
-        - Uses `calculate_field_score` to compute a cost matrix for mapping.
-        - Assigns mappings to minimize total mapping cost.
-        - Handles grouping and ranking of input series using unique combinations of fields.
-
-    Args:
-        in_session_df (pd.DataFrame): DataFrame of input session metadata.
-        ref_session (dict): Reference session data in JSON format.
-
-    Returns:
-        dict: Mapping of (input_acquisition, input_series) -> (reference_acquisition, reference_series).
+    Build a cost matrix for (reference-series-definitions) vs. (rows in input acquisition).
+    Each row is treated as a potential 'series' match. 
     """
+    # Each row is a candidate for matching one reference series definition
+    candidate_rows = in_acq_df.index.to_list()
+    n_ref_series = len(ref_acq_series_defs)
+    n_rows = len(candidate_rows)
+    cost_matrix = np.zeros((n_ref_series, n_rows), dtype=float)
 
-    # Extract reference acquisitions and series fields
-    reference_acquisitions = ref_session["acquisitions"]
+    for i, ref_series_def in enumerate(ref_acq_series_defs):
+        fields_data = ref_series_def.get("fields", [])
+        for j, row_idx in enumerate(candidate_rows):
+            row_data = in_acq_df.loc[row_idx]
 
-    # Identify all unique series fields in the reference session
-    series_fields = set()
-    for ref_acq in reference_acquisitions.values():
-        for series in ref_acq.get("series", []):
-            for field in series.get("fields", []):
-                series_fields.add(field["field"])
-    series_fields = list(series_fields)
+            # Sum cost for all fields in the reference series
+            total_cost = 0.0
+            for fdef in fields_data:
+                field_name = fdef["field"]
+                expected_value = fdef.get("value")
+                tolerance = fdef.get("tolerance")
+                contains = fdef.get("contains")
 
-    # Prepare lists for input acquisitions + series and reference acquisitions + series
-    input_acquisition_series = sorted(
-        in_session_df[["Acquisition", "Series"]].drop_duplicates().values.tolist()
-    )
-    reference_acquisition_series = sorted(
-        [
-            (ref_acq_name, series["name"])
-            for ref_acq_name, ref_acq in reference_acquisitions.items()
-            for series in ref_acq.get("series", [])
-        ]
-    )
+                # If field missing, big cost
+                if field_name not in row_data:
+                    total_cost += 9999.0
+                    continue
 
-    # Initialize the cost matrix
-    cost_matrix = []
+                actual_value = row_data[field_name]
+                # If it's multiple unique values, or array-like, handle that logic if needed
+                # (Here we assume each row is a single value.)
+                cost = calculate_field_score(expected_value, actual_value,
+                                             tolerance=tolerance, contains=contains)
+                total_cost += cost
 
-    for in_acq, in_series in input_acquisition_series:
-        # Filter input session DataFrame for the current acquisition and series
-        input_series_df = in_session_df[
-            (in_session_df["Acquisition"] == in_acq) & (in_session_df["Series"] == in_series)
-        ]
+            cost_matrix[i, j] = total_cost
 
-        row = []
-        for ref_acq, ref_series in reference_acquisition_series:
-            # Find the reference series details
-            ref_series_data = next(
-                (series for series in reference_acquisitions[ref_acq]["series"] if series["name"] == ref_series),
-                None,
-            )
-            if ref_series_data is None:
-                row.append(np.inf)  # If no matching reference series, assign a high cost
-                continue
+    return cost_matrix, candidate_rows
 
-            # Calculate the difference score for this mapping
-            diff_score = 0.0
-            for field in ref_series_data.get("fields", []):
-                field_name = field["field"]
-                expected_value = field.get("value")
-                tolerance = field.get("tolerance")
-                contains = field.get("contains")
 
-                # Check the corresponding field in the input series DataFrame
-                if field_name in input_series_df.columns:
-                    actual_values = input_series_df[field_name].unique()
-                    if len(actual_values) == 1:
-                        actual_value = actual_values[0]
+def map_to_json_reference(
+    in_session_df: pd.DataFrame,
+    ref_session: Dict[str, Any]
+) -> dict:
+    """
+    Automatic assignment of reference acquisitions to input acquisitions,
+    including nested assignment for series within each acquisition.
+    Returns { ref_acquisition: in_acquisition }.
+    """
+    from scipy.optimize import linear_sum_assignment
+
+    ref_acquisitions = ref_session["acquisitions"]
+    ref_acq_list = sorted(ref_acquisitions.keys())
+    input_acq_list = sorted(in_session_df["Acquisition"].unique())
+
+    # Prepare a top-level cost matrix: rows = ref acquisitions, cols = input acquisitions
+    top_cost_matrix = np.zeros((len(ref_acq_list), len(input_acq_list)), dtype=float)
+
+    for i, ref_acq_name in enumerate(ref_acq_list):
+        ref_acq = ref_acquisitions[ref_acq_name]
+        ref_fields = ref_acq.get("fields", [])
+        ref_series_defs = ref_acq.get("series", [])
+
+        for j, in_acq_name in enumerate(input_acq_list):
+            # Filter the input DataFrame for this candidate acquisition
+            subset_df = in_session_df[in_session_df["Acquisition"] == in_acq_name]
+
+            # --- 1) Compute acquisition-level cost ---
+            acq_level_cost = 0.0
+            for fdef in ref_fields:
+                field_name = fdef["field"]
+                expected_value = fdef.get("value")
+                tolerance = fdef.get("tolerance")
+                contains = fdef.get("contains")
+
+                if field_name in subset_df.columns:
+                    vals = subset_df[field_name].unique()
+                    # If there's exactly one unique value, use it. Otherwise big cost
+                    if len(vals) == 1:
+                        actual_value = vals[0]
                     else:
-                        actual_value = None  # Non-unique values are ambiguous
+                        # Multiple distinct values => can't pick one easily => big cost
+                        actual_value = None
                 else:
                     actual_value = None
 
-                # Calculate the difference for this field
-                diff = calculate_field_score(expected_value, actual_value, tolerance=tolerance, contains=contains)
-                diff_score += diff
+                acq_level_cost += calculate_field_score(expected_value, actual_value,
+                                                        tolerance=tolerance, contains=contains)
 
-            row.append(diff_score)
+            # --- 2) If we have reference-series definitions, do a nested assignment ---
+            series_cost_total = 0.0
+            if ref_series_defs:
+                cost_matrix, candidate_rows = compute_series_cost_matrix(ref_series_defs, subset_df)
+                if cost_matrix.size > 0:
+                    row_idx, col_idx = linear_sum_assignment(cost_matrix)
+                    # Sum minimal cost
+                    series_cost_total = cost_matrix[row_idx, col_idx].sum()
 
-        cost_matrix.append(row)
+            # Combine acquisition-level + series-level
+            total_cost = acq_level_cost + series_cost_total
+            top_cost_matrix[i, j] = total_cost
 
-    # Convert cost_matrix to a numpy array for processing
-    cost_matrix = np.array(cost_matrix)
+    # Solve final assignment across acquisitions
+    row_indices, col_indices = linear_sum_assignment(top_cost_matrix)
 
-    # Solve the assignment problem using the Hungarian algorithm
-    row_indices, col_indices = linear_sum_assignment(cost_matrix)
-
-    # Create the mapping
+    # Build map {reference_acquisition: input_acquisition}
     mapping = {}
     for row, col in zip(row_indices, col_indices):
-        if row < len(input_acquisition_series) and col < len(reference_acquisition_series):
-            mapping[tuple(input_acquisition_series[row])] = tuple(reference_acquisition_series[col])
+        ref_acq = ref_acq_list[row]
+        in_acq = input_acq_list[col]
+        mapping[ref_acq] = in_acq
 
     return mapping
 
 def interactive_mapping_to_json_reference(in_session_df: pd.DataFrame, ref_session: dict, initial_mapping=None):
     """
-    Interactive CLI for mapping input acquisitions/series to JSON references.
+    Interactive CLI for mapping input acquisitions to JSON reference acquisitions.
 
     Notes:
-        - Provides an interactive terminal interface for customizing mappings.
-        - Allows users to assign, unassign, and modify mappings dynamically.
-        - Displays reference and input series fields for context.
+        - Presents a terminal interface for selecting which input acquisition
+          should map to each reference acquisition.
+        - Provides a list of reference acquisitions on the left (one is "selected").
+        - Press RIGHT to select from input acquisitions. Press LEFT to go back.
+        - Press 'u' to unmap the currently selected reference acquisition.
+        - Press 'q' to quit and finalize the mapping.
 
     Args:
         in_session_df (pd.DataFrame): DataFrame of input session metadata.
         ref_session (dict): Reference session data in JSON format.
-        initial_mapping (dict, optional): Initial mapping to use as a starting point.
+        initial_mapping (dict, optional): Initial acquisition-level mapping.
+            Example format: {"RefAcqA": "InputAcqB", "RefAcqC": "InputAcqD"}
 
     Returns:
-        dict: Final mapping of (reference_acquisition, reference_series) -> (input_acquisition, input_series).
+        dict: Final mapping of {reference_acquisition: input_acquisition}.
     """
+    
+    # Gather all reference acquisition names
+    reference_acq_names = sorted(ref_session["acquisitions"].keys())
 
-    # Prepare input series from the DataFrame with detailed identifiers
-    input_series = {
-        ("input", acq_name, series_name): in_session_df[
-            (in_session_df["Acquisition"] == acq_name) & (in_session_df["Series"] == series_name)
-        ].iloc[0].to_dict()  # Extract the first row as a dictionary
-        for acq_name in in_session_df["Acquisition"].unique()
-        for series_name in in_session_df[in_session_df["Acquisition"] == acq_name]["Series"].unique()
-    }
+    # Gather all unique input acquisitions
+    input_acq_names = sorted(in_session_df["Acquisition"].unique())
 
-    # Prepare reference series from the JSON/dict
-    reference_series = {
-        ("reference", ref_acq_name, ref_series["name"]): ref_series
-        for ref_acq_name, ref_acq in ref_session["acquisitions"].items()
-        for ref_series in ref_acq.get("series", [])
-    }
+    # Optional: create a dictionary with partial metadata about input acquisitions
+    # for display. You can store more fields if desired.
+    input_acquisition_meta = {}
+    for in_acq_name in input_acq_names:
+        subset = in_session_df[in_session_df["Acquisition"] == in_acq_name]
+        # Example: store ProtocolName if available
+        protocol_values = subset["ProtocolName"].unique() if "ProtocolName" in subset.columns else []
+        proto_str = protocol_values[0] if len(protocol_values) == 1 else "multiple"
+        input_acquisition_meta[in_acq_name] = {"ProtocolName": proto_str}
 
-    # Define series_fields from the reference session
-    series_fields = set()
-    for ref_acq in ref_session["acquisitions"].values():
-        for series in ref_acq.get("series", []):
-            for field in series.get("fields", []):
-                series_fields.add(field["field"])
-    series_fields = list(series_fields)
-
-    # Initialize the mapping (reference -> input)
+    # Build the mapping structure, using any initial mapping
     mapping = {}
     if initial_mapping:
-        # Normalize the keys in the initial mapping to include prefixes
-        for input_key, ref_key in initial_mapping.items():
-            normalized_ref_key = ("reference", ref_key[0], ref_key[1])
-            normalized_input_key = ("input", input_key[0], input_key[1])
-            mapping[normalized_ref_key] = normalized_input_key
+        for ref_acq, in_acq in initial_mapping.items():
+            if ref_acq in reference_acq_names and in_acq in input_acq_names:
+                mapping[ref_acq] = in_acq
 
-    # Reverse mapping for easy lookup of current assignments
-    reverse_mapping = {v: k for k, v in mapping.items()}
-
-    def format_mapping_table(ref_keys, mapping, current_idx):
+    # Utility to produce the text table of reference acquisitions
+    def format_mapping_table(selected_ref_idx):
         """
-        Format the mapping table for display.
-
-        Args:
-            ref_keys (list): List of reference keys.
-            mapping (dict): Current mapping of reference to input series.
-            current_idx (int): Index of the currently selected reference series.
-
-        Returns:
-            str: Formatted table as a string.
+        Build a text table with columns:
+          - Selection marker (>> or whitespace)
+          - Reference acquisition name (+ optional info)
+          - Current mapping
         """
-        table = []
-        for idx, ref_key in enumerate(ref_keys):
-            ref_acq, ref_series = ref_key[1], ref_key[2]
-            ref_series_data = reference_series[ref_key]
+        table_rows = []
+        for i, ref_acq in enumerate(reference_acq_names):
+            row_indicator = ">>" if i == selected_ref_idx else "  "
+            current_map = mapping.get(ref_acq, "Unmapped")
 
-            def truncate_string(value, max_length=30):
-                return value if len(value) <= max_length else value[:max_length] + "..."
+            # Optionally show some reference info from ref_session
+            ref_info = ref_session["acquisitions"][ref_acq].get("fields", [])
+            # Just show the first few fields or some summary
+            ref_info_str = ""
+            if ref_info:
+                # Example: show up to 2 fields in "field=value" style
+                limited_fields = [f"{f['field']}={f.get('value', 'None')}" for f in ref_info[:2]]
+                ref_info_str = f" ({', '.join(limited_fields)})"
 
-            ref_identifiers = ", ".join( # TODO FIX NONE VALUES
-                truncate_string(f"{field['field']}={field['value'] if 'value' in field else 'None'}", max_length=30)
-                for field in ref_series_data.get("fields", [])
-                if field["field"] in series_fields
-            )
-            
-            current_mapping = mapping.get(ref_key, "Unmapped")
-            
-            # Handle input mapping
-            if current_mapping != "Unmapped":
-                input_acq, input_series_name = current_mapping[1], current_mapping[2]
-                input_series_data = input_series.get(("input", input_acq, input_series_name), {})
-                input_identifiers = ", ".join(
-                    f"{key}={value}" for key, value in input_series_data.items()
-                    if key in series_fields  # Only include fields that change between series
-                )
-                current_mapping = f"{input_acq} - {input_series_name} ({input_identifiers})"
-            
-            # Add indicator for current selection
-            row_indicator = ">>" if idx == current_idx else "  "
-            table.append([row_indicator, f"{ref_acq} - {ref_series} ({ref_identifiers})", current_mapping])
+            # If there is a mapped input acquisition, show some metadata about it
+            if current_map != "Unmapped":
+                in_meta = input_acquisition_meta.get(current_map, {})
+                proto_str = in_meta.get("ProtocolName", "N/A")
+                current_map += f" (ProtocolName={proto_str})"
 
-        return tabulate(table, headers=["", "Reference Series", "Mapped Input Series"], tablefmt="simple")
-
+            table_rows.append([row_indicator, f"{ref_acq}{ref_info_str}", current_map])
+        
+        return tabulate(table_rows, headers=["", "Reference Acquisition", "Mapped Input"], tablefmt="simple")
 
     def run_curses(stdscr):
-        # Disable cursor
         curses.curs_set(0)
 
-        # Track the selected reference and input indices
+        # Indices to track selection
         selected_ref_idx = 0
-        selected_input_idx = None
+        selected_input_idx = None  # None means we're not currently picking input
 
         while True:
-            # Clear the screen
             stdscr.clear()
 
-            # Format the mapping table
-            ref_keys = list(reference_series.keys())
-            table = format_mapping_table(ref_keys, mapping, selected_ref_idx)
+            # 1. Show table of reference acquisitions
+            table_str = format_mapping_table(selected_ref_idx)
+            stdscr.addstr(0, 0, "Use UP/DOWN to select a reference acquisition.")
+            stdscr.addstr(1, 0, "Press RIGHT to pick from input acquisitions, 'u' to unmap, 'q' to quit.")
+            stdscr.addstr(3, 0, table_str)
 
-            # Display the table
-            stdscr.addstr(0, 0, "Reference Acquisitions/Series (use UP/DOWN to select, ENTER to assign, 'u' to unmap):")
-            stdscr.addstr(2, 0, table)
-
-            # If a reference is selected, display the input acquisitions/series
+            # 2. If picking input, show the list of input acquisitions
+            base_line = 5 + len(reference_acq_names)
             if selected_input_idx is not None:
-                stdscr.addstr(
-                    len(ref_keys) + 4, 0, "Select Input Acquisition/Series (use UP/DOWN, ENTER to confirm):"
-                )
-                stdscr.addstr(len(ref_keys) + 5, 0, "Unassign (None)" if selected_input_idx == -1 else "")
-                input_keys = list(input_series.keys())
-                for idx, input_key in enumerate(input_keys):
-                    marker = ">>" if idx == selected_input_idx else "  "
-                    input_acq, input_series_name = input_key[1], input_key[2]
-                    stdscr.addstr(len(ref_keys) + 6 + idx, 0, f"{marker} {input_acq} - {input_series_name}")
+                stdscr.addstr(base_line, 0, "Select Input Acquisition (UP/DOWN, ENTER=confirm, LEFT=cancel):")
+                for i, in_acq_name in enumerate(input_acq_names):
+                    marker = ">>" if i == selected_input_idx else "  "
+                    # Show input acquisition plus some metadata
+                    meta = input_acquisition_meta.get(in_acq_name, {})
+                    proto_str = meta.get("ProtocolName", "N/A")
+                    stdscr.addstr(base_line + 2 + i, 0, f"{marker} {in_acq_name} (ProtocolName={proto_str})")
 
-            # Refresh the screen
             stdscr.refresh()
-
-            # Handle key inputs
             key = stdscr.getch()
 
+            # --- Navigation & actions ---
             if key == curses.KEY_UP:
                 if selected_input_idx is None:
                     selected_ref_idx = max(0, selected_ref_idx - 1)
                 else:
-                    selected_input_idx = max(-1, selected_input_idx - 1)
-
+                    selected_input_idx = max(0, selected_input_idx - 1)
             elif key == curses.KEY_DOWN:
                 if selected_input_idx is None:
-                    selected_ref_idx = min(len(ref_keys) - 1, selected_ref_idx + 1)
+                    selected_ref_idx = min(len(reference_acq_names) - 1, selected_ref_idx + 1)
                 else:
-                    selected_input_idx = min(len(input_series) - 1, selected_input_idx + 1)
-
+                    selected_input_idx = min(len(input_acq_names) - 1, selected_input_idx + 1)
             elif key == curses.KEY_RIGHT and selected_input_idx is None:
+                # Start selecting input acquisitions
                 selected_input_idx = 0
-
             elif key == curses.KEY_LEFT and selected_input_idx is not None:
+                # Cancel picking input
                 selected_input_idx = None
-
-            elif key == ord("u") and selected_input_idx is None:
-                ref_key = ref_keys[selected_ref_idx]
-                if ref_key in mapping:
-                    old_input_key = mapping[ref_key]
-                    del mapping[ref_key]
-                    del reverse_mapping[old_input_key]
-
-            elif key == ord("\n"):
+            elif key == ord("u"):
+                # Unmap the currently selected reference
+                ref_acq = reference_acq_names[selected_ref_idx]
+                if ref_acq in mapping:
+                    del mapping[ref_acq]
+            elif key == curses.KEY_ENTER or key == 10 or key == 13:
+                # ENTER: if picking input, finalize assignment
                 if selected_input_idx is not None:
-                    ref_key = ref_keys[selected_ref_idx]
-                    input_key = list(input_series.keys())[selected_input_idx]
-                    mapping[ref_key] = input_key
-                    reverse_mapping[input_key] = ref_key
+                    ref_acq = reference_acq_names[selected_ref_idx]
+                    in_acq = input_acq_names[selected_input_idx]
+                    mapping[ref_acq] = in_acq
+                    # Done picking input
                     selected_input_idx = None
-
-                elif selected_input_idx is None:
-                    selected_input_idx = 0
-
+                else:
+                    # Not picking input, do nothing
+                    pass
             elif key == ord("q"):
+                # Quit
                 break
 
     curses.wrapper(run_curses)
 
-    return {
-        (ref_key[1], ref_key[2]): (input_key[1], input_key[2])
-        for ref_key, input_key in mapping.items()
-    }
+    # Return a simple dictionary: { reference_acquisition: input_acquisition }
+    return mapping
 
 def interactive_mapping_to_python_reference(in_session_df: pd.DataFrame, ref_models: dict, initial_mapping=None):
     """

@@ -195,7 +195,7 @@ class BaseValidationModel:
                     errors.append({
                         "acquisition": acquisition,
                         "field": ", ".join(field_names),
-                        "rule": validator_list[0]._rule_message,
+                        "expected": validator_list[0]._rule_message,
                         "value": None,
                         "message": f"Missing fields: {', '.join(missing_fields)}.",
                         "passed": False,
@@ -220,7 +220,7 @@ class BaseValidationModel:
                         passes.append({
                             "acquisition": acquisition,
                             "field": ", ".join(field_names),
-                            "rule": validator_func._rule_message,
+                            "expected": validator_func._rule_message,
                             "value": unique_combinations.to_dict(orient="list"),
                             "message": None,
                             "passed": True,
@@ -229,7 +229,7 @@ class BaseValidationModel:
                         errors.append({
                             "acquisition": acquisition,
                             "field": ", ".join(field_names),
-                            "rule": validator_func._rule_message,
+                            "expected": validator_func._rule_message,
                             "value": unique_combinations.to_dict(orient="list"),
                             "message": e.message,
                             "passed": False,

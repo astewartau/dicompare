@@ -17,6 +17,9 @@ def create_json_reference(session_df, reference_fields):
     Returns:
         dict: JSON structure representing the reference.
     """
+    # Sort by acquisition, then all other fields
+    session_df.sort_values(by=["Acquisition"] + reference_fields, inplace=True)
+
     # Ensure all values in the DataFrame are hashable
     for col in session_df.columns:
         session_df[col] = session_df[col].apply(make_hashable)
@@ -47,14 +50,6 @@ def create_json_reference(session_df, reference_fields):
                     "fields": [{"field": field, "value": series_key[j]} for j, field in enumerate(varying_fields)]
                 }
                 acquisition_entry["series"].append(series_entry)
-        else:
-            # No varying fields: Create a single series and move acquisition-level fields to it
-            series_entry = {
-                "name": "Series 1",
-                "fields": acquisition_entry["fields"]  # Move all acquisition-level fields to the series
-            }
-            acquisition_entry["fields"] = []
-            acquisition_entry["series"].append(series_entry)
 
         # Add to JSON reference
         json_reference["acquisitions"][clean_string(acquisition_name)] = acquisition_entry
