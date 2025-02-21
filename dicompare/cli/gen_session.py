@@ -3,7 +3,7 @@
 import argparse
 import json
 import pandas as pd
-from dicompare.io import load_dicom_session
+from dicompare.io import load_dicom_session, assign_acquisition_and_run_numbers
 from dicompare.utils import clean_string, make_hashable
 
 def create_json_reference(session_df, reference_fields):
@@ -17,6 +17,9 @@ def create_json_reference(session_df, reference_fields):
     Returns:
         dict: JSON structure representing the reference.
     """
+    if "Acquisition" not in session_df.columns:
+        session_df = assign_acquisition_and_run_numbers(session_df)
+
     # Sort by acquisition, then all other fields
     session_df.sort_values(by=["Acquisition"] + reference_fields, inplace=True)
 

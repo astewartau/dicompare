@@ -1,9 +1,7 @@
 import pytest
 import json
-import nibabel as nib
 from io import BytesIO
 from pydicom.dataset import Dataset
-from .fixtures.fixtures import t1, empty_json, empty_nifti
 
 from dicompare import (
     load_dicom,
@@ -28,7 +26,7 @@ def test_get_dicom_values(t1: Dataset):
     dicom_dict = get_dicom_values(t1)
     assert isinstance(dicom_dict, dict)
     assert dicom_dict["PatientName"] == "Test^Patient"
-    assert dicom_dict["PixelSpacing"] == [0.5, 0.5]
+    assert dicom_dict["PixelSpacing"] == (0.5, 0.5)
 
 # Test for `load_dicom`
 def test_load_dicom_from_path(t1: Dataset, tmp_path):
@@ -49,7 +47,7 @@ def test_load_dicom_from_bytes(t1: Dataset):
     t1.save_as(buffer, write_like_original=True)
     dicom_bytes = buffer.getvalue()
     dicom_values = load_dicom(dicom_bytes)
-    assert dicom_values["PixelSpacing"] == [0.5, 0.5]
+    assert dicom_values["PixelSpacing"] == (0.5, 0.5)
 
 # Test for `read_dicom_session` with session_dir
 def test_read_dicom_session_directory(t1: Dataset, tmp_path):
@@ -60,8 +58,8 @@ def test_read_dicom_session_directory(t1: Dataset, tmp_path):
     result = load_dicom_session(
         session_dir=str(dicom_dir)
     )
-    assert "acq-t1" in result["Acquisition"].values
-    assert len(result['Acquisition']) == 1
+    assert "T1" in result["ProtocolName"].values
+    assert len(result['ProtocolName']) == 1
 
 def test_read_dicom_session_bytes(t1: Dataset):
     # Save DICOM to bytes
@@ -78,10 +76,10 @@ def test_read_dicom_session_bytes(t1: Dataset):
     )
 
     # Validate the results
-    assert "acq-t1" in result["Acquisition"].values
+    assert "T1" in result["ProtocolName"].values
     assert "Test^Patient" in result["PatientName"].values
     assert "T1-weighted" in result["SeriesDescription"].values
-    assert len(result['Acquisition']) == 1
+    assert len(result['ProtocolName']) == 1
 
 def test_read_dicom_session_bytes_partial(t1: Dataset):
     # Save full DICOM to bytes
@@ -101,10 +99,10 @@ def test_read_dicom_session_bytes_partial(t1: Dataset):
     )
 
     # Validate the results
-    assert "acq-t1" in result["Acquisition"].values
+    assert "T1" in result["ProtocolName"].values
     assert "Test^Patient" in result["PatientName"].values
     assert "T1-weighted" in result["SeriesDescription"].values
-    assert len(result['Acquisition']) == 1
+    assert len(result['ProtocolName']) == 1
 
 def test_read_json_session(temp_json):
     json_data = {
