@@ -2,6 +2,7 @@ import pytest
 import json
 from io import BytesIO
 from pydicom.dataset import Dataset
+from .fixtures.fixtures import t1
 
 from dicompare import (
     load_dicom,
