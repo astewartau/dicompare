@@ -187,7 +187,7 @@ def check_session_compliance_with_json_reference(
                 "field": field,
                 "expected": f"(value={expected_value}, tolerance={tolerance}, contains={contains})",
                 "value": actual_values,
-                "message": "All values meet constraints.",
+                "message": "Passed.",
                 "passed": "✅"
             })
 
@@ -341,7 +341,7 @@ def check_session_compliance_with_json_reference(
                 "field": ", ".join([f["field"] for f in s_fields]),
                 "expected": constraints_agg,
                 "value": actual_values_agg,
-                "message": "All fields passed their constraints",
+                "message": "Passed",
                 "passed": "✅"
             })
 
