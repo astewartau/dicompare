@@ -6,6 +6,7 @@ This module contains functions for loading and processing DICOM data, JSON refer
 import os
 import pydicom
 import json
+import asyncio
 import pandas as pd
 import importlib.util
 import nibabel as nib
@@ -14,7 +15,7 @@ from pydicom.dataset import FileDataset
 from pydicom.multival import MultiValue
 from pydicom.uid import UID
 from pydicom.valuerep import PersonName, DSfloat, IS, DSdecimal, DT
-from typing import List, Optional, Dict, Any, Union, Tuple
+from typing import List, Optional, Dict, Any, Union, Tuple, Callable
 from io import BytesIO
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -179,11 +180,13 @@ def load_nifti_session(
     return session_df
     
 
-def load_dicom_session(
+
+async def async_load_dicom_session(
     session_dir: Optional[str] = None,
     dicom_bytes: Optional[Union[Dict[str, bytes], Any]] = None,
     skip_pixel_data: bool = True,
     show_progress: bool = False,
+    progress_function: Optional[Callable[[int], None]] = None,
     parallel_workers: int = 1
 ) -> pd.DataFrame:
     """
@@ -215,7 +218,6 @@ def load_dicom_session(
         dicom_items = list(dicom_bytes.items())
         if not dicom_items:
             raise ValueError("No DICOM data found in dicom_bytes.")
-
         if parallel_workers > 1:
             with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
                 futures = [
@@ -223,15 +225,33 @@ def load_dicom_session(
                     for key, content in dicom_items
                 ]
                 if show_progress:
-                    for fut in tqdm(as_completed(futures), total=len(futures), desc="Loading DICOM bytes in parallel"):
+                    from tqdm import tqdm
+                    for fut in tqdm(asyncio.as_completed(futures), total=len(futures), desc="Loading DICOM bytes in parallel"):
                         session_data.append(fut.result())
                 else:
-                    for fut in as_completed(futures):
+                    total_completed = 0
+                    progress_prev = 0
+                    for fut in asyncio.as_completed(futures):
+                        if progress_function is not None:
+                            progress = round(100 * total_completed / len(dicom_items))
+                            if progress > progress_prev:
+                                progress_prev = progress
+                                progress_function(progress)
+                                await asyncio.sleep(0)  # yield control
                         session_data.append(fut.result())
+                        total_completed += 1
         else:
             if show_progress:
+                from tqdm import tqdm
                 dicom_items = tqdm(dicom_items, desc="Loading DICOM bytes")
-            for key, content in dicom_items:
+            progress_prev = 0
+            for i, (key, content) in enumerate(dicom_items):
+                if progress_function is not None:
+                    progress = round(100 * i / len(dicom_items))
+                    if progress > progress_prev:
+                        progress_prev = progress
+                        progress_function(progress)
+                        await asyncio.sleep(0)
                 try:
                     dicom_values = load_dicom(content, skip_pixel_data=skip_pixel_data)
                     dicom_values["DICOM_Path"] = key
@@ -239,14 +259,12 @@ def load_dicom_session(
                     session_data.append(dicom_values)
                 except Exception as e:
                     print(f"Error reading {key}: {e}")
-
     # 2) Session directory branch
     elif session_dir is not None:
-        all_files = [os.path.join(root, file) for root, _, files in os.walk(session_dir) for file in files]
-
+        all_files = [os.path.join(root, file)
+                     for root, _, files in os.walk(session_dir) for file in files]
         if not all_files:
-            raise ValueError(f"No DICOM data found to process.")
-
+            raise ValueError("No DICOM data found to process.")
         if parallel_workers > 1:
             with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
                 futures = [
@@ -254,15 +272,33 @@ def load_dicom_session(
                     for fpath in all_files
                 ]
                 if show_progress:
-                    for fut in tqdm(as_completed(futures), total=len(futures), desc="Reading DICOMs in parallel"):
+                    from tqdm import tqdm
+                    for fut in tqdm(asyncio.as_completed(futures), total=len(futures), desc="Reading DICOMs in parallel"):
                         session_data.append(fut.result())
                 else:
-                    for fut in as_completed(futures):
+                    total_completed = 0
+                    progress_prev = 0
+                    for fut in asyncio.as_completed(futures):
+                        if progress_function is not None:
+                            progress = round(100 * total_completed / len(all_files))
+                            if progress > progress_prev:
+                                progress_prev = progress
+                                progress_function(progress)
+                                await asyncio.sleep(0)
                         session_data.append(fut.result())
+                        total_completed += 1
         else:
             if show_progress:
+                from tqdm import tqdm
                 all_files = tqdm(all_files, desc="Loading DICOMs")
-            for dicom_path in all_files:
+            progress_prev = 0
+            for i, dicom_path in enumerate(all_files):
+                if progress_function is not None:
+                    progress = round(100 * i / len(all_files))
+                    if progress > progress_prev:
+                        progress_prev = progress
+                        progress_function(progress)
+                        await asyncio.sleep(0)
                 try:
                     dicom_values = load_dicom(dicom_path, skip_pixel_data=skip_pixel_data)
                     dicom_values["DICOM_Path"] = dicom_path
@@ -276,23 +312,40 @@ def load_dicom_session(
     if not session_data:
         raise ValueError("No DICOM data found to process.")
 
-    # Create a DataFrame
     session_df = pd.DataFrame(session_data)
-
-    # Ensure all values are hashable
     for col in session_df.columns:
         session_df[col] = session_df[col].apply(make_hashable)
-
-    # Drop columns that are entirely NaN
     session_df.dropna(axis=1, how='all', inplace=True)
-
-    # Sort data by InstanceNumber if present
     if "InstanceNumber" in session_df.columns:
         session_df.sort_values("InstanceNumber", inplace=True)
     elif "DICOM_Path" in session_df.columns:
         session_df.sort_values("DICOM_Path", inplace=True)
-
     return session_df
+
+
+# Synchronous wrapper
+def load_dicom_session(
+    session_dir: Optional[str] = None,
+    dicom_bytes: Optional[Union[Dict[str, bytes], Any]] = None,
+    skip_pixel_data: bool = True,
+    show_progress: bool = False,
+    progress_function: Optional[Callable[[int], None]] = None,
+    parallel_workers: int = 1
+) -> pd.DataFrame:
+    """
+    Synchronous version of load_dicom_session.
+    It reuses the async version by calling it via asyncio.run().
+    """
+    return asyncio.run(
+        async_load_dicom_session(
+            session_dir=session_dir,
+            dicom_bytes=dicom_bytes,
+            skip_pixel_data=skip_pixel_data,
+            show_progress=show_progress,
+            progress_function=progress_function,
+            parallel_workers=parallel_workers
+        )
+    )
 
 def assign_acquisition_and_run_numbers(
         session_df,

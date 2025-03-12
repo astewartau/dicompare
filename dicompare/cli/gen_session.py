@@ -64,7 +64,6 @@ def main():
     parser = argparse.ArgumentParser(description="Generate a JSON reference for DICOM compliance.")
     parser.add_argument("--in_session_dir", required=True, help="Directory containing DICOM files for the session.")
     parser.add_argument("--out_json_ref", required=True, help="Path to save the generated JSON reference.")
-    parser.add_argument("--acquisition_fields", nargs="+", required=True, help="Fields to uniquely identify each acquisition.")
     parser.add_argument("--reference_fields", nargs="+", required=True, help="Fields to include in JSON reference with their values.")
     parser.add_argument("--name_template", default="{ProtocolName}", help="Naming template for each acquisition series.")
     args = parser.parse_args()
@@ -72,12 +71,8 @@ def main():
     # Read DICOM session
     session_data = load_dicom_session(
         session_dir=args.in_session_dir,
-        acquisition_fields=args.acquisition_fields,
+        show_progress=True
     )
-
-    # Filter fields in DataFrame
-    relevant_fields = set(args.acquisition_fields + args.reference_fields)
-    session_data = session_data[["Acquisition"] + list(relevant_fields.intersection(session_data.columns))]
 
     # Generate JSON reference
     json_reference = create_json_reference(
