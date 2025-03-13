@@ -244,7 +244,7 @@ def check_session_compliance_with_json_reference(
                 "input acquisition": in_acq_name,
                 "series": s_name,
                 "field": ", ".join(field_names),
-                "expected": "Multiple constraints (see series definition)",
+                "expected": str(sdef['fields']),
                 "value": None,
                 "message": f"Series '{s_name}' not found with the specified constraints.",
                 "passed": "❌"
