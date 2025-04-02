@@ -1,9 +1,6 @@
 import os
 import json
 import asyncio
-import tempfile
-import shutil
-import importlib.util
 
 import numpy as np
 import pandas as pd
@@ -11,9 +8,6 @@ import pytest
 import nibabel as nib
 import pydicom
 from pydicom.dataset import FileMetaDataset, FileDataset
-from pydicom.dataelem import DataElement
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
 
 import dicompare
 
@@ -248,6 +242,7 @@ def test_assign_acquisition_and_run_numbers():
     # Create a DataFrame with necessary columns.
     data = {
         "SeriesDescription": ["desc1", "desc1", "desc2"],
+        "ImageType": [("ORIGINAL", "PRIMARY", "AXIAL"), ("ORIGINAL", "PRIMARY", "AXIAL"), ("DERIVED", "SECONDARY", "AXIAL")],
         "SeriesNumber": [1, 2, 1],
         "ProtocolName": ["protA", "protA", "protA"],
         "PatientName": ["A", "A", "A"],
