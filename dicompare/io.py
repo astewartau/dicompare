@@ -397,54 +397,44 @@ def assign_acquisition_and_run_numbers(
             "PartialFourierDirection",
         ],
         acquisition_fields=["ProtocolName"],
-        run_group_fields=["PatientName", "PatientID", "ProtocolName", "StudyDate", "StudyTime"]
+        run_group_fields=["PatientName", "PatientID", "ProtocolName", "StudyDate"]
     ):
     
-    # Group by unique combinations of acquisition fields.
     if acquisition_fields:
         groups = [group.reset_index(drop=True) for _, group in session_df.groupby(acquisition_fields)]
         session_df = pd.concat(groups, ignore_index=True)
-    
-    # Convert acquisition fields to strings and handle missing values.
+
     def clean_acquisition_values(row):
         return "-".join(str(val) if pd.notnull(val) else "NA" for val in row)
-    
-    # Initial Acquisition label (ignoring reference_fields for now)
+
     session_df["Acquisition"] = (
         "acq-"
         + session_df[acquisition_fields]
         .apply(clean_acquisition_values, axis=1)
         .apply(clean_string)
     )
-    
-    # Identifying runs based on SeriesDescription and SeriesTime.
+
     run_group_fields = [field for field in run_group_fields if field in session_df.columns]
-    
-    # For each run group.
     session_df.reset_index(drop=True, inplace=True)
     for run_group, group_df in session_df.groupby(run_group_fields):
         group_df.sort_values("SeriesNumber", inplace=True)
-        
-        # Process each unique SeriesDescription.
-        for series_description in group_df["SeriesDescription"].unique():
-            series_num = group_df.loc[group_df["SeriesDescription"] == series_description, "SeriesNumber"].unique()
+
+        for key, sub_df in group_df.groupby(["SeriesDescription", "ImageType"]):
+            series_num = sub_df["SeriesNumber"].unique()
             if len(series_num) > 1:
                 run_number = 1
                 for series_id in series_num:
-                    session_df.loc[group_df.index[group_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
+                    session_df.loc[sub_df.index[sub_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
                     run_number += 1
             else:
-                session_df.loc[group_df.index, "RunNumber"] = 1
+                session_df.loc[sub_df.index, "RunNumber"] = 1
 
-    # Identify acquisitions that are actually multiple acquisitions.
     if reference_fields:
-        # Process each protocol separately.
         for pn, protocol_df in session_df.groupby(['ProtocolName']):
             settings_group_fields = [field for field in ["PatientName", "PatientID", "StudyDate", "RunNumber"] if field in protocol_df.columns]
             param_to_settings = {}
             settings_counter = 1
 
-            # Group by settings within the protocol.
             for settings_group, group_df in protocol_df.groupby(settings_group_fields):
                 param_tuple = tuple(
                     (field, tuple(sorted(group_df[field].dropna().unique())))
@@ -454,10 +444,8 @@ def assign_acquisition_and_run_numbers(
                 if param_tuple not in param_to_settings:
                     param_to_settings[param_tuple] = settings_counter
                     settings_counter += 1
-                # Always assign a settings number, whether new or seen before.
                 session_df.loc[group_df.index, "SettingsNumber"] = param_to_settings[param_tuple]
-        
-        # For any ProtocolName with multiple SettingsNumber, update the Acquisition label to include the SettingsNumber.
+
         if "SettingsNumber" in session_df.columns:
             acq_counts = session_df.groupby("Acquisition")["SettingsNumber"].nunique()
             acq_to_update = acq_counts[acq_counts > 1].index
@@ -466,23 +454,21 @@ def assign_acquisition_and_run_numbers(
             session_df.loc[mask, "Acquisition"] = session_df.loc[mask].apply(
                 lambda row: f"{row['Acquisition']}-{int(row['SettingsNumber'])}", axis=1
             )
-            
-            # Delete SettingsNumber column.
+
             del session_df["SettingsNumber"]
 
-            # Recalculate Acquisition label to include RunNumber.
             session_df.reset_index(drop=True, inplace=True)
             for run_group, group_df in session_df.groupby(["Acquisition"] + run_group_fields):
                 group_df.sort_values("SeriesNumber", inplace=True)
-                for series_description in group_df["SeriesDescription"].unique():
-                    series_num = group_df.loc[group_df["SeriesDescription"] == series_description, "SeriesNumber"].unique()
+                for key, sub_df in group_df.groupby(["SeriesDescription", "ImageType"]):
+                    series_num = sub_df["SeriesNumber"].unique()
                     if len(series_num) > 1:
                         run_number = 1
                         for series_id in series_num:
-                            session_df.loc[group_df.index[group_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
+                            session_df.loc[sub_df.index[sub_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
                             run_number += 1
                     else:
-                        session_df.loc[group_df.index, "RunNumber"] = 1
+                        session_df.loc[sub_df.index, "RunNumber"] = 1
 
     return session_df
 
