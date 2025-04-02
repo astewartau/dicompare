@@ -1,6 +1,5 @@
 """
 This module provides utility functions for handling and normalizing data used in DICOM validation workflows.
-
 """
 
 import sys
@@ -94,8 +93,8 @@ def clean_string(s: str):
     Returns:
         str: The cleaned string.
     """
-
-    forbidden_chars = "`~!@#$%^&*()_+=[]\{\}|;':,.<>?/\\ "
+    # Removed unnecessary escapes from the curly braces and properly escape the backslash.
+    forbidden_chars = "`~!@#$%^&*()_+=[]{}|;':,.<>?/\\ "
     for char in forbidden_chars:
         s = s.replace(char, "").lower()
     return s
@@ -120,7 +119,7 @@ def infer_type_from_extension(ref_path):
     _, ext = os.path.splitext(ref_path.lower())
     if ext == ".json":
         return "json"
-    elif ext in [".dcm", ".IMA"]:
+    elif ext in [".dcm", ".ima"]:
         return "dicom"
     elif ext == ".py":
         return "pydantic"

@@ -175,12 +175,11 @@ def load_nifti_session(
         session_df[col] = session_df[col].apply(make_hashable)
 
     if acquisition_fields:
-        session_df = session_df.groupby(acquisition_fields).apply(lambda x: x.reset_index(drop=True))
+        groups = [group.reset_index(drop=True) for _, group in session_df.groupby(acquisition_fields)]
+        session_df = pd.concat(groups, ignore_index=True)
 
     return session_df
     
-
-
 async def async_load_dicom_session(
     session_dir: Optional[str] = None,
     dicom_bytes: Optional[Union[Dict[str, bytes], Any]] = None,
@@ -401,11 +400,12 @@ def assign_acquisition_and_run_numbers(
         run_group_fields=["PatientName", "PatientID", "ProtocolName", "StudyDate", "StudyTime"]
     ):
     
-    # Group by unique combinations of acquisition fields
+    # Group by unique combinations of acquisition fields.
     if acquisition_fields:
-        session_df = session_df.groupby(acquisition_fields).apply(lambda x: x.reset_index(drop=True))
+        groups = [group.reset_index(drop=True) for _, group in session_df.groupby(acquisition_fields)]
+        session_df = pd.concat(groups, ignore_index=True)
     
-    # Convert acquisition fields to strings and handle missing values
+    # Convert acquisition fields to strings and handle missing values.
     def clean_acquisition_values(row):
         return "-".join(str(val) if pd.notnull(val) else "NA" for val in row)
     
@@ -417,87 +417,68 @@ def assign_acquisition_and_run_numbers(
         .apply(clean_string)
     )
     
-    # Identifying runs based on SeriesDescription and SeriesTime
+    # Identifying runs based on SeriesDescription and SeriesTime.
     run_group_fields = [field for field in run_group_fields if field in session_df.columns]
     
-    # For each run group
+    # For each run group.
     session_df.reset_index(drop=True, inplace=True)
     for run_group, group_df in session_df.groupby(run_group_fields):
-
-        # Sort by SeriesNumber
         group_df.sort_values("SeriesNumber", inplace=True)
         
-        # Get unique SeriesDecription values
+        # Process each unique SeriesDescription.
         for series_description in group_df["SeriesDescription"].unique():
-            
-            # If there are multiple SeriesNumbers for the same SeriesDescription
             series_num = group_df.loc[group_df["SeriesDescription"] == series_description, "SeriesNumber"].unique()
             if len(series_num) > 1:
                 run_number = 1
-                for i, series_id in enumerate(series_num):
+                for series_id in series_num:
                     session_df.loc[group_df.index[group_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
                     run_number += 1
             else:
                 session_df.loc[group_df.index, "RunNumber"] = 1
 
-    # Identify acquisitions that are actually multiple acquisitions
+    # Identify acquisitions that are actually multiple acquisitions.
     if reference_fields:
-        # for each protocol
+        # Process each protocol separately.
         for pn, protocol_df in session_df.groupby(['ProtocolName']):
-            settings_group_fields = [field for field in ["PatientName", "PatientID", "StudyDate", "RunNumber"] if field in session_df.columns]
+            settings_group_fields = [field for field in ["PatientName", "PatientID", "StudyDate", "RunNumber"] if field in protocol_df.columns]
             param_to_settings = {}
             settings_counter = 1
 
-            # for each run group
-            for settings_group, group_df in session_df.groupby(settings_group_fields):
-                # Build a tuple of (field, sorted unique values) for each reference field.
+            # Group by settings within the protocol.
+            for settings_group, group_df in protocol_df.groupby(settings_group_fields):
                 param_tuple = tuple(
                     (field, tuple(sorted(group_df[field].dropna().unique())))
                     for field in reference_fields
                     if field in group_df.columns
                 )
-
-                # If we haven’t seen this parameter set yet, assign a new settings number.
                 if param_tuple not in param_to_settings:
-                    # store the settings number for this parameter set
                     param_to_settings[param_tuple] = settings_counter
-
-                    # assign the settings number to each row based on the parameter set.
-                    session_df.loc[group_df.index, "SettingsNumber"] = settings_counter
-
-                    # increment the settings counter
                     settings_counter += 1
+                # Always assign a settings number, whether new or seen before.
+                session_df.loc[group_df.index, "SettingsNumber"] = param_to_settings[param_tuple]
         
-        # For any ProtocolName with multiple SettingsNumber, update the Acquisition label to include the SettingsNumber
+        # For any ProtocolName with multiple SettingsNumber, update the Acquisition label to include the SettingsNumber.
         if "SettingsNumber" in session_df.columns:
-            # Identify base acquisition groups with multiple settings numbers.
             acq_counts = session_df.groupby("Acquisition")["SettingsNumber"].nunique()
             acq_to_update = acq_counts[acq_counts > 1].index
 
-            # For rows belonging to those groups, update the Acquisition label by appending the row's SettingsNumber.
             mask = session_df["Acquisition"].isin(acq_to_update)
             session_df.loc[mask, "Acquisition"] = session_df.loc[mask].apply(
                 lambda row: f"{row['Acquisition']}-{int(row['SettingsNumber'])}", axis=1
             )
             
-            # Delete SettingsNumber column
+            # Delete SettingsNumber column.
             del session_df["SettingsNumber"]
 
-            # Recalculate Acquisition label to include RunNumber
+            # Recalculate Acquisition label to include RunNumber.
             session_df.reset_index(drop=True, inplace=True)
             for run_group, group_df in session_df.groupby(["Acquisition"] + run_group_fields):
-
-                # Sort by SeriesNumber
                 group_df.sort_values("SeriesNumber", inplace=True)
-                
-                # Get unique SeriesDecription values
                 for series_description in group_df["SeriesDescription"].unique():
-                    
-                    # If there are multiple SeriesNumbers for the same SeriesDescription
                     series_num = group_df.loc[group_df["SeriesDescription"] == series_description, "SeriesNumber"].unique()
                     if len(series_num) > 1:
                         run_number = 1
-                        for i, series_id in enumerate(series_num):
+                        for series_id in series_num:
                             session_df.loc[group_df.index[group_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
                             run_number += 1
                     else:

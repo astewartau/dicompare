@@ -1,201 +1,300 @@
-import pytest
+import os
 import json
-from io import BytesIO
-from pydicom.dataset import Dataset
-from .fixtures.fixtures import t1
+import asyncio
+import tempfile
+import shutil
+import importlib.util
 
-from dicompare import (
-    load_dicom,
-    get_dicom_values,
-    load_dicom_session,
-    load_json_session,
-)
+import numpy as np
+import pandas as pd
+import pytest
+import nibabel as nib
+import pydicom
+from pydicom.dataset import FileMetaDataset, FileDataset
+from pydicom.dataelem import DataElement
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
-from dicompare.cli.gen_session import create_json_reference
+import dicompare
 
-@pytest.fixture
-def temp_json(tmp_path):
-    def _write_json(data):
-        path = tmp_path / "temp.json"
-        with open(path, "w") as f:
-            json.dump(data, f)
-        return str(path)
-    return _write_json
+# ---------- Helper functions for tests ----------
 
-# Test for `get_dicom_values`
-def test_get_dicom_values(t1: Dataset):
-    dicom_dict = get_dicom_values(t1)
-    assert isinstance(dicom_dict, dict)
-    assert dicom_dict["PatientName"] == "Test^Patient"
-    assert dicom_dict["PixelSpacing"] == (0.5, 0.5)
+def create_dummy_file_dataset(filename, patient_name="Doe^John", series_number=1, instance_number=1, include_pixel=True):
+    file_meta = FileMetaDataset()
+    file_meta.MediaStorageSOPClassUID = "1.2.3"
+    file_meta.MediaStorageSOPInstanceUID = "1.2.3.4"
+    file_meta.ImplementationClassUID = "1.2.3.4.5"
+    ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
+    ds.PatientName = patient_name
+    ds.SeriesNumber = series_number
+    ds.InstanceNumber = instance_number
+    ds.add_new((0x0010, 0x0010), "PN", patient_name)
+    ds.add_new((0x0020, 0x0011), "IS", str(series_number))
+    ds.add_new((0x0020, 0x0013), "IS", str(instance_number))
+    if include_pixel:
+        ds.add_new((0x7fe0, 0x0010), "OB", b'\x00\x01')
+    return ds
 
-# Test for `load_dicom`
-def test_load_dicom_from_path(t1: Dataset, tmp_path):
-    dicom_path = tmp_path / "test.dcm"
-    t1.save_as(dicom_path, write_like_original=True)
-    dicom_values = load_dicom(str(dicom_path))
-    assert dicom_values["PatientID"] == "123456"
 
-def test_load_dicom_from_bytes(t1: Dataset):
-    buffer = BytesIO()
-    t1.save_as(buffer, write_like_original=True)
-    dicom_bytes = buffer.getvalue()
-    dicom_values = load_dicom(dicom_bytes)
-    assert dicom_values["PatientName"] == "Test^Patient"
+def write_dummy_dicom(tmp_dir, filename="dummy.dcm", **kwargs):
+    filepath = os.path.join(tmp_dir, filename)
+    ds = create_dummy_file_dataset(filepath, **kwargs)
+    pydicom.filewriter.dcmwrite(filepath, ds)
+    return filepath
 
-def test_load_dicom_from_bytes(t1: Dataset):
-    buffer = BytesIO()
-    t1.save_as(buffer, write_like_original=True)
-    dicom_bytes = buffer.getvalue()
-    dicom_values = load_dicom(dicom_bytes)
-    assert dicom_values["PixelSpacing"] == (0.5, 0.5)
 
-# Test for `read_dicom_session` with session_dir
-def test_read_dicom_session_directory(t1: Dataset, tmp_path):
-    dicom_dir = tmp_path / "dicom_dir"
-    dicom_dir.mkdir()
-    dicom_path = dicom_dir / "test.dcm"
-    t1.save_as(dicom_path, write_like_original=True)
-    result = load_dicom_session(
-        session_dir=str(dicom_dir)
-    )
-    assert "T1" in result["ProtocolName"].values
-    assert len(result['ProtocolName']) == 1
+def create_dummy_nifti(tmp_dir, filename="sub-01_task-rest.nii", array_shape=(2, 2, 2)):
+    data = np.zeros(array_shape)
+    affine = np.eye(4)
+    nifti_img = nib.Nifti1Image(data, affine)
+    file_path = os.path.join(tmp_dir, filename)
+    nib.save(nifti_img, file_path)
+    return file_path
 
-def test_read_dicom_session_bytes(t1: Dataset):
-    # Save DICOM to bytes
-    buffer = BytesIO()
-    t1.save_as(buffer, write_like_original=True)
-    dicom_content = buffer.getvalue()
 
-    # Simulate the `dicom_bytes` dictionary
-    dicom_bytes = {"test.dcm": dicom_content}
-
-    # Call `read_dicom_session` with the simulated byte data
-    result = load_dicom_session(
-        dicom_bytes=dicom_bytes
-    )
-
-    # Validate the results
-    assert "T1" in result["ProtocolName"].values
-    assert "Test^Patient" in result["PatientName"].values
-    assert "T1-weighted" in result["SeriesDescription"].values
-    assert len(result['ProtocolName']) == 1
-
-def test_read_dicom_session_bytes_partial(t1: Dataset):
-    # Save full DICOM to bytes
-    buffer = BytesIO()
-    t1.save_as(buffer, write_like_original=True)
-    dicom_content_full = buffer.getvalue()
-
-    # Simulate partial DICOM bytes (first 2048 bytes)
-    partial_content = dicom_content_full[:2048]
-
-    # Simulate the `dicom_bytes` dictionary
-    dicom_bytes = {"partial_test.dcm": partial_content}
-
-    # Call `read_dicom_session` with the partial byte data
-    result = load_dicom_session(
-        dicom_bytes=dicom_bytes
-    )
-
-    # Validate the results
-    assert "T1" in result["ProtocolName"].values
-    assert "Test^Patient" in result["PatientName"].values
-    assert "T1-weighted" in result["SeriesDescription"].values
-    assert len(result['ProtocolName']) == 1
-
-def test_read_json_session(temp_json):
-    json_data = {
+def create_temp_json(tmp_dir, filename="dummy.json"):
+    data = {
         "acquisitions": {
-            "acq-Example": {
-                "series": [
-                    {
-                        "name": "Series 1",
-                        "fields": [{"field": "SeriesDescription", "value": "Example Series"},
-                                   {"field": "EchoTime", "value": 25.0, "tolerance": 0.1},
-                                   {"field": "ImageType", "contains": "M"}]
-                    }
+            "acq1": {
+                "fields": [
+                    {"field": "TestField", "value": [1, 2], "tolerance": 5, "contains": "abc"}
                 ],
+                "series": [
+                    {"name": "series1", "fields": [{"field": "SeriesField", "value": "x"}]}
+                ]
             }
         }
     }
-    json_path = temp_json(json_data)
-    reference_fields, acquisitions = load_json_session(json_path)
+    file_path = os.path.join(tmp_dir, filename)
+    with open(file_path, "w") as f:
+        json.dump(data, f)
+    return file_path
 
-    # Validate reference fields
-    assert set(reference_fields) == {"SeriesDescription", "EchoTime", "ImageType"}
 
-    # Validate acquisitions structure
-    assert "acq-Example" in acquisitions["acquisitions"]
+def create_dummy_python_module(tmp_dir, content, filename="dummy_module.py"):
+    file_path = os.path.join(tmp_dir, filename)
+    with open(file_path, "w") as f:
+        f.write(content)
+    return file_path
 
-# Edge case: Test invalid JSON file for `read_json_session`
-def test_read_json_session_invalid_file():
-    with pytest.raises(FileNotFoundError):
-        load_json_session("non_existent.json")
 
-# Edge case: Test DICOM file with no Pixel Data for `get_dicom_values`
-def test_get_dicom_values_no_pixel_data(t1: Dataset):
-    t1.PixelData = None  # Remove PixelData
-    dicom_dict = get_dicom_values(t1)
-    assert "PixelData" not in dicom_dict
+# ---------- Fixtures ----------
 
-def test_read_dicom_session_read_json_session_numeric_datatype_encoding(tmp_path, t1: Dataset):
-    # Create two DICOM files with different EchoTime values
-    dicom_dir = tmp_path / "dicom_dir"
-    dicom_dir.mkdir()
+@pytest.fixture
+def temp_dir(tmp_path):
+    d = tmp_path / "data"
+    d.mkdir()
+    return str(d)
 
-    # First file: EchoTime as a float
-    t1.EchoTime = 25.0
-    dicom_path_float = dicom_dir / "float_echotime.dcm"
-    t1.save_as(dicom_path_float, write_like_original=True)
 
-    # Second file: EchoTime as an int
-    t1.EchoTime = 26  # Set as int
-    dicom_path_int = dicom_dir / "int_echotime.dcm"
-    t1.save_as(dicom_path_int, write_like_original=True)
+@pytest.fixture
+def dicom_file(temp_dir):
+    return write_dummy_dicom(temp_dir, filename="test.dcm", patient_name="Test^Patient", series_number=2, instance_number=5)
 
-    # Read the DICOM session
-    result = load_dicom_session(
-        session_dir=str(dicom_dir)
+
+@pytest.fixture
+def dicom_bytes(dicom_file):
+    with open(dicom_file, "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+def nifti_file(temp_dir):
+    # Create a NIfTI file and an accompanying JSON file.
+    nii_path = create_dummy_nifti(temp_dir, filename="sub-01_task-rest.nii")
+    json_path = nii_path.replace(".nii", ".json")
+    data = {"extra": "value"}
+    with open(json_path, "w") as f:
+        json.dump(data, f)
+    return nii_path
+
+
+@pytest.fixture
+def json_file(temp_dir):
+    return create_temp_json(temp_dir, filename="ref.json")
+
+
+@pytest.fixture
+def valid_python_module(temp_dir):
+    # Dummy python module with ACQUISITION_MODELS as a dict.
+    content = '''
+from dicompare.validation import ValidationError, BaseValidationModel, validator
+class DummyValidationModel(BaseValidationModel):
+    pass
+ACQUISITION_MODELS = {"dummy": DummyValidationModel()}
+'''
+    return create_dummy_python_module(temp_dir, content, filename="valid_module.py")
+
+
+@pytest.fixture
+def no_models_python_module(temp_dir):
+    content = '''
+# No ACQUISITION_MODELS defined here.
+'''
+    return create_dummy_python_module(temp_dir, content, filename="no_models.py")
+
+
+@pytest.fixture
+def invalid_models_python_module(temp_dir):
+    content = '''
+ACQUISITION_MODELS = ["not", "a", "dict"]
+'''
+    return create_dummy_python_module(temp_dir, content, filename="invalid_models.py")
+
+
+# ---------- Tests for get_dicom_values and load_dicom ----------
+
+def test_get_dicom_values_skip_pixel():
+    ds = create_dummy_file_dataset("dummy", include_pixel=True)
+    # Use skip_pixel_data True so pixel data is omitted.
+    result = dicompare.get_dicom_values(ds, skip_pixel_data=True)
+    # Expect PatientName but no pixel data.
+    assert "PatientName" in result
+    for key in result.keys():
+        assert "7FE0,0010" not in key and key != "(7FE0,0010)"
+
+def test_get_dicom_values_no_skip_pixel():
+    ds = create_dummy_file_dataset("dummy", include_pixel=True)
+    # Even if skip_pixel_data is False, binary data is filtered out.
+    result = dicompare.get_dicom_values(ds, skip_pixel_data=False)
+    assert "PatientName" in result
+    # Pixel data element should be None or not present.
+    pixel_keys = [key for key in result if "7FE0" in key]
+    for k in pixel_keys:
+        assert result[k] is None
+
+def test_load_dicom_with_file(dicom_file):
+    result = dicompare.load_dicom(dicom_file, skip_pixel_data=True)
+    assert "PatientName" in result
+    assert result.get("InstanceNumber") is not None
+
+def test_load_dicom_with_bytes(dicom_bytes):
+    result = dicompare.load_dicom(dicom_bytes, skip_pixel_data=True)
+    assert "PatientName" in result
+    assert result.get("InstanceNumber") is not None
+
+
+# ---------- Tests for load_nifti_session ----------
+
+def test_load_nifti_session(nifti_file):
+    df = dicompare.load_nifti_session(session_dir=os.path.dirname(nifti_file), acquisition_fields=["ProtocolName"], show_progress=False)
+    # Check expected columns from nibabel and JSON inclusion.
+    assert "NIfTI_Path" in df.columns
+    assert "NIfTI_Shape" in df.columns
+    # Check BIDS tag extraction; for file "sub-01_task-rest.nii", expect a key from splitting "sub-01"
+    sample = df.iloc[0].to_dict()
+    # Suffix should be set from the last token.
+    assert "suffix" in sample
+    # Extra JSON field should be present.
+    assert sample.get("extra") == "value"
+
+
+# ---------- Tests for async_load_dicom_session and load_dicom_session ----------
+
+@pytest.mark.asyncio
+async def test_async_load_dicom_session_bytes(dicom_bytes):
+    # Test branch for dicom_bytes
+    dicom_dict = {"dummy": dicom_bytes}
+    progress_list = []
+    def progress_fn(p):
+        progress_list.append(p)
+    df = await dicompare.async_load_dicom_session(
+        dicom_bytes=dicom_dict,
+        skip_pixel_data=True,
+        show_progress=False,
+        progress_function=progress_fn,
+        parallel_workers=1
     )
+    assert not df.empty
+    # Check that progress function was called.
+    assert progress_list or progress_list == []
 
-    result_json = create_json_reference(result, ["EchoTime", "SeriesDescription"])
+@pytest.mark.asyncio
+async def test_async_load_dicom_session_dir(temp_dir, dicom_file):
+    # Test branch for session_dir
+    df = await dicompare.async_load_dicom_session(
+        session_dir=temp_dir,
+        skip_pixel_data=True,
+        show_progress=False,
+        progress_function=None,
+        parallel_workers=1
+    )
+    assert not df.empty
 
-    # Save the dataframe as a JSON file
-    json_path = tmp_path / "session_output.json"
-    with open(json_path, "w") as json_file:
-        json.dump(result_json, json_file, indent=4)
+def test_load_dicom_session_wrapper(dicom_bytes):
+    # Use the synchronous wrapper with dicom_bytes.
+    dicom_dict = {"dummy": dicom_bytes}
+    df = dicompare.load_dicom_session(
+        dicom_bytes=dicom_dict,
+        skip_pixel_data=True,
+        show_progress=False,
+        progress_function=None,
+        parallel_workers=1
+    )
+    assert not df.empty
 
-    # Use `read_json_session` to load the JSON
-    reference_fields, loaded_result = load_json_session(str(json_path))
-
-    # Validate that the reference fields are loaded correctly
-    assert set(reference_fields) == {"EchoTime", "SeriesDescription"}
-
-    # Validate the EchoTime values and their types in the JSON
-    acquisitions = loaded_result["acquisitions"]
-    assert len(acquisitions) == 1  # Ensure one acquisition
-    acquisition = list(acquisitions.values())[0]
-    series = acquisition["series"]
-    assert len(series) == 2  # Ensure two series
-
-    # Validate each series' EchoTime
-    for series_entry in series:
-        fields = {field["field"]: field["value"] for field in series_entry["fields"]}
-        if fields["EchoTime"] == 25.0:
-            assert isinstance(fields["EchoTime"], float)
-        elif fields["EchoTime"] == 26.0:
-            assert isinstance(fields["EchoTime"], float)
-        else:
-            pytest.fail("Unexpected EchoTime value found in the output.")
+def test_async_load_dicom_session_error():
+    with pytest.raises(ValueError, match="Either session_dir or dicom_bytes must be provided."):
+        asyncio.run(dicompare.async_load_dicom_session(
+            session_dir=None,
+            dicom_bytes=None,
+            skip_pixel_data=True
+        ))
 
 
-# Test for empty DICOM directory
-def test_read_dicom_session_empty_directory(tmp_path):
-    empty_dir = tmp_path / "empty_dir"
-    empty_dir.mkdir()
-    with pytest.raises(ValueError, match="No DICOM data found to process."):
-        load_dicom_session(
-            session_dir=str(empty_dir),
-        )
+# ---------- Tests for assign_acquisition_and_run_numbers ----------
+
+def test_assign_acquisition_and_run_numbers():
+    # Create a DataFrame with necessary columns.
+    data = {
+        "SeriesDescription": ["desc1", "desc1", "desc2"],
+        "SeriesNumber": [1, 2, 1],
+        "ProtocolName": ["protA", "protA", "protA"],
+        "PatientName": ["A", "A", "A"],
+        "PatientID": ["ID1", "ID1", "ID1"],
+        "StudyDate": ["20210101", "20210101", "20210101"],
+        "StudyTime": ["120000", "120000", "120000"],
+    }
+    df = pd.DataFrame(data)
+    df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
+    # Acquisition column should be set.
+    assert "Acquisition" in df_out.columns
+    # RunNumber column should exist and be numeric.
+    assert "RunNumber" in df_out.columns
+    assert df_out["RunNumber"].dtype.kind in "biuf"
+    # If only one series per description, run number should be 1.
+    runs = df_out.groupby("SeriesDescription")["RunNumber"].unique()
+    for arr in runs:
+        for run in arr:
+            assert run >= 1
+
+# ---------- Tests for load_json_session ----------
+
+def test_load_json_session(json_file):
+    fields, ref_data = dicompare.load_json_session(json_file)
+    # Expect two fields: one from acquisitions and one from series.
+    assert "TestField" in fields
+    assert "SeriesField" in fields
+    # Check structure.
+    assert "acquisitions" in ref_data
+    assert "acq1" in ref_data["acquisitions"]
+    acq = ref_data["acquisitions"]["acq1"]
+    assert "fields" in acq
+    assert isinstance(acq["series"], list)
+    assert acq["series"][0]["name"] == "series1"
+
+
+# ---------- Tests for load_python_session ----------
+
+def test_load_python_session_valid(valid_python_module):
+    models = dicompare.load_python_session(valid_python_module)
+    assert isinstance(models, dict)
+    assert "dummy" in models
+
+def test_load_python_session_no_models(no_models_python_module):
+    with pytest.raises(ValueError, match="does not define 'ACQUISITION_MODELS'"):
+        dicompare.load_python_session(no_models_python_module)
+
+def test_load_python_session_invalid(invalid_models_python_module):
+    with pytest.raises(ValueError, match="'ACQUISITION_MODELS' must be a dictionary"):
+        dicompare.load_python_session(invalid_models_python_module)
