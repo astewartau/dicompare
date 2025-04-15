@@ -243,12 +243,12 @@ def test_assign_acquisition_and_run_numbers():
     data = {
         "SeriesDescription": ["desc1", "desc1", "desc2"],
         "ImageType": [("ORIGINAL", "PRIMARY", "AXIAL"), ("ORIGINAL", "PRIMARY", "AXIAL"), ("DERIVED", "SECONDARY", "AXIAL")],
-        "SeriesNumber": [1, 2, 1],
+        "SeriesTime": ["120000", "130000", "120000"],
         "ProtocolName": ["protA", "protA", "protA"],
         "PatientName": ["A", "A", "A"],
         "PatientID": ["ID1", "ID1", "ID1"],
         "StudyDate": ["20210101", "20210101", "20210101"],
-        "StudyTime": ["120000", "120000", "120000"],
+        "StudyTime": ["120000", "130000", "120000"],
     }
     df = pd.DataFrame(data)
     df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
