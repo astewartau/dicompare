@@ -11,10 +11,7 @@ import pandas as pd
 import importlib.util
 import nibabel as nib
 
-from pydicom.dataset import FileDataset
 from pydicom.multival import MultiValue
-from pydicom.uid import UID
-from pydicom.valuerep import PersonName, DSfloat, IS, DSdecimal, DT
 from typing import List, Optional, Dict, Any, Union, Tuple, Callable
 from io import BytesIO
 from tqdm import tqdm
@@ -23,35 +20,79 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .utils import make_hashable, normalize_numeric_values, clean_string
 from .validation import BaseValidationModel
 
-def get_dicom_values(ds: FileDataset, skip_pixel_data: bool = True) -> Dict[str, Any]:
+
+def to_plain(value):
     """
-    Convert a DICOM dataset to a dictionary, filtering out binary data, NaN values, and empty fields.
-
-    Args:
-        ds (pydicom.dataset.FileDataset): The DICOM dataset to process.
-        skip_pixel_data (bool): Whether to skip the pixel data element (default: True).
-
-    Returns:
-        Dict[str, Any]: A dictionary of extracted DICOM metadata, excluding binary, NaN, and empty values.
+    Recursively convert any pydicom-specific types (e.g. MultiValue) into plain Python types.
+    Lists and MultiValue objects become tuples.
     """
-    dicom_dict = {}
+    if isinstance(value, (list, MultiValue)):
+        return tuple(to_plain(item) for item in value)
+    elif isinstance(value, dict):
+        return {k: to_plain(v) for k, v in value.items()}
+    else:
+        return value
 
-    def process_element(element, recurses=0):
-        """Process and normalize DICOM element values, converting to the most appropriate datatype."""
+def flatten_dict(d, parent_key='', sep='_'):
+    """
+    Recursively flatten a dictionary, merging nested keys using a separator.
+    """
+    items = {}
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.update(flatten_dict(v, new_key, sep=sep))
+        else:
+            items[new_key] = v
+    return items
+
+def get_dicom_values(ds, skip_pixel_data=True):
+    """
+    Convert a DICOM dataset to a dictionary of metadata for regular files or a list of dictionaries
+    for enhanced DICOM files.
+    
+    For enhanced files (those with a 'PerFrameFunctionalGroupsSequence'),
+    each frame yields one dictionary merging common metadata with frame-specific details.
+    
+    This version flattens nested dictionaries, converts any pydicom types into plain Python types,
+    and maps enhanced DICOM field names to their regular equivalents.
+    """
+    from pydicom.multival import MultiValue
+    from pydicom.valuerep import DT, DSfloat, DSdecimal, IS
+    from pydicom.uid import UID
+    from pydicom.valuerep import PersonName
+
+    def to_plain(value):
+        if isinstance(value, (list, MultiValue)):
+            return tuple(to_plain(item) for item in value)
+        elif isinstance(value, dict):
+            return {k: to_plain(v) for k, v in value.items()}
+        else:
+            return value
+
+    def flatten_dict(d, parent_key='', sep='_'):
+        items = {}
+        for k, v in d.items():
+            new_key = f"{parent_key}{sep}{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.update(flatten_dict(v, new_key, sep=sep))
+            else:
+                items[new_key] = v
+        return items
+
+    def process_element(element, recurses=0, skip_pixel_data=True):
         if element.tag == 0x7fe00010 and skip_pixel_data:
-            return None  # Skip pixel data
+            return None
         if isinstance(element.value, (bytes, memoryview)):
-            return None  # Skip binary data
+            return None
 
         def convert_value(v, recurses=0):
-            """Convert value to int if possible, else float, else keep as string."""
             if recurses > 2:
                 return None
             try:
-                if element.VR == 'SQ' or isinstance(v, (MultiValue, list)):
+                if element.VR == 'SQ' or isinstance(v, (list, MultiValue)):
                     v = [convert_value(item, recurses + 1) for item in v]
-                    v = [item for item in v if item is not None]
-                    return tuple(v)
+                    return tuple(item for item in v if item is not None)
                 if isinstance(v, DT):
                     return v.strftime("%Y-%m-%d %H:%M:%S")
                 if isinstance(v, (int, IS)):
@@ -62,23 +103,107 @@ def get_dicom_values(ds: FileDataset, skip_pixel_data: bool = True) -> Dict[str,
                     return v if v == v else None
                 if isinstance(v, (UID, PersonName, str)):
                     return str(v)
-            except:
+            except Exception:
                 try:
                     return str(v)
-                except:
+                except Exception:
                     return None
             return None
 
         v = convert_value(element.value)
-        return v if (v == v and v != None) else None
+        return v if (v == v and v is not None) else None
 
-    for element in ds:
-        value = process_element(element)
-        if value is not None:
-            keyword = element.keyword if element.keyword else f"({element.tag.group:04X},{element.tag.element:04X})"
-            dicom_dict[keyword] = value
+    # Define mapping from enhanced keys to regular DICOM field names.
+    enhanced_to_regular = {
+        "MREchoSequence_EffectiveEchoTime": "EchoTime",
+        "MRAveragesSequence_NumberOfAverages": "NumberOfAverages",
+        "PixelMeasuresSequence_SliceThickness": "SliceThickness",
+        "PixelMeasuresSequence_PixelSpacing": "PixelSpacing",
+        "PixelValueTransformationSequence_RescaleIntercept": "RescaleIntercept",
+        "PixelValueTransformationSequence_RescaleSlope": "RescaleSlope",
+        "PixelValueTransformationSequence_RescaleType": "RescaleType",
+        "PlaneOrientationSequence_ImageOrientationPatient": "ImageOrientationPatient",
+        "PlanePositionSequence_ImagePositionPatient": "ImagePositionPatient",
+        "FrameVOILUTSequence_WindowCenter": "WindowCenter",
+        "FrameVOILUTSequence_WindowWidth": "WindowWidth",
+        "MRImageFrameTypeSequence_FrameType": "ImageType",
+        "FrameContentSequence_FrameAcquisitionDateTime": "AcquisitionDateTime",
+        "FrameContentSequence_FrameAcquisitionNumber": "AcquisitionNumber",
+        # Add additional mappings here as needed.
+    }
 
-    return dicom_dict
+    if "PerFrameFunctionalGroupsSequence" in ds:
+        common = {}
+        for element in ds:
+            if element.keyword == "PerFrameFunctionalGroupsSequence":
+                continue
+            if element.tag == 0x7fe00010 and skip_pixel_data:
+                continue
+            value = process_element(element, recurses=0)
+            if value is not None:
+                key = element.keyword if element.keyword else f"({element.tag.group:04X},{element.tag.element:04X})"
+                common[key] = value
+
+        enhanced_rows = []
+        for frame_index, frame in enumerate(ds.PerFrameFunctionalGroupsSequence):
+            frame_data = {}
+            for key in frame.dir():
+                try:
+                    value = frame.get(key)
+                    if isinstance(value, pydicom.sequence.Sequence):
+                        if len(value) == 1:
+                            sub_ds = value[0]
+                            sub_dict = {}
+                            for sub_key in sub_ds.dir():
+                                sub_value = sub_ds.get(sub_key)
+                                if hasattr(sub_value, 'strftime'):
+                                    sub_dict[sub_key] = sub_value.strftime("%Y-%m-%d %H:%M:%S")
+                                else:
+                                    sub_dict[sub_key] = sub_value
+                            frame_data[key] = sub_dict
+                        else:
+                            sub_list = []
+                            for item in value:
+                                sub_dict = {}
+                                for sub_key in item.dir():
+                                    sub_value = item.get(sub_key)
+                                    if hasattr(sub_value, 'strftime'):
+                                        sub_dict[sub_key] = sub_value.strftime("%Y-%m-%d %H:%M:%S")
+                                    else:
+                                        sub_dict[sub_key] = sub_value
+                                sub_list.append(sub_dict)
+                            frame_data[key] = sub_list
+                    else:
+                        if isinstance(value, (list, MultiValue)):
+                            frame_data[key] = tuple(value)
+                        else:
+                            frame_data[key] = value
+                except Exception:
+                    continue
+            frame_data["FrameIndex"] = frame_index
+            merged = common.copy()
+            merged.update(frame_data)
+            flat_merged = flatten_dict(merged)
+            plain_merged = {k: to_plain(v) for k, v in flat_merged.items()}
+            # Map enhanced fields to regular ones.
+            for enh_field, reg_field in enhanced_to_regular.items():
+                if enh_field in plain_merged and reg_field not in plain_merged:
+                    plain_merged[reg_field] = plain_merged[enh_field]
+            enhanced_rows.append(plain_merged)
+        return enhanced_rows
+    else:
+        dicom_dict = {}
+        for element in ds:
+            value = process_element(element, recurses=0)
+            if value is not None:
+                keyword = element.keyword if element.keyword else f"({element.tag.group:04X},{element.tag.element:04X})"
+                dicom_dict[keyword] = value
+        flat_dict = flatten_dict(dicom_dict)
+        plain_dict = {k: to_plain(v) for k, v in flat_dict.items()}
+        for enh_field, reg_field in enhanced_to_regular.items():
+            if enh_field in plain_dict and reg_field not in plain_dict:
+                plain_dict[reg_field] = plain_dict[enh_field]
+        return plain_dict
 
 def load_dicom(dicom_file: Union[str, bytes], skip_pixel_data: bool = True) -> Dict[str, Any]:
     """
@@ -175,11 +300,12 @@ def load_nifti_session(
         session_df[col] = session_df[col].apply(make_hashable)
 
     if acquisition_fields:
-        groups = [group.reset_index(drop=True) for _, group in session_df.groupby(acquisition_fields)]
-        session_df = pd.concat(groups, ignore_index=True)
+        session_df = session_df.groupby(acquisition_fields).apply(lambda x: x.reset_index(drop=True))
 
     return session_df
     
+
+
 async def async_load_dicom_session(
     session_dir: Optional[str] = None,
     dicom_bytes: Optional[Union[Dict[str, bytes], Any]] = None,
@@ -253,9 +379,15 @@ async def async_load_dicom_session(
                         await asyncio.sleep(0)
                 try:
                     dicom_values = load_dicom(content, skip_pixel_data=skip_pixel_data)
-                    dicom_values["DICOM_Path"] = key
-                    dicom_values["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
-                    session_data.append(dicom_values)
+                    if isinstance(dicom_values, list):
+                        for dicom_value in dicom_values:
+                            dicom_value["DICOM_Path"] = key
+                            dicom_value["InstanceNumber"] = int(dicom_value.get("InstanceNumber", 0))
+                            session_data.append(dicom_value)
+                    else:
+                        dicom_values["DICOM_Path"] = key
+                        dicom_values["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
+                        session_data.append(dicom_values)
                 except Exception as e:
                     print(f"Error reading {key}: {e}")
     # 2) Session directory branch
@@ -298,13 +430,16 @@ async def async_load_dicom_session(
                         progress_prev = progress
                         progress_function(progress)
                         await asyncio.sleep(0)
-                try:
-                    dicom_values = load_dicom(dicom_path, skip_pixel_data=skip_pixel_data)
+                dicom_values = load_dicom(dicom_path, skip_pixel_data=skip_pixel_data)
+                if isinstance(dicom_values, list):
+                    for dicom_value in dicom_values:
+                        dicom_value["DICOM_Path"] = dicom_path
+                        dicom_value["InstanceNumber"] = int(dicom_value.get("InstanceNumber", 0))
+                        session_data.append(dicom_value)
+                else:
                     dicom_values["DICOM_Path"] = dicom_path
                     dicom_values["InstanceNumber"] = int(dicom_values.get("InstanceNumber", 0))
                     session_data.append(dicom_values)
-                except Exception as e:
-                    print(f"Error reading {dicom_path}: {e}")
     else:
         raise ValueError("Either session_dir or dicom_bytes must be provided.")
 
@@ -397,78 +532,110 @@ def assign_acquisition_and_run_numbers(
             "PartialFourierDirection",
         ],
         acquisition_fields=["ProtocolName"],
-        run_group_fields=["PatientName", "PatientID", "ProtocolName", "StudyDate"]
+        run_group_fields=["PatientName", "PatientID", "ProtocolName", "StudyDate", "StudyTime"]
     ):
     
+    # Group by unique combinations of acquisition fields
     if acquisition_fields:
-        groups = [group.reset_index(drop=True) for _, group in session_df.groupby(acquisition_fields)]
-        session_df = pd.concat(groups, ignore_index=True)
-
+        session_df = session_df.groupby(acquisition_fields).apply(lambda x: x.reset_index(drop=True))
+    
+    # Convert acquisition fields to strings and handle missing values
     def clean_acquisition_values(row):
         return "-".join(str(val) if pd.notnull(val) else "NA" for val in row)
-
+    
+    # Initial Acquisition label (ignoring reference_fields for now)
     session_df["Acquisition"] = (
         "acq-"
         + session_df[acquisition_fields]
         .apply(clean_acquisition_values, axis=1)
         .apply(clean_string)
     )
-
+    
+    # Identifying runs based on SeriesDescription and SeriesTime
     run_group_fields = [field for field in run_group_fields if field in session_df.columns]
+    
+    # For each run group
     session_df.reset_index(drop=True, inplace=True)
     for run_group, group_df in session_df.groupby(run_group_fields):
-        group_df.sort_values("SeriesNumber", inplace=True)
 
-        for key, sub_df in group_df.groupby(["SeriesDescription", "ImageType"]):
-            series_num = sub_df["SeriesNumber"].unique()
+        # Sort by SeriesNumber
+        group_df.sort_values("SeriesNumber", inplace=True)
+        
+        # Get unique SeriesDescription values
+        for series_description in group_df["SeriesDescription"].unique():
+            
+            # If there are multiple SeriesNumbers for the same SeriesDescription
+            series_num = group_df.loc[group_df["SeriesDescription"] == series_description, "SeriesNumber"].unique()
             if len(series_num) > 1:
                 run_number = 1
-                for series_id in series_num:
-                    session_df.loc[sub_df.index[sub_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
+                for i, series_id in enumerate(series_num):
+                    session_df.loc[group_df.index[group_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
                     run_number += 1
             else:
-                session_df.loc[sub_df.index, "RunNumber"] = 1
+                session_df.loc[group_df.index, "RunNumber"] = 1
 
+    # Identify acquisitions that are actually multiple acquisitions
     if reference_fields:
+        # for each protocol
         for pn, protocol_df in session_df.groupby(['ProtocolName']):
-            settings_group_fields = [field for field in ["PatientName", "PatientID", "StudyDate", "RunNumber"] if field in protocol_df.columns]
+            settings_group_fields = [field for field in ["PatientName", "PatientID", "StudyDate", "RunNumber"] if field in session_df.columns]
             param_to_settings = {}
             settings_counter = 1
 
-            for settings_group, group_df in protocol_df.groupby(settings_group_fields):
+            # for each run group
+            for settings_group, group_df in session_df.groupby(settings_group_fields):
+                # Build a tuple of (field, sorted unique values) for each reference field.
                 param_tuple = tuple(
-                    (field, tuple(sorted(group_df[field].dropna().unique())))
+                    (field, tuple(sorted(group_df[field].dropna().unique(), key=str)))
                     for field in reference_fields
                     if field in group_df.columns
                 )
-                if param_tuple not in param_to_settings:
-                    param_to_settings[param_tuple] = settings_counter
-                    settings_counter += 1
-                session_df.loc[group_df.index, "SettingsNumber"] = param_to_settings[param_tuple]
 
+                # If we haven’t seen this parameter set yet, assign a new settings number.
+                if param_tuple not in param_to_settings:
+                    # Store the settings number for this parameter set
+                    param_to_settings[param_tuple] = settings_counter
+
+                    # Assign the settings number to each row based on the parameter set.
+                    session_df.loc[group_df.index, "SettingsNumber"] = settings_counter
+
+                    # Increment the settings counter
+                    settings_counter += 1
+        
+        # For any ProtocolName with multiple SettingsNumber, update the Acquisition label to include the SettingsNumber
         if "SettingsNumber" in session_df.columns:
+            # Identify base acquisition groups with multiple settings numbers.
             acq_counts = session_df.groupby("Acquisition")["SettingsNumber"].nunique()
             acq_to_update = acq_counts[acq_counts > 1].index
 
+            # For rows belonging to those groups, update the Acquisition label by appending the row's SettingsNumber.
             mask = session_df["Acquisition"].isin(acq_to_update)
             session_df.loc[mask, "Acquisition"] = session_df.loc[mask].apply(
                 lambda row: f"{row['Acquisition']}-{int(row['SettingsNumber'])}", axis=1
             )
-
+            
+            # Delete SettingsNumber column.
             del session_df["SettingsNumber"]
 
+            # Recalculate Acquisition label to include RunNumber.
             session_df.reset_index(drop=True, inplace=True)
             for run_group, group_df in session_df.groupby(["Acquisition"] + run_group_fields):
+
+                # Sort by SeriesNumber.
                 group_df.sort_values("SeriesNumber", inplace=True)
-                for key, sub_df in group_df.groupby(["SeriesDescription", "ImageType"]):
-                    series_num = sub_df["SeriesNumber"].unique()
+                
+                # Get unique SeriesDescription values.
+                for series_description in group_df["SeriesDescription"].unique():
+                    
+                    # If there are multiple SeriesNumbers for the same SeriesDescription.
+                    series_num = group_df.loc[group_df["SeriesDescription"] == series_description, "SeriesNumber"].unique()
                     if len(series_num) > 1:
                         run_number = 1
-                        for series_id in series_num:
-                            session_df.loc[sub_df.index[sub_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
+                        for i, series_id in enumerate(series_num):
+                            session_df.loc[group_df.index[group_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
                             run_number += 1
                     else:
-                        session_df.loc[sub_df.index, "RunNumber"] = 1
+                        session_df.loc[group_df.index, "RunNumber"] = 1
 
     return session_df
 

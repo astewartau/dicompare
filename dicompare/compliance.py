@@ -9,10 +9,6 @@ from typing import List, Dict, Any
 from dicompare.validation import BaseValidationModel
 import pandas as pd
 
-import pandas as pd
-from typing import Dict, Any, List
-
-
 def check_session_compliance_with_json_reference(
     in_session: pd.DataFrame,
     ref_session: Dict[str, Any],
@@ -20,6 +16,9 @@ def check_session_compliance_with_json_reference(
 ) -> List[Dict[str, Any]]:
     """
     Validate a DICOM session against a JSON reference session.
+    All string comparisons occur in a case-insensitive manner with extra whitespace trimmed.
+    If an input value is a list with one element and the expected value is a string,
+    the element is unwrapped before comparing.
 
     Args:
         in_session (pd.DataFrame): Input session DataFrame containing DICOM metadata.
@@ -27,17 +26,52 @@ def check_session_compliance_with_json_reference(
         session_map (Dict[str, str]): Mapping of reference acquisitions to input acquisitions.
 
     Returns:
-        List[Dict[str, Any]]: A list of compliance issues, where each issue is represented
-                              as a dictionary. Acquisition-level fields yield a record with
-                              "series": None. Series-level checks produce one pass/fail record
-                              per reference series, with a "series" key indicating the
-                              reference series name.
+        List[Dict[str, Any]]: A list of compliance issues. Acquisition-level checks yield a record with "series": None.
+                              Series-level checks produce one record per reference series.
     """
-
     compliance_summary: List[Dict[str, Any]] = []
 
-    # -------------------------------------------------------
-    # Helper: Checks if a single row's value meets the constraint (contains, tolerance, etc.)
+    # Helper: if a value is numeric, leave it; otherwise convert to a stripped lowercase string.
+    def normalize_value(val: Any) -> Any:
+        if isinstance(val, (int, float)):
+            return val
+        if isinstance(val, list):
+            return [normalize_value(x) for x in val]
+        try:
+            # If the object has a strip method, assume it's string-like.
+            if hasattr(val, "strip") and callable(val.strip):
+                return val.strip().lower()
+            # Otherwise, convert to string.
+            return str(val).strip().lower()
+        except Exception:
+            return val
+
+    # Compare two values in a case-insensitive manner.
+    # If one is a list with one string element and the other is a string, the element is unwrapped.
+    def check_equality(val: Any, expected: Any) -> bool:
+        # Unwrap if actual is a list containing one string.
+        if isinstance(val, list) and isinstance(expected, str):
+            if len(val) == 1 and isinstance(val[0], (str,)):
+                return normalize_value(val[0]) == normalize_value(expected)
+            return False
+        if isinstance(expected, list) and isinstance(val, str):
+            if len(expected) == 1 and isinstance(expected[0], (str,)):
+                return normalize_value(val) == normalize_value(expected[0])
+            return False
+        if isinstance(val, (str,)) or isinstance(expected, (str,)):
+            return normalize_value(val) == normalize_value(expected)
+        return val == expected
+
+    # Check if actual contains the given substring, comparing in normalized form.
+    def check_contains(actual: Any, substring: str) -> bool:
+        sub_norm = substring.strip().lower()
+        if isinstance(actual, str) or (hasattr(actual, "strip") and callable(actual.strip)):
+            return normalize_value(actual).find(sub_norm) != -1
+        elif isinstance(actual, (list, tuple)):
+            return any(isinstance(x, str) and normalize_value(x).find(sub_norm) != -1 for x in actual)
+        return False
+
+    # Core constraint check.
     def _row_passes_constraint(
         actual_value: Any,
         expected_value: Any = None,
@@ -45,27 +79,19 @@ def check_session_compliance_with_json_reference(
         contains: str = None
     ) -> bool:
         if contains is not None:
-            if not isinstance(actual_value, (str, list, tuple)):
-                return False
-            return (contains in actual_value)
-
+            return check_contains(actual_value, contains)
         elif tolerance is not None:
             if not isinstance(actual_value, (int, float)):
                 return False
             return (expected_value - tolerance <= actual_value <= expected_value + tolerance)
-
         elif isinstance(expected_value, list):
             if not isinstance(actual_value, list):
                 return False
-            return set(actual_value) == set(expected_value)
-
+            return set(normalize_value(actual_value)) == set(normalize_value(expected_value))
         elif expected_value is not None:
-            return (actual_value == expected_value)
+            return check_equality(actual_value, expected_value)
+        return True
 
-        return True  # no constraints specified => pass
-
-    # -------------------------------------------------------
-    # Acquisition-level fields → one record per field ("series": None).
     def _check_acquisition_fields(
         ref_acq_name: str,
         in_acq_name: str,
@@ -94,12 +120,10 @@ def check_session_compliance_with_json_reference(
             actual_values = in_acq[field].unique().tolist()
             invalid_values = []
 
-            # Evaluate constraints
             if contains is not None:
                 for val in actual_values:
-                    if not isinstance(val, (str, list, tuple)) or (contains not in val):
+                    if not check_contains(val, contains):
                         invalid_values.append(val)
-
                 if invalid_values:
                     compliance_summary.append({
                         "reference acquisition": ref_acq_name,
@@ -127,11 +151,9 @@ def check_session_compliance_with_json_reference(
                         "passed": "❌"
                     })
                     continue
-
                 for val in actual_values:
                     if not (expected_value - tolerance <= val <= expected_value + tolerance):
                         invalid_values.append(val)
-
                 if invalid_values:
                     compliance_summary.append({
                         "reference acquisition": ref_acq_name,
@@ -147,7 +169,7 @@ def check_session_compliance_with_json_reference(
 
             elif isinstance(expected_value, list):
                 for val in actual_values:
-                    if not isinstance(val, list) or set(val) != set(expected_value):
+                    if not isinstance(val, list) or set(normalize_value(val)) != set(normalize_value(expected_value)):
                         invalid_values.append(val)
                 if invalid_values:
                     compliance_summary.append({
@@ -164,7 +186,7 @@ def check_session_compliance_with_json_reference(
 
             elif expected_value is not None:
                 for val in actual_values:
-                    if val != expected_value:
+                    if not check_equality(val, expected_value):
                         invalid_values.append(val)
                 if invalid_values:
                     compliance_summary.append({
@@ -179,7 +201,6 @@ def check_session_compliance_with_json_reference(
                     })
                     continue
 
-            # If we reach here, no fails → pass
             compliance_summary.append({
                 "reference acquisition": ref_acq_name,
                 "input acquisition": in_acq_name,
@@ -191,8 +212,6 @@ def check_session_compliance_with_json_reference(
                 "passed": "✅"
             })
 
-    # -------------------------------------------------------
-    # Series-level fields → one record per reference series ("series": s_name).
     def _check_series_fields(
         ref_acq_name: str,
         in_acq_name: str,
@@ -201,11 +220,9 @@ def check_session_compliance_with_json_reference(
     ) -> None:
         s_name = sdef.get("name", "<unnamed>")
         s_fields = sdef.get("fields", [])
-
         matching_df = in_acq
         missing_field = False
 
-        # Step 1) Filter by row constraints
         for fdef in s_fields:
             field = fdef["field"]
             e_val = fdef.get("value")
@@ -233,11 +250,9 @@ def check_session_compliance_with_json_reference(
                 break
 
         if missing_field:
-            # Already logged an error
             return
 
         if matching_df.empty:
-            # No rows matched all constraints
             field_names = [f["field"] for f in s_fields]
             compliance_summary.append({
                 "reference acquisition": ref_acq_name,
@@ -251,8 +266,6 @@ def check_session_compliance_with_json_reference(
             })
             return
 
-        # Step 2) We have at least one row that meets all constraints
-        # Summarize into one pass/fail record for all fields in this series.
         actual_values_agg = {}
         constraints_agg = {}
         fail_messages = []
@@ -264,29 +277,25 @@ def check_session_compliance_with_json_reference(
             tol = fdef.get("tolerance")
             ctn = fdef.get("contains")
 
-            # Rows that survived the filter
             values = matching_df[field].unique().tolist()
             actual_values_agg[field] = values
 
-            # Build a short descriptor of constraints
-            constraint_pieces = []
+            pieces = []
             if e_val is not None:
                 if tol is not None:
-                    constraint_pieces.append(f"value={e_val} ± {tol}")
+                    pieces.append(f"value={e_val} ± {tol}")
                 elif isinstance(e_val, list):
-                    constraint_pieces.append(f"value(list)={e_val}")
+                    pieces.append(f"value(list)={e_val}")
                 else:
-                    constraint_pieces.append(f"value={e_val}")
+                    pieces.append(f"value={e_val}")
             if ctn is not None:
-                constraint_pieces.append(f"contains='{ctn}'")
+                pieces.append(f"contains='{ctn}'")
+            constraints_agg[field] = ", ".join(pieces) if pieces else "(none)"
 
-            constraints_agg[field] = ", ".join(constraint_pieces) if constraint_pieces else "(none)"
-
-            # Double-check for fails just to collect a final message
             invalid_values = []
             if ctn is not None:
                 for val in values:
-                    if not isinstance(val, (str, list, tuple)) or (ctn not in val):
+                    if not check_contains(val, ctn):
                         invalid_values.append(val)
                 if invalid_values:
                     any_fail = True
@@ -307,7 +316,7 @@ def check_session_compliance_with_json_reference(
 
             elif isinstance(e_val, list):
                 for val in values:
-                    if not isinstance(val, list) or set(val) != set(e_val):
+                    if not isinstance(val, list) or set(normalize_value(val)) != set(normalize_value(e_val)):
                         invalid_values.append(val)
                 if invalid_values:
                     any_fail = True
@@ -315,13 +324,12 @@ def check_session_compliance_with_json_reference(
 
             elif e_val is not None:
                 for val in values:
-                    if val != e_val:
+                    if not check_equality(val, e_val):
                         invalid_values.append(val)
                 if invalid_values:
                     any_fail = True
                     fail_messages.append(f"Field '{field}': expected {e_val}, got {invalid_values}")
 
-        # Summarize pass/fail
         if any_fail:
             compliance_summary.append({
                 "reference acquisition": ref_acq_name,
@@ -345,8 +353,7 @@ def check_session_compliance_with_json_reference(
                 "passed": "✅"
             })
 
-    # -------------------------------------------------------
-    # 1) Check for unmapped reference acquisitions
+    # 1) Check for unmapped reference acquisitions.
     for ref_acq_name in ref_session["acquisitions"]:
         if ref_acq_name not in session_map:
             compliance_summary.append({
@@ -360,22 +367,18 @@ def check_session_compliance_with_json_reference(
                 "passed": "❌"
             })
 
-    # -------------------------------------------------------
-    # 2) Process each mapped acquisition
+    # 2) Process each mapped acquisition.
     for ref_acq_name, in_acq_name in session_map.items():
         ref_acq = ref_session["acquisitions"].get(ref_acq_name, {})
         in_acq = in_session[in_session["Acquisition"] == in_acq_name]
-
-        # Acquisition-level checks
         ref_fields = ref_acq.get("fields", [])
         _check_acquisition_fields(ref_acq_name, in_acq_name, ref_fields, in_acq)
-
-        # Series-level checks
         ref_series = ref_acq.get("series", [])
         for sdef in ref_series:
             _check_series_fields(ref_acq_name, in_acq_name, sdef, in_acq)
 
     return compliance_summary
+
 
 def check_session_compliance_with_python_module(
     in_session: pd.DataFrame,
