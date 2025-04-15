@@ -558,18 +558,18 @@ def assign_acquisition_and_run_numbers(
     session_df.reset_index(drop=True, inplace=True)
     for run_group, group_df in session_df.groupby(run_group_fields):
 
-        # Sort by SeriesNumber
-        group_df.sort_values("SeriesNumber", inplace=True)
+        # Sort by SeriesTime
+        group_df.sort_values("SeriesTime", inplace=True)
         
         # Get unique SeriesDescription values
         for series_description in group_df["SeriesDescription"].unique():
             
-            # If there are multiple SeriesNumbers for the same SeriesDescription
-            series_num = group_df.loc[group_df["SeriesDescription"] == series_description, "SeriesNumber"].unique()
-            if len(series_num) > 1:
+            # If there are multiple SeriesTime values for the same SeriesDescription
+            series_time = group_df.loc[group_df["SeriesDescription"] == series_description, "SeriesTime"].unique()
+            if len(series_time) > 1:
                 run_number = 1
-                for i, series_id in enumerate(series_num):
-                    session_df.loc[group_df.index[group_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
+                for i, series_time_i in enumerate(series_time):
+                    session_df.loc[group_df.index[group_df["SeriesTime"] == series_time_i], "RunNumber"] = run_number
                     run_number += 1
             else:
                 session_df.loc[group_df.index, "RunNumber"] = 1
@@ -584,6 +584,7 @@ def assign_acquisition_and_run_numbers(
 
             # for each run group
             for settings_group, group_df in session_df.groupby(settings_group_fields):
+
                 # Build a tuple of (field, sorted unique values) for each reference field.
                 param_tuple = tuple(
                     (field, tuple(sorted(group_df[field].dropna().unique(), key=str)))
@@ -621,18 +622,18 @@ def assign_acquisition_and_run_numbers(
             session_df.reset_index(drop=True, inplace=True)
             for run_group, group_df in session_df.groupby(["Acquisition"] + run_group_fields):
 
-                # Sort by SeriesNumber.
-                group_df.sort_values("SeriesNumber", inplace=True)
+                # Sort by SeriesTime.
+                group_df.sort_values("SeriesTime", inplace=True)
                 
                 # Get unique SeriesDescription values.
                 for series_description in group_df["SeriesDescription"].unique():
                     
-                    # If there are multiple SeriesNumbers for the same SeriesDescription.
-                    series_num = group_df.loc[group_df["SeriesDescription"] == series_description, "SeriesNumber"].unique()
-                    if len(series_num) > 1:
+                    # If there are multiple SeriesTime for the same SeriesDescription.
+                    series_time = group_df.loc[group_df["SeriesDescription"] == series_description, "SeriesTime"].unique()
+                    if len(series_time) > 1:
                         run_number = 1
-                        for i, series_id in enumerate(series_num):
-                            session_df.loc[group_df.index[group_df["SeriesNumber"] == series_id], "RunNumber"] = run_number
+                        for i, series_time_i in enumerate(series_time):
+                            session_df.loc[group_df.index[group_df["SeriesTime"] == series_time_i], "RunNumber"] = run_number
                             run_number += 1
                     else:
                         session_df.loc[group_df.index, "RunNumber"] = 1
