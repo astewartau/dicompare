@@ -113,7 +113,7 @@ def check_session_compliance_with_json_reference(
                     "expected": f"(value={expected_value}, tolerance={tolerance}, contains={contains})",
                     "value": None,
                     "message": "Field not found in input session.",
-                    "passed": "❌"
+                    "passed": False
                 })
                 continue
 
@@ -133,7 +133,7 @@ def check_session_compliance_with_json_reference(
                         "expected": f"contains='{contains}'",
                         "value": actual_values,
                         "message": f"Expected to contain '{contains}', got {invalid_values}",
-                        "passed": "❌"
+                        "passed": False
                     })
                     continue
 
@@ -148,7 +148,7 @@ def check_session_compliance_with_json_reference(
                         "expected": f"value={expected_value} ± {tolerance}",
                         "value": actual_values,
                         "message": f"Field must be numeric; found {non_numeric}",
-                        "passed": "❌"
+                        "passed": False
                     })
                     continue
                 for val in actual_values:
@@ -163,7 +163,7 @@ def check_session_compliance_with_json_reference(
                         "expected": f"value={expected_value} ± {tolerance}",
                         "value": actual_values,
                         "message": f"Invalid values found: {invalid_values} (all values: {actual_values})",
-                        "passed": "❌"
+                        "passed": False
                     })
                     continue
 
@@ -180,7 +180,7 @@ def check_session_compliance_with_json_reference(
                         "expected": f"value={expected_value}",
                         "value": actual_values,
                         "message": f"Expected list-based match, got {invalid_values}",
-                        "passed": "❌"
+                        "passed": False
                     })
                     continue
 
@@ -197,7 +197,7 @@ def check_session_compliance_with_json_reference(
                         "expected": f"value={expected_value}",
                         "value": actual_values,
                         "message": f"Mismatched values: {invalid_values}",
-                        "passed": "❌"
+                        "passed": False
                     })
                     continue
 
@@ -209,21 +209,22 @@ def check_session_compliance_with_json_reference(
                 "expected": f"(value={expected_value}, tolerance={tolerance}, contains={contains})",
                 "value": actual_values,
                 "message": "Passed.",
-                "passed": "✅"
+                "passed": True
             })
 
     def _check_series_fields(
         ref_acq_name: str,
         in_acq_name: str,
-        sdef: Dict[str, Any],
+        ref_series_schema: Dict[str, Any],
         in_acq: pd.DataFrame
     ) -> None:
-        s_name = sdef.get("name", "<unnamed>")
-        s_fields = sdef.get("fields", [])
+        
+        ref_series_name = ref_series_schema.get("name", "<unnamed>")
+        ref_series_fields = ref_series_schema.get("fields", [])
         matching_df = in_acq
         missing_field = False
 
-        for fdef in s_fields:
+        for fdef in ref_series_fields:
             field = fdef["field"]
             e_val = fdef.get("value")
             tol = fdef.get("tolerance")
@@ -233,12 +234,12 @@ def check_session_compliance_with_json_reference(
                 compliance_summary.append({
                     "reference acquisition": ref_acq_name,
                     "input acquisition": in_acq_name,
-                    "series": s_name,
+                    "series": ref_series_name,
                     "field": field,
                     "expected": f"(value={e_val}, tolerance={tol}, contains={ctn})",
                     "value": None,
-                    "message": f"Field '{field}' not found in input for series '{s_name}'.",
-                    "passed": "❌"
+                    "message": f"Field '{field}' not found in input for series '{ref_series_name}'.",
+                    "passed": False
                 })
                 missing_field = True
                 break
@@ -253,16 +254,16 @@ def check_session_compliance_with_json_reference(
             return
 
         if matching_df.empty:
-            field_names = [f["field"] for f in s_fields]
+            field_names = [f["field"] for f in ref_series_fields]
             compliance_summary.append({
                 "reference acquisition": ref_acq_name,
                 "input acquisition": in_acq_name,
-                "series": s_name,
+                "series": ref_series_name,
                 "field": ", ".join(field_names),
-                "expected": str(sdef['fields']),
+                "expected": str(ref_series_schema['fields']),
                 "value": None,
-                "message": f"Series '{s_name}' not found with the specified constraints.",
-                "passed": "❌"
+                "message": f"Series '{ref_series_name}' not found with the specified constraints.",
+                "passed": False
             })
             return
 
@@ -271,7 +272,7 @@ def check_session_compliance_with_json_reference(
         fail_messages = []
         any_fail = False
 
-        for fdef in s_fields:
+        for fdef in ref_series_fields:
             field = fdef["field"]
             e_val = fdef.get("value")
             tol = fdef.get("tolerance")
@@ -334,23 +335,23 @@ def check_session_compliance_with_json_reference(
             compliance_summary.append({
                 "reference acquisition": ref_acq_name,
                 "input acquisition": in_acq_name,
-                "series": s_name,
-                "field": ", ".join([f["field"] for f in s_fields]),
+                "series": ref_series_name,
+                "field": ", ".join([f["field"] for f in ref_series_fields]),
                 "expected": constraints_agg,
                 "value": actual_values_agg,
                 "message": "; ".join(fail_messages),
-                "passed": "❌"
+                "passed": False
             })
         else:
             compliance_summary.append({
                 "reference acquisition": ref_acq_name,
                 "input acquisition": in_acq_name,
-                "series": s_name,
-                "field": ", ".join([f["field"] for f in s_fields]),
+                "series": ref_series_name,
+                "field": ", ".join([f["field"] for f in ref_series_fields]),
                 "expected": constraints_agg,
                 "value": actual_values_agg,
                 "message": "Passed",
-                "passed": "✅"
+                "passed": True
             })
 
     # 1) Check for unmapped reference acquisitions.
@@ -364,7 +365,7 @@ def check_session_compliance_with_json_reference(
                 "expected": "(mapped acquisition required)",
                 "value": None,
                 "message": f"Reference acquisition '{ref_acq_name}' not mapped.",
-                "passed": "❌"
+                "passed": False
             })
 
     # 2) Process each mapped acquisition.
@@ -416,7 +417,7 @@ def check_session_compliance_with_python_module(
                 "value": None,
                 "expected": "Specified input acquisition must be present.",
                 "message": f"Input acquisition '{in_acq_name}' not found in data.",
-                "passed": "❌"
+                "passed": False
             })
             continue
 
@@ -430,7 +431,7 @@ def check_session_compliance_with_python_module(
                 "value": None,
                 "expected": "Reference model must exist.",
                 "message": f"No model found for reference acquisition '{ref_acq_name}'.",
-                "passed": "❌"
+                "passed": False
             })
             continue
         ref_model = ref_model_cls()
@@ -452,7 +453,7 @@ def check_session_compliance_with_python_module(
                 "value": error['value'],
                 "expected": error['expected'],
                 "message": error['message'],
-                "passed": "❌"
+                "passed": False
             })
 
         # Record passes
@@ -466,7 +467,7 @@ def check_session_compliance_with_python_module(
                 "value": passed_test['value'],
                 "expected": passed_test['expected'],
                 "message": passed_test['message'],
-                "passed": "✅"
+                "passed": True
             })
 
         # Raise an error if validation fails and `raise_errors` is True

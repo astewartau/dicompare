@@ -114,7 +114,7 @@ def test_check_session_compliance_with_json_reference_pass(dummy_in_session, dum
     compliance = check_session_compliance_with_json_reference(dummy_in_session, dummy_ref_session_pass, dummy_session_map_pass)
     # Expect all records to indicate a passing status.
     for record in compliance:
-        assert record["passed"] == "✅", f"Expected pass but got {record}"
+        assert record["passed"] == True, f"Expected pass but got {record}"
 
 def test_check_session_compliance_with_json_reference_missing_field(dummy_in_session, dummy_ref_session_fail, dummy_session_map_fail):
     """Test when a required field is missing from the input session."""
@@ -162,7 +162,7 @@ def test_check_session_compliance_with_python_module_pass(dummy_in_session, dumm
     """
     session_map = {"ref1": "acq1"}
     compliance = check_session_compliance_with_python_module(dummy_in_session, dummy_ref_models, session_map, raise_errors=False)
-    passed_records = [r for r in compliance if r["passed"] == "✅"]
+    passed_records = [r for r in compliance if r["passed"] == True]
     assert passed_records, "Expected at least one passing record."
 
 def test_check_session_compliance_with_python_module_fail(dummy_in_session, dummy_ref_models):
@@ -174,7 +174,7 @@ def test_check_session_compliance_with_python_module_fail(dummy_in_session, dumm
     df.loc[df["Acquisition"] == "acq1", "fail"] = True
     session_map = {"ref1": "acq1"}
     compliance = check_session_compliance_with_python_module(df, dummy_ref_models, session_map, raise_errors=False)
-    failed_records = [r for r in compliance if r["passed"] == "❌"]
+    failed_records = [r for r in compliance if r["passed"] == False]
     assert failed_records, "Expected at least one failing record."
 
 def test_check_session_compliance_with_python_module_empty_acquisition(dummy_in_session, dummy_ref_models):

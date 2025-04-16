@@ -11,40 +11,18 @@ import pandas as pd
 import importlib.util
 import nibabel as nib
 
-from pydicom.multival import MultiValue
 from typing import List, Optional, Dict, Any, Union, Tuple, Callable
 from io import BytesIO
 from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
+
+from pydicom.multival import MultiValue
+from pydicom.valuerep import DT, DSfloat, DSdecimal, IS
+from pydicom.uid import UID
+from pydicom.valuerep import PersonName
 
 from .utils import make_hashable, normalize_numeric_values, clean_string
 from .validation import BaseValidationModel
-
-
-def to_plain(value):
-    """
-    Recursively convert any pydicom-specific types (e.g. MultiValue) into plain Python types.
-    Lists and MultiValue objects become tuples.
-    """
-    if isinstance(value, (list, MultiValue)):
-        return tuple(to_plain(item) for item in value)
-    elif isinstance(value, dict):
-        return {k: to_plain(v) for k, v in value.items()}
-    else:
-        return value
-
-def flatten_dict(d, parent_key='', sep='_'):
-    """
-    Recursively flatten a dictionary, merging nested keys using a separator.
-    """
-    items = {}
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.update(flatten_dict(v, new_key, sep=sep))
-        else:
-            items[new_key] = v
-    return items
 
 def get_dicom_values(ds, skip_pixel_data=True):
     """
@@ -54,31 +32,62 @@ def get_dicom_values(ds, skip_pixel_data=True):
     For enhanced files (those with a 'PerFrameFunctionalGroupsSequence'),
     each frame yields one dictionary merging common metadata with frame-specific details.
     
-    This version flattens nested dictionaries, converts any pydicom types into plain Python types,
-    and maps enhanced DICOM field names to their regular equivalents.
+    This version flattens nested dictionaries (and sequences), converts any pydicom types into plain
+    Python types, and automatically reduces keys by keeping only the last (leaf) part of any underscore-
+    separated key. In addition, a reduced mapping is applied only where the names really need to change.
     """
-    from pydicom.multival import MultiValue
-    from pydicom.valuerep import DT, DSfloat, DSdecimal, IS
-    from pydicom.uid import UID
-    from pydicom.valuerep import PersonName
 
     def to_plain(value):
-        if isinstance(value, (list, MultiValue)):
+        if isinstance(value, (list, MultiValue, tuple)):
             return tuple(to_plain(item) for item in value)
         elif isinstance(value, dict):
             return {k: to_plain(v) for k, v in value.items()}
         else:
             return value
 
-    def flatten_dict(d, parent_key='', sep='_'):
+    def flatten_dict(data, parent_key='', sep='_'):
         items = {}
-        for k, v in d.items():
-            new_key = f"{parent_key}{sep}{k}" if parent_key else k
-            if isinstance(v, dict):
-                items.update(flatten_dict(v, new_key, sep=sep))
-            else:
-                items[new_key] = v
+        if isinstance(data, dict):
+            for key, value in data.items():
+                new_key = f"{parent_key}{sep}{key}" if parent_key else key
+                if isinstance(value, dict):
+                    items.update(flatten_dict(value, new_key, sep=sep))
+                elif isinstance(value, (list, tuple)):
+                    for idx, item in enumerate(value):
+                        item_key = f"{new_key}{sep}{idx}"
+                        if isinstance(item, dict):
+                            items.update(flatten_dict(item, item_key, sep=sep))
+                        else:
+                            items[item_key] = item
+                else:
+                    items[new_key] = value
+        elif isinstance(data, (list, tuple)):
+            for idx, item in enumerate(data):
+                new_key = f"{parent_key}{sep}{idx}" if parent_key else str(idx)
+                if isinstance(item, dict):
+                    items.update(flatten_dict(item, new_key, sep=sep))
+                else:
+                    items[new_key] = item
+        else:
+            items[parent_key] = data
+
         return items
+
+    def reduce_keys(flat_dict):
+        """
+        Replace each key in the flattened dictionary with just the last underscore-separated component.
+        In case of duplicates, the first non-None value is kept.
+        """
+        result = {}
+        for key, value in flat_dict.items():
+            new_key = key.split('_')[-1]
+            if new_key in result:
+                # if already present, update only if the existing value is None and the new one isn't
+                if result[new_key] is None and value is not None:
+                    result[new_key] = value
+            else:
+                result[new_key] = value
+        return result
 
     def process_element(element, recurses=0, skip_pixel_data=True):
         if element.tag == 0x7fe00010 and skip_pixel_data:
@@ -87,49 +96,58 @@ def get_dicom_values(ds, skip_pixel_data=True):
             return None
 
         def convert_value(v, recurses=0):
-            if recurses > 2:
+            if recurses > 10:
                 return None
-            try:
-                if element.VR == 'SQ' or isinstance(v, (list, MultiValue)):
-                    v = [convert_value(item, recurses + 1) for item in v]
-                    return tuple(item for item in v if item is not None)
-                if isinstance(v, DT):
-                    return v.strftime("%Y-%m-%d %H:%M:%S")
-                if isinstance(v, (int, IS)):
-                    v = int(v)
-                    return v if v == v else None
-                if isinstance(v, (float, DSfloat, DSdecimal)):
-                    v = float(v)
-                    return v if v == v else None
-                if isinstance(v, (UID, PersonName, str)):
-                    return str(v)
-            except Exception:
+
+            if isinstance(v, pydicom.dataset.Dataset):
+                result = {}
+                for key in v.dir():
+                    try:
+                        sub_val = v.get(key)
+                        converted = convert_value(sub_val, recurses + 1)
+                        if converted is not None:
+                            result[key] = converted
+                    except Exception as e:
+                        continue
+                return result
+
+            if isinstance(v, (list, MultiValue)):
+                lst = []
+                for item in v:
+                    converted = convert_value(item, recurses + 1)
+                    if converted is not None:
+                        lst.append(converted)
+                return tuple(lst)
+
+            if isinstance(v, DT):
+                return v.strftime("%Y-%m-%d %H:%M:%S")
+            if isinstance(v, (int, IS)):
                 try:
-                    return str(v)
+                    return int(v)
                 except Exception:
                     return None
-            return None
+            if isinstance(v, (float, DSfloat, DSdecimal)):
+                try:
+                    return float(v)
+                except Exception:
+                    return None
+            if isinstance(v, (UID, PersonName, str)):
+                return str(v)
+            try:
+                return str(v)
+            except Exception:
+                return None
 
-        v = convert_value(element.value)
-        return v if (v == v and v is not None) else None
+        return convert_value(element.value, recurses)
 
-    # Define mapping from enhanced keys to regular DICOM field names.
+    # Mapping for enhanced to regular DICOM keys
     enhanced_to_regular = {
-        "MREchoSequence_EffectiveEchoTime": "EchoTime",
-        "MRAveragesSequence_NumberOfAverages": "NumberOfAverages",
-        "PixelMeasuresSequence_SliceThickness": "SliceThickness",
-        "PixelMeasuresSequence_PixelSpacing": "PixelSpacing",
-        "PixelValueTransformationSequence_RescaleIntercept": "RescaleIntercept",
-        "PixelValueTransformationSequence_RescaleSlope": "RescaleSlope",
-        "PixelValueTransformationSequence_RescaleType": "RescaleType",
-        "PlaneOrientationSequence_ImageOrientationPatient": "ImageOrientationPatient",
-        "PlanePositionSequence_ImagePositionPatient": "ImagePositionPatient",
-        "FrameVOILUTSequence_WindowCenter": "WindowCenter",
-        "FrameVOILUTSequence_WindowWidth": "WindowWidth",
-        "MRImageFrameTypeSequence_FrameType": "ImageType",
-        "FrameContentSequence_FrameAcquisitionDateTime": "AcquisitionDateTime",
-        "FrameContentSequence_FrameAcquisitionNumber": "AcquisitionNumber",
-        # Add additional mappings here as needed.
+        "EffectiveEchoTime": "EchoTime",
+        "FrameType": "ImageType",
+        "FrameAcquisitionNumber": "AcquisitionNumber",
+        "FrameAcquisitionDateTime": "AcquisitionDateTime",
+        "FrameAcquisitionDuration": "AcquisitionDuration",
+        "FrameReferenceDateTime": "ReferenceDateTime",
     }
 
     if "PerFrameFunctionalGroupsSequence" in ds:
@@ -139,7 +157,7 @@ def get_dicom_values(ds, skip_pixel_data=True):
                 continue
             if element.tag == 0x7fe00010 and skip_pixel_data:
                 continue
-            value = process_element(element, recurses=0)
+            value = process_element(element, recurses=0, skip_pixel_data=skip_pixel_data)
             if value is not None:
                 key = element.keyword if element.keyword else f"({element.tag.group:04X},{element.tag.element:04X})"
                 common[key] = value
@@ -178,32 +196,35 @@ def get_dicom_values(ds, skip_pixel_data=True):
                             frame_data[key] = tuple(value)
                         else:
                             frame_data[key] = value
-                except Exception:
+                except Exception as e:
                     continue
             frame_data["FrameIndex"] = frame_index
             merged = common.copy()
             merged.update(frame_data)
             flat_merged = flatten_dict(merged)
             plain_merged = {k: to_plain(v) for k, v in flat_merged.items()}
-            # Map enhanced fields to regular ones.
-            for enh_field, reg_field in enhanced_to_regular.items():
-                if enh_field in plain_merged and reg_field not in plain_merged:
-                    plain_merged[reg_field] = plain_merged[enh_field]
+            plain_merged = reduce_keys(plain_merged)
+            for src, tgt in enhanced_to_regular.items():
+                if src in plain_merged:
+                    plain_merged[tgt] = plain_merged.pop(src)
             enhanced_rows.append(plain_merged)
         return enhanced_rows
+
     else:
         dicom_dict = {}
         for element in ds:
-            value = process_element(element, recurses=0)
+            value = process_element(element, recurses=0, skip_pixel_data=skip_pixel_data)
             if value is not None:
                 keyword = element.keyword if element.keyword else f"({element.tag.group:04X},{element.tag.element:04X})"
                 dicom_dict[keyword] = value
         flat_dict = flatten_dict(dicom_dict)
         plain_dict = {k: to_plain(v) for k, v in flat_dict.items()}
-        for enh_field, reg_field in enhanced_to_regular.items():
-            if enh_field in plain_dict and reg_field not in plain_dict:
-                plain_dict[reg_field] = plain_dict[enh_field]
+        plain_dict = reduce_keys(plain_dict)
+        for src, tgt in enhanced_to_regular.items():
+            if src in plain_dict:
+                plain_dict[tgt] = plain_dict.pop(src)
         return plain_dict
+
 
 def load_dicom(dicom_file: Union[str, bytes], skip_pixel_data: bool = True) -> Dict[str, Any]:
     """
