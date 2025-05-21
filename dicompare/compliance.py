@@ -415,6 +415,7 @@ def check_session_compliance_with_python_module(
                 "input acquisition": in_acq_name,
                 "field": "Acquisition-Level Error",
                 "value": None,
+                "rule_name": "Acquisition presence",
                 "expected": "Specified input acquisition must be present.",
                 "message": f"Input acquisition '{in_acq_name}' not found in data.",
                 "passed": False
@@ -429,6 +430,7 @@ def check_session_compliance_with_python_module(
                 "input acquisition": in_acq_name,
                 "field": "Model Error",
                 "value": None,
+                "rule_name": "Model presence",
                 "expected": "Reference model must exist.",
                 "message": f"No model found for reference acquisition '{ref_acq_name}'.",
                 "passed": False
@@ -446,13 +448,12 @@ def check_session_compliance_with_python_module(
         for error in errors:
             compliance_summary.append({
                 "reference acquisition": ref_acq_name,
-                "reference series": None,
                 "input acquisition": in_acq_name,
-                "input series": None,
                 "field": error['field'],
                 "value": error['value'],
                 "expected": error['expected'],
                 "message": error['message'],
+                "rule_name": error['rule_name'],
                 "passed": False
             })
 
@@ -460,13 +461,12 @@ def check_session_compliance_with_python_module(
         for passed_test in passes:
             compliance_summary.append({
                 "reference acquisition": ref_acq_name,
-                "reference series": None,
                 "input acquisition": in_acq_name,
-                "input series": None,
                 "field": passed_test['field'],
                 "value": passed_test['value'],
                 "expected": passed_test['expected'],
                 "message": passed_test['message'],
+                "rule_name": passed_test['rule_name'],
                 "passed": True
             })
 

@@ -6,6 +6,7 @@ used in DICOM compliance checks.
 
 from typing import Callable, List, Dict, Any, Tuple
 import pandas as pd
+from itertools import chain
 
 def make_hashable(value):
     """
@@ -91,7 +92,7 @@ class ValidationError(Exception):
         self.message = message
         super().__init__(message)
 
-def validator(field_names: List[str], rule_message: str = "Validation rule applied"):
+def validator(field_names: List[str], rule_name: str, rule_message: str):
     """
     Decorator for defining field-level validation rules.
 
@@ -101,6 +102,7 @@ def validator(field_names: List[str], rule_message: str = "Validation rule appli
 
     Args:
         field_names (List[str]): The list of field names the rule applies to.
+        rule_name (str): The name of the validation rule.
         rule_message (str): A description of the validation rule.
 
     Returns:
@@ -110,6 +112,7 @@ def validator(field_names: List[str], rule_message: str = "Validation rule appli
     def decorator(func: Callable):
         func._is_field_validator = True
         func._field_names = field_names
+        func._rule_name = rule_name
         func._rule_message = rule_message
         return func
     return decorator
@@ -141,18 +144,33 @@ class BaseValidationModel:
         Args:
             cls (Type[BaseValidationModel]): The subclass being initialized.
         """
+        super().__init_subclass__(**kwargs)
+
+        # collect all the field‑level and model‑level validators
         cls._field_validators = {}
         cls._model_validators = []
 
         for attr_name, attr_value in cls.__dict__.items():
             if hasattr(attr_value, "_is_field_validator"):
-                # Convert field_names to a tuple to make it hashable
                 field_names = tuple(attr_value._field_names)
                 cls._field_validators.setdefault(field_names, []).append(attr_value)
             elif hasattr(attr_value, "_is_model_validator"):
                 cls._model_validators.append(attr_value)
 
-    def validate(self, data: pd.DataFrame) -> Tuple[bool, List[Dict[str, Any]], List[Dict[str, Any]]]:
+        # build a class‑level set of every field name used in any validator decorator
+        cls.reference_fields = set(chain.from_iterable(cls._field_validators.keys()))
+
+    def __init__(self):
+        """
+        Expose the same `reference_fields` on each instance.
+        """
+        # instance attribute references the class‑level set
+        self.reference_fields = self.__class__.reference_fields
+
+    def validate(
+        self,
+        data: pd.DataFrame
+    ) -> Tuple[bool, List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         Validate the input DataFrame against the registered rules.
 
@@ -170,68 +188,68 @@ class BaseValidationModel:
                 - List of failed tests with details:
                     - acquisition: The acquisition being validated.
                     - field: The field(s) involved in the validation.
-                    - rule: The validation rule description.
+                    - rule_name: The validation rule description.
                     - value: The actual value being validated.
                     - message: The error message (if validation failed).
                     - passed: False (indicating failure).
                 - List of passed tests with details:
                     - acquisition: The acquisition being validated.
                     - field: The field(s) involved in the validation.
-                    - rule: The validation rule description.
+                    - rule_name: The validation rule description.
                     - value: The actual value being validated.
                     - message: None (indicating success).
                     - passed: True (indicating success).
         """
-        errors = []
-        passes = []
+        errors: List[Dict[str, Any]] = []
+        passes: List[Dict[str, Any]] = []
 
-        # Field-level validation
+        # Field‑level validation
         for acquisition in data["Acquisition"].unique():
-            acquisition_data = data[data["Acquisition"] == acquisition]
-            for field_names, validator_list in self._field_validators.items():
-                # Check for missing fields
-                missing_fields = [field for field in field_names if field not in acquisition_data.columns]
-                if missing_fields:
+            acq_df = data[data["Acquisition"] == acquisition]
+            for field_names, validators in self._field_validators.items():
+                # missing column check
+                missing = [f for f in field_names if f not in acq_df.columns]
+                if missing:
                     errors.append({
                         "acquisition": acquisition,
                         "field": ", ".join(field_names),
-                        "expected": validator_list[0]._rule_message,
+                        "rule_name": validators[0]._rule_name,
+                        "expected": validators[0]._rule_message,
                         "value": None,
-                        "message": f"Missing fields: {', '.join(missing_fields)}.",
+                        "message": f"Missing fields: {', '.join(missing)}.",
                         "passed": False,
                     })
                     continue
 
-                # Filter the data to include only the requested fields
-                filtered_data = acquisition_data[list(field_names)].copy()
-
-                # Get unique combinations of requested fields with counts
-                unique_combinations = (
-                    filtered_data.groupby(list(field_names), dropna=False)
+                # get unique combinations + counts
+                grouped = (
+                    acq_df[list(field_names)]
+                    .groupby(list(field_names), dropna=False)
                     .size()
                     .reset_index(name="Count")
                 )
 
-                # Iterate over all validators for the field group
-                for validator_func in validator_list:
+                # run each validator
+                for validator_func in validators:
                     try:
-                        # Pass the unique combinations with counts to the validator
-                        validator_func(self, unique_combinations)
+                        validator_func(self, grouped)
                         passes.append({
                             "acquisition": acquisition,
                             "field": ", ".join(field_names),
+                            "rule_name": validator_func._rule_name,
                             "expected": validator_func._rule_message,
-                            "value": unique_combinations.to_dict(orient="list"),
-                            "message": None,
+                            "value": grouped.to_dict(orient="list"),
+                            "message": "OK",
                             "passed": True,
                         })
                     except ValidationError as e:
                         errors.append({
                             "acquisition": acquisition,
                             "field": ", ".join(field_names),
+                            "rule_name": validator_func._rule_name,
                             "expected": validator_func._rule_message,
-                            "value": unique_combinations.to_dict(orient="list"),
-                            "message": e.message,
+                            "value": grouped.to_dict(orient="list"),
+                            "message": str(e),
                             "passed": False,
                         })
 
