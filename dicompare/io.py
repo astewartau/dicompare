@@ -679,7 +679,6 @@ def assign_acquisition_and_run_numbers(
 
     session_df = session_df.reset_index(drop=True)
 
-
     # identify runs: group by subject+protocol+date
     if run_group_fields is None:
         run_group_fields = ["PatientName", "PatientID", "ProtocolName", "StudyDate"]
@@ -736,6 +735,71 @@ def assign_acquisition_and_run_numbers(
             counter = 1
 
             for settings_vals, sg in protocol_group.groupby(settings_group_fields):
+                # Check for the special case of (0051,100F) field
+                coil_field = "(0051,100F)"
+                if coil_field in sg.columns:
+                    # Check if there's a mix of numeric and non-numeric values
+                    has_numeric = False
+                    has_non_numeric = False
+                    
+                    # Function to check if a value contains a number
+                    def contains_number(value):
+                        if pd.isna(value) or value is None or value == "":
+                            return False
+                        value_str = str(value)
+                        return any(char.isdigit() for char in value_str)
+                    
+                    # Function to check if a value is purely non-numeric (like "HEA;HEP")
+                    def is_non_numeric_special(value):
+                        if pd.isna(value) or value is None or value == "":
+                            return False
+                        value_str = str(value)
+                        return value_str == "HEA;HEP" or not any(char.isdigit() for char in value_str)
+                    
+                    # Check for numeric and non-numeric values
+                    unique_values = sg[coil_field].dropna().unique()
+                    has_numeric = any(contains_number(val) for val in unique_values)
+                    has_non_numeric = any(is_non_numeric_special(val) for val in unique_values)
+                    
+                    # If we have both types, split the group
+                    if has_numeric and has_non_numeric:
+                        # Process numeric values
+                        numeric_mask = sg[coil_field].apply(lambda x: contains_number(x) if pd.notnull(x) else False)
+                        numeric_sg = sg[numeric_mask]
+                        if not numeric_sg.empty:
+                            numeric_param_tuple = tuple(
+                                (fld, tuple(sorted(numeric_sg[fld].dropna().unique(), key=str)))
+                                for fld in reference_fields
+                                if fld in numeric_sg
+                            )
+                            numeric_param_tuple += ((coil_field, "numeric"),)
+                            
+                            if numeric_param_tuple not in param_to_idx:
+                                param_to_idx[numeric_param_tuple] = counter
+                                counter += 1
+                            
+                            session_df.loc[numeric_sg.index, "SettingsNumber"] = param_to_idx[numeric_param_tuple]
+                        
+                        # Process non-numeric values
+                        non_numeric_mask = sg[coil_field].apply(lambda x: is_non_numeric_special(x) if pd.notnull(x) else False)
+                        non_numeric_sg = sg[non_numeric_mask]
+                        if not non_numeric_sg.empty:
+                            non_numeric_param_tuple = tuple(
+                                (fld, tuple(sorted(non_numeric_sg[fld].dropna().unique(), key=str)))
+                                for fld in reference_fields
+                                if fld in non_numeric_sg
+                            )
+                            non_numeric_param_tuple += ((coil_field, "non-numeric"),)
+                            
+                            if non_numeric_param_tuple not in param_to_idx:
+                                param_to_idx[non_numeric_param_tuple] = counter
+                                counter += 1
+                            
+                            session_df.loc[non_numeric_sg.index, "SettingsNumber"] = param_to_idx[non_numeric_param_tuple]
+                        
+                        continue  # Skip the normal processing for this group
+                
+                # Normal processing for other cases
                 param_tuple = tuple(
                     (fld, tuple(sorted(sg[fld].dropna().unique(), key=str)))
                     for fld in reference_fields
