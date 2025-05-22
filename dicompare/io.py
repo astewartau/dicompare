@@ -685,16 +685,12 @@ def assign_acquisition_and_run_numbers(
         run_group_fields = ["PatientName", "PatientID", "ProtocolName", "StudyDate"]
     run_keys = [f for f in run_group_fields if f in session_df.columns]
     for key_vals, group in session_df.groupby(run_keys):
-        print(f"[RunNumber] group=", dict(zip(run_keys, key_vals)))
         if "SeriesTime" in group.columns:
             series_differentiator = "SeriesTime"
         else:
             series_differentiator = "SeriesInstanceUID"
         group = group.sort_values(series_differentiator)
-        print(f"[RunNumber] group sorted by {series_differentiator}")
-        print(group[series_differentiator].unique())
         for (desc, imgtype), subgrp in group.groupby(["SeriesDescription", "ImageType"]):
-            print(f"[RunNumber] desc=", desc, "imgtype=", imgtype)
             times = sorted(
                 group.loc[
                       (group["SeriesDescription"] == desc)
@@ -702,7 +698,6 @@ def assign_acquisition_and_run_numbers(
                     series_differentiator,
                 ].unique()
             )
-            print(f"[RunNumber] times=", times)
             if len(times) > 1:
                 for rn, t in enumerate(times, start=1):
                     mask = (
@@ -751,12 +746,6 @@ def assign_acquisition_and_run_numbers(
 
                 if param_tuple not in param_to_idx:
                     param_to_idx[param_tuple] = counter
-                    print(
-                        "[SettingsNumber] protocol=", pn,
-                        "group=", dict(zip(settings_group_fields, settings_vals)),
-                        "params=", params,
-                        "→ assigning SettingsNumber", counter
-                    )
                     counter += 1
 
                 session_df.loc[sg.index, "SettingsNumber"] = param_to_idx[param_tuple]
