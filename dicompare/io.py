@@ -678,11 +678,14 @@ def assign_acquisition_and_run_numbers(
     ).apply(clean_string)
 
     session_df = session_df.reset_index(drop=True)
+    #print(f"Created initial acquisition labels: {session_df['Acquisition'].unique().tolist()}")
 
     # identify runs: group by subject+protocol+date
     if run_group_fields is None:
         run_group_fields = ["PatientName", "PatientID", "ProtocolName", "StudyDate"]
     run_keys = [f for f in run_group_fields if f in session_df.columns]
+    #print(f"Using run group fields: {run_keys}")
+    
     for key_vals, group in session_df.groupby(run_keys):
         if "SeriesTime" in group.columns:
             series_differentiator = "SeriesTime"
@@ -698,6 +701,7 @@ def assign_acquisition_and_run_numbers(
                 ].unique()
             )
             if len(times) > 1:
+                #print(f"Found multiple series times for {desc}, {imgtype}: {times}")
                 for rn, t in enumerate(times, start=1):
                     mask = (
                         (session_df["SeriesDescription"] == desc)
@@ -719,116 +723,171 @@ def assign_acquisition_and_run_numbers(
                         ).all(axis=1)
                     )
                     session_df.loc[mask, "RunNumber"] = rn
+                    #print(f"Assigned RunNumber {rn} to {desc}, {imgtype}, {t}")
             else:
                 idx = group[group["SeriesDescription"] == desc].index
                 session_df.loc[idx, "RunNumber"] = 1
 
     # split acquisitions by differing reference‐field settings
     if reference_fields:
-        for pn, protocol_group in session_df.groupby("ProtocolName"):
+        #print("Starting settings number assignment based on reference fields")
+        
+        # First, let's create a special handling for the coil field
+        coil_field = "(0051,100F)"
+        if coil_field in session_df.columns:
+            #print(f"Special handling for coil field {coil_field}")
+            
+            # Function to check if a value contains a number
+            def contains_number(value):
+                if pd.isna(value) or value is None or value == "":
+                    return False
+                value_str = str(value)
+                return any(char.isdigit() for char in value_str)
+            
+            # Function to check if a value is purely non-numeric (like "HEA;HEP")
+            def is_non_numeric_special(value):
+                if pd.isna(value) or value is None or value == "":
+                    return False
+                value_str = str(value)
+                return value_str == "HEA;HEP" or not any(char.isdigit() for char in value_str)
+            
+            # Create a new column to mark rows as having numeric or non-numeric coil values
+            session_df['CoilType'] = 'Unknown'
+            numeric_mask = session_df[coil_field].apply(lambda x: contains_number(x) if pd.notnull(x) else False)
+            non_numeric_mask = session_df[coil_field].apply(lambda x: is_non_numeric_special(x) if pd.notnull(x) else False)
+            
+            session_df.loc[numeric_mask, 'CoilType'] = 'Numeric'
+            session_df.loc[non_numeric_mask, 'CoilType'] = 'NonNumeric'
+            
+            # Log the distribution of coil types
+            coil_type_counts = session_df['CoilType'].value_counts()
+            #print(f"Coil type distribution: {coil_type_counts.to_dict()}")
+            
+            # Check if we have both types
+            has_numeric = 'Numeric' in coil_type_counts.index
+            has_non_numeric = 'NonNumeric' in coil_type_counts.index
+            
+            if has_numeric and has_non_numeric:
+                #print("Dataset contains both numeric and non-numeric coil values")
+                # Add CoilType to the settings group fields to ensure separation
+                settings_group_fields = [
+                    f for f in ["PatientName", "PatientID", "StudyDate", "RunNumber", "CoilType"]
+                    if f in session_df.columns
+                ]
+            else:
+                # No need to separate by coil type
+                settings_group_fields = [
+                    f for f in ["PatientName", "PatientID", "StudyDate", "RunNumber"]
+                    if f in session_df.columns
+                ]
+        else:
+            # No coil field, use standard grouping
             settings_group_fields = [
-                f
-                for f in ["PatientName", "PatientID", "StudyDate", "RunNumber"]
-                if f in session_df
+                f for f in ["PatientName", "PatientID", "StudyDate", "RunNumber"]
+                if f in session_df.columns
             ]
+        
+        #print(f"Using settings group fields: {settings_group_fields}")
+        
+        # Now process each protocol
+        for pn, protocol_group in session_df.groupby("ProtocolName"):
+            #print(f"Processing protocol: {pn}")
+            
+            # Debug: Show RunNumber distribution
+            if 'RunNumber' in protocol_group.columns:
+                run_counts = protocol_group['RunNumber'].value_counts()
+                #print(f"RunNumber distribution for protocol {pn}: {run_counts.to_dict()}")
+            
+            # Debug: Show CoilType distribution by RunNumber if applicable
+            if 'CoilType' in protocol_group.columns and 'RunNumber' in protocol_group.columns:
+                for run_num in protocol_group['RunNumber'].unique():
+                    run_group = protocol_group[protocol_group['RunNumber'] == run_num]
+                    coil_counts = run_group['CoilType'].value_counts()
+                    #print(f"RunNumber {run_num} coil type distribution: {coil_counts.to_dict()}")
+                    
+                    # Show sample values for each coil type in this run
+                    for coil_type in run_group['CoilType'].unique():
+                        sample_values = run_group[run_group['CoilType'] == coil_type][coil_field].unique()[:5]
+                        #print(f"RunNumber {run_num}, CoilType {coil_type} sample values: {sample_values}")
+            
             param_to_idx = {}
             counter = 1
 
+            # Group by the settings fields
             for settings_vals, sg in protocol_group.groupby(settings_group_fields):
-                # Check for the special case of (0051,100F) field
-                coil_field = "(0051,100F)"
-                if coil_field in sg.columns:
-                    # Check if there's a mix of numeric and non-numeric values
-                    has_numeric = False
-                    has_non_numeric = False
-                    
-                    # Function to check if a value contains a number
-                    def contains_number(value):
-                        if pd.isna(value) or value is None or value == "":
-                            return False
-                        value_str = str(value)
-                        return any(char.isdigit() for char in value_str)
-                    
-                    # Function to check if a value is purely non-numeric (like "HEA;HEP")
-                    def is_non_numeric_special(value):
-                        if pd.isna(value) or value is None or value == "":
-                            return False
-                        value_str = str(value)
-                        return value_str == "HEA;HEP" or not any(char.isdigit() for char in value_str)
-                    
-                    # Check for numeric and non-numeric values
-                    unique_values = sg[coil_field].dropna().unique()
-                    has_numeric = any(contains_number(val) for val in unique_values)
-                    has_non_numeric = any(is_non_numeric_special(val) for val in unique_values)
-                    
-                    # If we have both types, split the group
-                    if has_numeric and has_non_numeric:
-                        # Process numeric values
-                        numeric_mask = sg[coil_field].apply(lambda x: contains_number(x) if pd.notnull(x) else False)
-                        numeric_sg = sg[numeric_mask]
-                        if not numeric_sg.empty:
-                            numeric_param_tuple = tuple(
-                                (fld, tuple(sorted(numeric_sg[fld].dropna().unique(), key=str)))
-                                for fld in reference_fields
-                                if fld in numeric_sg
-                            )
-                            numeric_param_tuple += ((coil_field, "numeric"),)
-                            
-                            if numeric_param_tuple not in param_to_idx:
-                                param_to_idx[numeric_param_tuple] = counter
-                                counter += 1
-                            
-                            session_df.loc[numeric_sg.index, "SettingsNumber"] = param_to_idx[numeric_param_tuple]
-                        
-                        # Process non-numeric values
-                        non_numeric_mask = sg[coil_field].apply(lambda x: is_non_numeric_special(x) if pd.notnull(x) else False)
-                        non_numeric_sg = sg[non_numeric_mask]
-                        if not non_numeric_sg.empty:
-                            non_numeric_param_tuple = tuple(
-                                (fld, tuple(sorted(non_numeric_sg[fld].dropna().unique(), key=str)))
-                                for fld in reference_fields
-                                if fld in non_numeric_sg
-                            )
-                            non_numeric_param_tuple += ((coil_field, "non-numeric"),)
-                            
-                            if non_numeric_param_tuple not in param_to_idx:
-                                param_to_idx[non_numeric_param_tuple] = counter
-                                counter += 1
-                            
-                            session_df.loc[non_numeric_sg.index, "SettingsNumber"] = param_to_idx[non_numeric_param_tuple]
-                        
-                        continue  # Skip the normal processing for this group
+                # Debug: Show detailed info about this settings group
+                if isinstance(settings_vals, tuple):
+                    settings_dict = {field: val for field, val in zip(settings_group_fields, settings_vals)}
+                else:
+                    settings_dict = {settings_group_fields[0]: settings_vals}
                 
-                # Normal processing for other cases
+                #print(f"Processing settings group: {settings_dict}")
+                
+                if coil_field in sg.columns:
+                    unique_values = sg[coil_field].dropna().unique()
+                    #print(f"Coil field values in this group: {unique_values}")
+                    
+                    # Check if this group has numeric or non-numeric values
+                    has_numeric_in_group = any(contains_number(val) for val in unique_values)
+                    has_non_numeric_in_group = any(is_non_numeric_special(val) for val in unique_values)
+                    #print(f"Group has numeric values: {has_numeric_in_group}, non-numeric values: {has_non_numeric_in_group}")
+                
+                # Create parameter tuple for this group
                 param_tuple = tuple(
                     (fld, tuple(sorted(sg[fld].dropna().unique(), key=str)))
                     for fld in reference_fields
                     if fld in sg
                 )
-                # turn that into a simple dict for printing
+                
+                # If we're using CoilType for grouping, add it to the parameter tuple
+                if 'CoilType' in settings_group_fields and 'CoilType' in sg.columns:
+                    coil_types = tuple(sorted(sg['CoilType'].dropna().unique()))
+                    param_tuple += (('CoilType', coil_types),)
+                
+                # Create a readable dict of the parameters
                 params = {fld: vals for fld, vals in param_tuple}
-
+                
                 if param_tuple not in param_to_idx:
                     param_to_idx[param_tuple] = counter
+                    #print(f"Created new SettingsNumber {counter} for parameter set")
+                    #print(f"Fields contributing to SettingsNumber {counter}:")
+                    #for field, values in params.items():
+                    #    print(f"  {field}: {values}")
                     counter += 1
-
+                #else:
+                #    print(f"Using existing SettingsNumber {param_to_idx[param_tuple]} for parameter set")
+                
                 session_df.loc[sg.index, "SettingsNumber"] = param_to_idx[param_tuple]
+                #print(f"Assigned SettingsNumber {param_to_idx[param_tuple]} to {len(sg)} rows")
+
+        # Clean up the temporary column if it exists
+        if 'CoilType' in session_df.columns:
+            session_df = session_df.drop(columns='CoilType')
 
         # any acquisition with >1 settings → rename Acquisition
         counts = session_df.groupby("Acquisition")["SettingsNumber"].nunique()
         multi = counts[counts > 1].index
-        mask = session_df["Acquisition"].isin(multi)
-        session_df.loc[mask, "Acquisition"] = (
-            session_df.loc[mask, "Acquisition"]
-            + "-"
-            + session_df.loc[mask, "SettingsNumber"].astype(int).astype(str)
-        )
+        if len(multi) > 0:
+            #print(f"Found {len(multi)} acquisitions with multiple settings numbers: {multi.tolist()}")
+            mask = session_df["Acquisition"].isin(multi)
+            session_df.loc[mask, "Acquisition"] = (
+                session_df.loc[mask, "Acquisition"]
+                + "-"
+                + session_df.loc[mask, "SettingsNumber"].astype(int).astype(str)
+            )
+            #print(f"Renamed acquisitions with settings numbers: {session_df.loc[mask, 'Acquisition'].unique().tolist()}")
+        #else:
+        #    print("No acquisitions with multiple settings numbers found")
+            
         session_df = session_df.drop(columns="SettingsNumber").reset_index(drop=True)
 
         # recalc runs on true acquisitions
+        #print("Recalculating run numbers based on final acquisition labels")
         final_run_keys = ["Acquisition", "SeriesDescription", "ImageType"] + [
             f for f in ["PatientName", "PatientID", "StudyDate"] if f in session_df
         ]
+        #print(f"Using final run keys: {final_run_keys}")
+        
         for key_vals, group in session_df.groupby(final_run_keys):
             if "SeriesTime" in group.columns:
                 series_differentiator = "SeriesTime"
@@ -842,16 +901,19 @@ def assign_acquisition_and_run_numbers(
                     ].unique()
                 )
                 if len(times) > 1:
+                    #print(f"Found multiple series times for {desc} in final acquisition: {times}")
                     for rn, t in enumerate(times, start=1):
                         idx = group[
                             (group["SeriesDescription"] == desc)
                             & (group[series_differentiator] == t)
                         ].index
                         session_df.loc[idx, "RunNumber"] = rn
+                        #print(f"Assigned final RunNumber {rn} to {desc}, {t}")
                 else:
                     idx = group[group["SeriesDescription"] == desc].index
                     session_df.loc[idx, "RunNumber"] = 1
 
+    #print("Finished assigning acquisition and run numbers")
     return session_df
 
 
