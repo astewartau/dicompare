@@ -44,8 +44,12 @@ def get_dicom_values(ds, skip_pixel_data=True):
             return tuple(to_plain(item) for item in value)
         elif isinstance(value, dict):
             return {k: to_plain(v) for k, v in value.items()}
-        else:
-            return value
+        elif isinstance(value, float):
+            return round(value, 5)
+        elif isinstance(value, int):
+            return int(value)
+        return value
+
 
     def flatten_dict(data, parent_key="", sep="_"):
         items = {}
@@ -643,7 +647,6 @@ def assign_acquisition_and_run_numbers(
             "ParallelAcquisitionTechnique",
             "TriggerTime",
             "TriggerSourceOrType",
-            "HeartRate",
             "BeatRejectionFlag",
             "LowRRValue",
             "HighRRValue",
@@ -663,6 +666,11 @@ def assign_acquisition_and_run_numbers(
         ]
     if acquisition_fields is None:
         acquisition_fields = ["ProtocolName"]
+
+    # first make sure ProtocolName exists
+    if "ProtocolName" not in session_df.columns:
+        print("Warning: 'ProtocolName' not found in session_df columns. Setting it to 'SeriesDescription' instead.")
+        session_df["ProtocolName"] = session_df.get("SeriesDescription", "Unknown")
 
     # initial grouping so we can label acquisitions
     if acquisition_fields:
