@@ -5,6 +5,7 @@ This module contains functions for loading and processing DICOM data, JSON refer
 
 import os
 import pydicom
+import re
 import json
 import asyncio
 import pandas as pd
@@ -18,13 +19,89 @@ from concurrent.futures import ThreadPoolExecutor
 
 from pydicom.multival import MultiValue
 from pydicom.valuerep import DT, DSfloat, DSdecimal, IS
-from pydicom.uid import UID
 from pydicom.valuerep import PersonName
 
 from .utils import make_hashable, normalize_numeric_values, clean_string
 from .validation import BaseValidationModel
 
+# --- IMPORT FOR CSA header parsing ---
+from nibabel.nicom.csareader import get_csa_header
+
 pydicom.config.debug(False)
+
+def extract_inferred_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
+    """
+    Extract inferred metadata from a DICOM dataset.
+
+    Args:
+        ds (pydicom.Dataset): The DICOM dataset.
+
+    Returns:
+        Dict[str, Any]: A dictionary of inferred metadata.
+    """
+    inferred_metadata = {}
+
+    if not all(hasattr(ds, tag) for tag in ["MultibandAccelerationFactor", "MultibandFactor", "ParallelReductionFactorOutOfPlane"]):
+        # first reassign any existing multiband factors
+        if hasattr(ds, "MultibandAccelerationFactor"):
+            accel_factor = ds.MultibandAccelerationFactor
+        elif hasattr(ds, "MultibandFactor"):
+            accel_factor = ds.MultibandFactor
+        elif hasattr(ds, "ParallelReductionFactorOutOfPlane"):
+            accel_factor = ds.ParallelReductionFactorOutOfPlane
+        elif hasattr(ds, "ProtocolName"):
+            mb_match = re.search(r"mb(\d+)", ds["ProtocolName"].value, re.IGNORECASE)
+            if mb_match:
+                accel_factor = int(mb_match.group(1))
+                inferred_metadata["MultibandAccelerationFactor"] = accel_factor
+                inferred_metadata["MultibandFactor"] = accel_factor
+                inferred_metadata["ParallelReductionFactorOutOfPlane"] = accel_factor
+
+    return inferred_metadata
+
+def extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
+    """
+    Extract relevant acquisition-specific metadata from Siemens CSA header.
+
+    Args:
+        ds (pydicom.Dataset): The DICOM dataset.
+
+    Returns:
+        Dict[str, Any]: A dictionary of CSA-derived acquisition parameters.
+    """
+    csa_metadata = {}
+
+    try:
+        csa = get_csa_header(ds, "image")
+        tags = csa.get("tags", {})
+
+        def get_csa_value(tag_name, scalar=True):
+            items = tags.get(tag_name, {}).get("items", [])
+            if not items:
+                return None
+            return float(items[0]) if scalar else [float(x) for x in items]
+
+        # Acquisition-level CSA fields
+        csa_metadata["DiffusionBValue"] = get_csa_value("B_value")
+        csa_metadata["DiffusionGradientDirectionSequence"] = get_csa_value(
+            "DiffusionGradientDirection", scalar=False
+        )
+        csa_metadata["SliceMeasurementDuration"] = get_csa_value("SliceMeasurementDuration")
+        csa_metadata["MultibandAccelerationFactor"] = get_csa_value("MultibandFactor")
+        csa_metadata["EffectiveEchoSpacing"] = get_csa_value("BandwidthPerPixelPhaseEncode")
+        csa_metadata["TotalReadoutTime"] = get_csa_value("TotalReadoutTime")
+        csa_metadata["MosaicRefAcqTimes"] = get_csa_value("MosaicRefAcqTimes", scalar=False)
+        csa_metadata["SliceTiming"] = get_csa_value("SliceTiming", scalar=False)
+        csa_metadata["PhaseEncodingDirectionPositive"] = get_csa_value("PhaseEncodingDirectionPositive", scalar=False)
+        csa_metadata["NumberOfImagesInMosaic"] = get_csa_value("NumberOfImagesInMosaic")
+        csa_metadata["DiffusionDirectionality"] = get_csa_value("DiffusionDirectionality")
+        csa_metadata["GradientMode"] = get_csa_value("GradientMode")
+        csa_metadata["B_matrix"] = get_csa_value("B_matrix", scalar=False)
+
+    except Exception:
+        pass
+
+    return {k: v for k, v in csa_metadata.items() if v is not None}
 
 def get_dicom_values(ds, skip_pixel_data=True):
     """
@@ -128,7 +205,7 @@ def get_dicom_values(ds, skip_pixel_data=True):
                         converted = convert_value(sub_val, recurses + 1)
                         if converted is not None:
                             result[key] = converted
-                    except Exception as e:
+                    except Exception:
                         continue
                 return result
 
@@ -169,7 +246,6 @@ def get_dicom_values(ds, skip_pixel_data=True):
                     return result
                 except Exception:
                     return None
-                
             if isinstance(v, (float, DSfloat, DSdecimal)):
                 try:
                     result = float(v)
@@ -309,18 +385,28 @@ def load_dicom(
         pydicom.errors.InvalidDicomError: If the file is not a valid DICOM file.
     """
     if isinstance(dicom_file, (bytes, memoryview)):
-        ds = pydicom.dcmread(
+        ds_raw = pydicom.dcmread(
             BytesIO(dicom_file),
             stop_before_pixels=skip_pixel_data,
             force=True,
             defer_size=len(dicom_file),
         )
     else:
-        ds = pydicom.dcmread(
-            dicom_file, stop_before_pixels=skip_pixel_data, force=True, defer_size=True
+        ds_raw = pydicom.dcmread(
+            dicom_file,
+            stop_before_pixels=skip_pixel_data,
+            force=True,
+            defer_size=True,
         )
 
-    return get_dicom_values(ds, skip_pixel_data=skip_pixel_data)
+    # Convert to plain metadata dict (flattened)
+    metadata = get_dicom_values(ds_raw, skip_pixel_data=skip_pixel_data)
+    csa_metadata = extract_csa_metadata(ds_raw)
+    metadata.update(csa_metadata)
+    inferred_metadata = extract_inferred_metadata(ds_raw)
+    metadata.update(inferred_metadata)
+
+    return metadata
 
 
 def _load_one_dicom_path(path: str, skip_pixel_data: bool) -> Dict[str, Any]:
@@ -430,7 +516,6 @@ async def async_load_dicom_session(
     Args:
         session_dir (Optional[str]): Path to a directory containing DICOM files.
         dicom_bytes (Optional[Union[Dict[str, bytes], Any]]): Dictionary of file paths and their byte content.
-        acquisition_fields (Optional[List[str]]): Fields used to uniquely identify each acquisition.
         skip_pixel_data (bool): Whether to skip pixel data elements (default: True).
         show_progress (bool): Whether to show a progress bar (using tqdm).
         parallel_workers (int): Number of threads for parallel reading (default 1 = no parallel).
@@ -442,6 +527,7 @@ async def async_load_dicom_session(
         ValueError: If neither `session_dir` nor `dicom_bytes` is provided, or if no DICOM data is found.
     """
     session_data = []
+
     # 1) DICOM bytes branch
     if dicom_bytes is not None:
         dicom_items = list(dicom_bytes.items())
@@ -456,8 +542,6 @@ async def async_load_dicom_session(
                     for key, content in dicom_items
                 ]
                 if show_progress:
-                    from tqdm import tqdm
-
                     for fut in tqdm(
                         asyncio.as_completed(futures),
                         total=len(futures),
@@ -478,8 +562,6 @@ async def async_load_dicom_session(
                         total_completed += 1
         else:
             if show_progress:
-                from tqdm import tqdm
-
                 dicom_items = tqdm(dicom_items, desc="Loading DICOM bytes")
             progress_prev = 0
             for i, (key, content) in enumerate(dicom_items):
@@ -490,22 +572,11 @@ async def async_load_dicom_session(
                         progress_function(progress)
                         await asyncio.sleep(0)
                 try:
-                    dicom_values = load_dicom(content, skip_pixel_data=skip_pixel_data)
-                    if isinstance(dicom_values, list):
-                        for dicom_value in dicom_values:
-                            dicom_value["DICOM_Path"] = key
-                            dicom_value["InstanceNumber"] = int(
-                                dicom_value.get("InstanceNumber", 0)
-                            )
-                            session_data.append(dicom_value)
-                    else:
-                        dicom_values["DICOM_Path"] = key
-                        dicom_values["InstanceNumber"] = int(
-                            dicom_values.get("InstanceNumber", 0)
-                        )
-                        session_data.append(dicom_values)
+                    dicom_value = _load_one_dicom_bytes(key, content, skip_pixel_data)
+                    session_data.append(dicom_value)
                 except Exception as e:
                     print(f"Error reading {key}: {e}")
+
     # 2) Session directory branch
     elif session_dir is not None:
         all_files = [
@@ -522,8 +593,6 @@ async def async_load_dicom_session(
                     for fpath in all_files
                 ]
                 if show_progress:
-                    from tqdm import tqdm
-
                     for fut in tqdm(
                         asyncio.as_completed(futures),
                         total=len(futures),
@@ -544,8 +613,6 @@ async def async_load_dicom_session(
                         total_completed += 1
         else:
             if show_progress:
-                from tqdm import tqdm
-
                 all_files = tqdm(all_files, desc="Loading DICOMs")
             progress_prev = 0
             for i, dicom_path in enumerate(all_files):
@@ -555,20 +622,11 @@ async def async_load_dicom_session(
                         progress_prev = progress
                         progress_function(progress)
                         await asyncio.sleep(0)
-                dicom_values = load_dicom(dicom_path, skip_pixel_data=skip_pixel_data)
-                if isinstance(dicom_values, list):
-                    for dicom_value in dicom_values:
-                        dicom_value["DICOM_Path"] = dicom_path
-                        dicom_value["InstanceNumber"] = int(
-                            dicom_value.get("InstanceNumber", 0)
-                        )
-                        session_data.append(dicom_value)
-                else:
-                    dicom_values["DICOM_Path"] = dicom_path
-                    dicom_values["InstanceNumber"] = int(
-                        dicom_values.get("InstanceNumber", 0)
-                    )
-                    session_data.append(dicom_values)
+                try:
+                    dicom_value = _load_one_dicom_path(dicom_path, skip_pixel_data)
+                    session_data.append(dicom_value)
+                except Exception as e:
+                    print(f"Error reading {dicom_path}: {e}")
     else:
         raise ValueError("Either session_dir or dicom_bytes must be provided.")
 
@@ -618,7 +676,7 @@ def assign_acquisition_and_run_numbers(
     if reference_fields is None:
         reference_fields = [
             #"SeriesDescription",
-            #"ScanOptions",
+            "ScanOptions",
             "MRAcquisitionType",
             "SequenceName",
             "AngioFlag",
@@ -663,6 +721,7 @@ def assign_acquisition_and_run_numbers(
             "TimeOfFlightContrast",
             "SteadyStatePulseSequence",
             "PartialFourierDirection",
+            "MultibandFactor"
         ]
     if acquisition_fields is None:
         acquisition_fields = ["ProtocolName"]
@@ -686,14 +745,12 @@ def assign_acquisition_and_run_numbers(
     ).apply(clean_string)
 
     session_df = session_df.reset_index(drop=True)
-    #print(f"Created initial acquisition labels: {session_df['Acquisition'].unique().tolist()}")
 
     # identify runs: group by subject+protocol+date
     if run_group_fields is None:
         run_group_fields = ["PatientName", "PatientID", "ProtocolName", "StudyDate"]
     run_keys = [f for f in run_group_fields if f in session_df.columns]
-    #print(f"Using run group fields: {run_keys}")
-    
+
     for key_vals, group in session_df.groupby(run_keys):
         if "SeriesTime" in group.columns:
             series_differentiator = "SeriesTime"
@@ -703,13 +760,12 @@ def assign_acquisition_and_run_numbers(
         for (desc, imgtype), subgrp in group.groupby(["SeriesDescription", "ImageType"]):
             times = sorted(
                 group.loc[
-                      (group["SeriesDescription"] == desc)
+                    (group["SeriesDescription"] == desc)
                     & (group["ImageType"] == imgtype),
                     series_differentiator,
                 ].unique()
             )
             if len(times) > 1:
-                #print(f"Found multiple series times for {desc}, {imgtype}: {times}")
                 for rn, t in enumerate(times, start=1):
                     mask = (
                         (session_df["SeriesDescription"] == desc)
@@ -720,182 +776,103 @@ def assign_acquisition_and_run_numbers(
                                 session_df[k] == v
                                 for k, v in zip(
                                     run_keys,
-                                    (
-                                        key_vals
-                                        if isinstance(key_vals, tuple)
-                                        else [key_vals]
-                                    ),
+                                    (key_vals if isinstance(key_vals, tuple) else [key_vals]),
                                 )
                             ],
                             axis=1,
                         ).all(axis=1)
                     )
                     session_df.loc[mask, "RunNumber"] = rn
-                    #print(f"Assigned RunNumber {rn} to {desc}, {imgtype}, {t}")
             else:
                 idx = group[group["SeriesDescription"] == desc].index
                 session_df.loc[idx, "RunNumber"] = 1
 
     # split acquisitions by differing reference‐field settings
     if reference_fields:
-        #print("Starting settings number assignment based on reference fields")
-        
-        # First, let's create a special handling for the coil field
         coil_field = "(0051,100F)"
         if coil_field in session_df.columns:
-            #print(f"Special handling for coil field {coil_field}")
-            
-            # Function to check if a value contains a number
             def contains_number(value):
                 if pd.isna(value) or value is None or value == "":
                     return False
-                value_str = str(value)
-                return any(char.isdigit() for char in value_str)
-            
-            # Function to check if a value is purely non-numeric (like "HEA;HEP")
+                return any(char.isdigit() for char in str(value))
+
             def is_non_numeric_special(value):
                 if pd.isna(value) or value is None or value == "":
                     return False
-                value_str = str(value)
-                return value_str == "HEA;HEP" or not any(char.isdigit() for char in value_str)
-            
-            # Create a new column to mark rows as having numeric or non-numeric coil values
-            session_df['CoilType'] = 'Unknown'
+                val_str = str(value)
+                return val_str == "HEA;HEP" or not any(char.isdigit() for char in val_str)
+
+            session_df["CoilType"] = "Unknown"
             numeric_mask = session_df[coil_field].apply(lambda x: contains_number(x) if pd.notnull(x) else False)
             non_numeric_mask = session_df[coil_field].apply(lambda x: is_non_numeric_special(x) if pd.notnull(x) else False)
-            
-            session_df.loc[numeric_mask, 'CoilType'] = 'Numeric'
-            session_df.loc[non_numeric_mask, 'CoilType'] = 'NonNumeric'
-            
-            # Log the distribution of coil types
-            coil_type_counts = session_df['CoilType'].value_counts()
-            #print(f"Coil type distribution: {coil_type_counts.to_dict()}")
-            
-            # Check if we have both types
-            has_numeric = 'Numeric' in coil_type_counts.index
-            has_non_numeric = 'NonNumeric' in coil_type_counts.index
-            
+
+            session_df.loc[numeric_mask, "CoilType"] = "Numeric"
+            session_df.loc[non_numeric_mask, "CoilType"] = "NonNumeric"
+
+            coil_type_counts = session_df["CoilType"].value_counts()
+            has_numeric = "Numeric" in coil_type_counts.index
+            has_non_numeric = "NonNumeric" in coil_type_counts.index
+
             if has_numeric and has_non_numeric:
-                #print("Dataset contains both numeric and non-numeric coil values")
-                # Add CoilType to the settings group fields to ensure separation
                 settings_group_fields = [
                     f for f in ["PatientName", "PatientID", "StudyDate", "RunNumber", "CoilType"]
                     if f in session_df.columns
                 ]
             else:
-                # No need to separate by coil type
                 settings_group_fields = [
                     f for f in ["PatientName", "PatientID", "StudyDate", "RunNumber"]
                     if f in session_df.columns
                 ]
         else:
-            # No coil field, use standard grouping
             settings_group_fields = [
                 f for f in ["PatientName", "PatientID", "StudyDate", "RunNumber"]
                 if f in session_df.columns
             ]
-        
-        #print(f"Using settings group fields: {settings_group_fields}")
-        
-        # Now process each protocol
+
         for pn, protocol_group in session_df.groupby("ProtocolName"):
-            #print(f"Processing protocol: {pn}")
-            
-            # Debug: Show RunNumber distribution
-            if 'RunNumber' in protocol_group.columns:
-                run_counts = protocol_group['RunNumber'].value_counts()
-                #print(f"RunNumber distribution for protocol {pn}: {run_counts.to_dict()}")
-            
-            # Debug: Show CoilType distribution by RunNumber if applicable
-            if 'CoilType' in protocol_group.columns and 'RunNumber' in protocol_group.columns:
-                for run_num in protocol_group['RunNumber'].unique():
-                    run_group = protocol_group[protocol_group['RunNumber'] == run_num]
-                    coil_counts = run_group['CoilType'].value_counts()
-                    #print(f"RunNumber {run_num} coil type distribution: {coil_counts.to_dict()}")
-                    
-                    # Show sample values for each coil type in this run
-                    for coil_type in run_group['CoilType'].unique():
-                        sample_values = run_group[run_group['CoilType'] == coil_type][coil_field].unique()[:5]
-                        #print(f"RunNumber {run_num}, CoilType {coil_type} sample values: {sample_values}")
-            
             param_to_idx = {}
             counter = 1
 
-            # Group by the settings fields
             for settings_vals, sg in protocol_group.groupby(settings_group_fields):
-                # Debug: Show detailed info about this settings group
                 if isinstance(settings_vals, tuple):
                     settings_dict = {field: val for field, val in zip(settings_group_fields, settings_vals)}
                 else:
                     settings_dict = {settings_group_fields[0]: settings_vals}
-                
-                #print(f"Processing settings group: {settings_dict}")
-                
-                if coil_field in sg.columns:
-                    unique_values = sg[coil_field].dropna().unique()
-                    #print(f"Coil field values in this group: {unique_values}")
-                    
-                    # Check if this group has numeric or non-numeric values
-                    has_numeric_in_group = any(contains_number(val) for val in unique_values)
-                    has_non_numeric_in_group = any(is_non_numeric_special(val) for val in unique_values)
-                    #print(f"Group has numeric values: {has_numeric_in_group}, non-numeric values: {has_non_numeric_in_group}")
-                
-                # Create parameter tuple for this group
+
                 param_tuple = tuple(
                     (fld, tuple(sorted(sg[fld].dropna().unique(), key=str)))
                     for fld in reference_fields
                     if fld in sg
                 )
-                
-                # If we're using CoilType for grouping, add it to the parameter tuple
-                if 'CoilType' in settings_group_fields and 'CoilType' in sg.columns:
-                    coil_types = tuple(sorted(sg['CoilType'].dropna().unique()))
-                    param_tuple += (('CoilType', coil_types),)
-                
-                # Create a readable dict of the parameters
+                if "CoilType" in settings_group_fields and "CoilType" in sg.columns:
+                    coil_types = tuple(sorted(sg["CoilType"].dropna().unique()))
+                    param_tuple += (("CoilType", coil_types),)
+
                 params = {fld: vals for fld, vals in param_tuple}
-                
+
                 if param_tuple not in param_to_idx:
                     param_to_idx[param_tuple] = counter
-                    #print(f"Created new SettingsNumber {counter} for parameter set")
-                    #print(f"Fields contributing to SettingsNumber {counter}:")
-                    #for field, values in params.items():
-                    #    print(f"  {field}: {values}")
                     counter += 1
-                #else:
-                #    print(f"Using existing SettingsNumber {param_to_idx[param_tuple]} for parameter set")
-                
+
                 session_df.loc[sg.index, "SettingsNumber"] = param_to_idx[param_tuple]
-                #print(f"Assigned SettingsNumber {param_to_idx[param_tuple]} to {len(sg)} rows")
 
-        # Clean up the temporary column if it exists
-        if 'CoilType' in session_df.columns:
-            session_df = session_df.drop(columns='CoilType')
+        if "CoilType" in session_df.columns:
+            session_df = session_df.drop(columns="CoilType")
 
-        # any acquisition with >1 settings → rename Acquisition
         counts = session_df.groupby("Acquisition")["SettingsNumber"].nunique()
         multi = counts[counts > 1].index
         if len(multi) > 0:
-            #print(f"Found {len(multi)} acquisitions with multiple settings numbers: {multi.tolist()}")
             mask = session_df["Acquisition"].isin(multi)
             session_df.loc[mask, "Acquisition"] = (
-                session_df.loc[mask, "Acquisition"]
-                + "-"
-                + session_df.loc[mask, "SettingsNumber"].astype(int).astype(str)
+                session_df.loc[mask, "Acquisition"] + "-" + session_df.loc[mask, "SettingsNumber"].astype(int).astype(str)
             )
-            #print(f"Renamed acquisitions with settings numbers: {session_df.loc[mask, 'Acquisition'].unique().tolist()}")
-        #else:
-        #    print("No acquisitions with multiple settings numbers found")
-            
+
         session_df = session_df.drop(columns="SettingsNumber").reset_index(drop=True)
 
-        # recalc runs on true acquisitions
-        #print("Recalculating run numbers based on final acquisition labels")
         final_run_keys = ["Acquisition", "SeriesDescription", "ImageType"] + [
             f for f in ["PatientName", "PatientID", "StudyDate"] if f in session_df
         ]
-        #print(f"Using final run keys: {final_run_keys}")
-        
+
         for key_vals, group in session_df.groupby(final_run_keys):
             if "SeriesTime" in group.columns:
                 series_differentiator = "SeriesTime"
@@ -903,25 +880,15 @@ def assign_acquisition_and_run_numbers(
                 series_differentiator = "SeriesInstanceUID"
             group = group.sort_values(series_differentiator)
             for desc in group["SeriesDescription"].unique():
-                times = sorted(
-                    group.loc[
-                        group["SeriesDescription"] == desc, series_differentiator
-                    ].unique()
-                )
+                times = sorted(group.loc[group["SeriesDescription"] == desc, series_differentiator].unique())
                 if len(times) > 1:
-                    #print(f"Found multiple series times for {desc} in final acquisition: {times}")
                     for rn, t in enumerate(times, start=1):
-                        idx = group[
-                            (group["SeriesDescription"] == desc)
-                            & (group[series_differentiator] == t)
-                        ].index
+                        idx = group[(group["SeriesDescription"] == desc) & (group[series_differentiator] == t)].index
                         session_df.loc[idx, "RunNumber"] = rn
-                        #print(f"Assigned final RunNumber {rn} to {desc}, {t}")
                 else:
                     idx = group[group["SeriesDescription"] == desc].index
                     session_df.loc[idx, "RunNumber"] = 1
 
-    #print("Finished assigning acquisition and run numbers")
     return session_df
 
 
@@ -945,19 +912,13 @@ def load_json_session(json_ref: str) -> Tuple[List[str], Dict[str, Any]]:
         FileNotFoundError: If the specified JSON file path does not exist.
         JSONDecodeError: If the file is not a valid JSON file.
     """
-
     def process_fields(fields: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Process fields to standardize them for comparison.
-        """
         processed_fields = []
         for field in fields:
             processed = {"field": field["field"]}
             if "value" in field:
                 processed["value"] = (
-                    tuple(field["value"])
-                    if isinstance(field["value"], list)
-                    else field["value"]
+                    tuple(field["value"]) if isinstance(field["value"], list) else field["value"]
                 )
             if "tolerance" in field:
                 processed["tolerance"] = field["tolerance"]
@@ -979,9 +940,7 @@ def load_json_session(json_ref: str) -> Tuple[List[str], Dict[str, Any]]:
             "fields": process_fields(acquisition.get("fields", [])),
             "series": [],
         }
-        reference_fields.update(
-            field["field"] for field in acquisition.get("fields", [])
-        )
+        reference_fields.update(field["field"] for field in acquisition.get("fields", []))
 
         for series in acquisition.get("series", []):
             series_entry = {
@@ -989,9 +948,7 @@ def load_json_session(json_ref: str) -> Tuple[List[str], Dict[str, Any]]:
                 "fields": process_fields(series.get("fields", [])),
             }
             acq_entry["series"].append(series_entry)
-            reference_fields.update(
-                field["field"] for field in series.get("fields", [])
-            )
+            reference_fields.update(field["field"] for field in series.get("fields", []))
 
         acquisitions[acq_name] = acq_entry
 
@@ -1016,15 +973,12 @@ def load_python_session(module_path: str) -> Dict[str, BaseValidationModel]:
         FileNotFoundError: If the specified Python module path does not exist.
         ValueError: If the module does not define `ACQUISITION_MODELS` or its format is incorrect.
     """
-
     spec = importlib.util.spec_from_file_location("validation_module", module_path)
     validation_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(validation_module)
 
     if not hasattr(validation_module, "ACQUISITION_MODELS"):
-        raise ValueError(
-            f"The module {module_path} does not define 'ACQUISITION_MODELS'."
-        )
+        raise ValueError(f"The module {module_path} does not define 'ACQUISITION_MODELS'.")
 
     acquisition_models = getattr(validation_module, "ACQUISITION_MODELS")
     if not isinstance(acquisition_models, dict):
