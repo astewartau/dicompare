@@ -405,6 +405,31 @@ def load_dicom(
     metadata.update(csa_metadata)
     inferred_metadata = extract_inferred_metadata(ds_raw)
     metadata.update(inferred_metadata)
+    
+    # Add CoilType as a regular metadata field
+    coil_field = "(0051,100F)"
+    if coil_field in metadata:
+        coil_value = metadata[coil_field]
+        if coil_value:
+            def contains_number(value):
+                if pd.isna(value) or value is None or value == "":
+                    return False
+                return any(char.isdigit() for char in str(value))
+
+            def is_non_numeric_special(value):
+                if pd.isna(value) or value is None or value == "":
+                    return False
+                val_str = str(value)
+                return val_str == "HEA;HEP" or not any(char.isdigit() for char in val_str)
+            
+            if contains_number(coil_value):
+                metadata["CoilType"] = "Uncombined"
+            elif is_non_numeric_special(coil_value):
+                metadata["CoilType"] = "Combined"
+            else:
+                metadata["CoilType"] = "Unknown"
+        else:
+            metadata["CoilType"] = "Unknown"
 
     return metadata
 
@@ -673,6 +698,9 @@ def load_dicom_session(
 def assign_acquisition_and_run_numbers(
     session_df, reference_fields=None, acquisition_fields=None, run_group_fields=None
 ):
+    print("DEBUG: Starting assign_acquisition_and_run_numbers")
+    print(f"DEBUG: Input parameters - reference_fields: {reference_fields}, acquisition_fields: {acquisition_fields}, run_group_fields: {run_group_fields}")
+    
     if reference_fields is None:
         reference_fields = [
             #"SeriesDescription",
@@ -683,7 +711,7 @@ def assign_acquisition_and_run_numbers(
             "SliceThickness",
             "AcquisitionMatrix",
             "RepetitionTime",
-            "EchoTime",
+            #"EchoTime",
             "InversionTime",
             "NumberOfAverages",
             "ImagingFrequency",
@@ -723,14 +751,19 @@ def assign_acquisition_and_run_numbers(
             "PartialFourierDirection",
             "MultibandFactor"
         ]
+    print(f"DEBUG: Using reference_fields: {reference_fields}")
+    
     if acquisition_fields is None:
         acquisition_fields = ["ProtocolName"]
+    print(f"DEBUG: Using acquisition_fields: {acquisition_fields}")
 
     # first make sure ProtocolName exists
     if "ProtocolName" not in session_df.columns:
         print("Warning: 'ProtocolName' not found in session_df columns. Setting it to 'SeriesDescription' instead.")
         session_df["ProtocolName"] = session_df.get("SeriesDescription", "Unknown")
 
+    print(f"DEBUG: Initial acquisition labeling - session shape: {session_df.shape}")
+    
     # initial grouping so we can label acquisitions
     if acquisition_fields:
         session_df = session_df.groupby(acquisition_fields).apply(
@@ -745,6 +778,9 @@ def assign_acquisition_and_run_numbers(
     ).apply(clean_string)
 
     session_df = session_df.reset_index(drop=True)
+    print(f"DEBUG: After initial acquisition labeling:")
+    print(f"  - Unique acquisitions: {session_df['Acquisition'].unique()}")
+    print(f"  - Acquisition counts: {session_df['Acquisition'].value_counts().to_dict()}")
 
     # identify runs: group by subject+protocol+date
     if run_group_fields is None:
@@ -788,48 +824,40 @@ def assign_acquisition_and_run_numbers(
                 session_df.loc[idx, "RunNumber"] = 1
 
     # split acquisitions by differing reference‐field settings
+    print(f"DEBUG: Starting settings boundary detection")
+    print(f"DEBUG: Available reference fields in session: {[f for f in reference_fields if f in session_df.columns]}")
+    
     if reference_fields:
-        coil_field = "(0051,100F)"
-        if coil_field in session_df.columns:
-            def contains_number(value):
-                if pd.isna(value) or value is None or value == "":
-                    return False
-                return any(char.isdigit() for char in str(value))
-
-            def is_non_numeric_special(value):
-                if pd.isna(value) or value is None or value == "":
-                    return False
-                val_str = str(value)
-                return val_str == "HEA;HEP" or not any(char.isdigit() for char in val_str)
-
-            session_df["CoilType"] = "Unknown"
-            numeric_mask = session_df[coil_field].apply(lambda x: contains_number(x) if pd.notnull(x) else False)
-            non_numeric_mask = session_df[coil_field].apply(lambda x: is_non_numeric_special(x) if pd.notnull(x) else False)
-
-            session_df.loc[numeric_mask, "CoilType"] = "Numeric"
-            session_df.loc[non_numeric_mask, "CoilType"] = "NonNumeric"
-
+        # Use CoilType for settings grouping if it exists (created during DICOM loading)
+        if "CoilType" in session_df.columns:
+            print(f"DEBUG: Found CoilType field in session")
             coil_type_counts = session_df["CoilType"].value_counts()
             has_numeric = "Numeric" in coil_type_counts.index
             has_non_numeric = "NonNumeric" in coil_type_counts.index
+            print(f"DEBUG: CoilType distribution: {coil_type_counts.to_dict()}")
 
             if has_numeric and has_non_numeric:
                 settings_group_fields = [
                     f for f in ["PatientName", "PatientID", "StudyDate", "RunNumber", "CoilType"]
                     if f in session_df.columns
                 ]
+                print(f"DEBUG: Using CoilType for settings grouping")
             else:
                 settings_group_fields = [
                     f for f in ["PatientName", "PatientID", "StudyDate", "RunNumber"]
                     if f in session_df.columns
                 ]
+                print(f"DEBUG: Not using CoilType for settings grouping (only one type)")
         else:
+            print(f"DEBUG: CoilType field not found in session")
             settings_group_fields = [
                 f for f in ["PatientName", "PatientID", "StudyDate", "RunNumber"]
                 if f in session_df.columns
             ]
 
+        print(f"DEBUG: Processing settings for each protocol...")
         for pn, protocol_group in session_df.groupby("ProtocolName"):
+            print(f"DEBUG: Processing protocol '{pn}' with {len(protocol_group)} rows")
             param_to_idx = {}
             counter = 1
 
@@ -839,37 +867,63 @@ def assign_acquisition_and_run_numbers(
                 else:
                     settings_dict = {settings_group_fields[0]: settings_vals}
 
+                print(f"DEBUG: Processing settings group: {settings_dict}")
+                print(f"  - Group has {len(sg)} rows")
+                
                 param_tuple = tuple(
                     (fld, tuple(sorted(sg[fld].dropna().unique(), key=str)))
                     for fld in reference_fields
                     if fld in sg
                 )
+                print(f"  - Parameter tuple: {param_tuple}")
+                
                 if "CoilType" in settings_group_fields and "CoilType" in sg.columns:
                     coil_types = tuple(sorted(sg["CoilType"].dropna().unique()))
                     param_tuple += (("CoilType", coil_types),)
+                    print(f"  - Added CoilType to param_tuple: {coil_types}")
 
                 params = {fld: vals for fld, vals in param_tuple}
 
                 if param_tuple not in param_to_idx:
                     param_to_idx[param_tuple] = counter
+                    print(f"  - NEW parameter combination #{counter}")
                     counter += 1
+                else:
+                    print(f"  - EXISTING parameter combination #{param_to_idx[param_tuple]}")
 
                 session_df.loc[sg.index, "SettingsNumber"] = param_to_idx[param_tuple]
+            
+            print(f"DEBUG: Protocol '{pn}' final param_to_idx mapping:")
+            for i, (param_tuple, idx) in enumerate(param_to_idx.items()):
+                print(f"  {idx}: {param_tuple}")
 
-        if "CoilType" in session_df.columns:
-            session_df = session_df.drop(columns="CoilType")
+        # CoilType is now a regular metadata field, no need to drop it
 
+        print(f"DEBUG: Checking for acquisition splits...")
         counts = session_df.groupby("Acquisition")["SettingsNumber"].nunique()
+        print(f"DEBUG: Settings count per acquisition: {counts.to_dict()}")
+        
         multi = counts[counts > 1].index
+        print(f"DEBUG: Acquisitions with multiple settings: {list(multi)}")
+        
         if len(multi) > 0:
+            print(f"DEBUG: SPLITTING acquisitions: {list(multi)}")
+            for acq in multi:
+                acq_data = session_df[session_df["Acquisition"] == acq]
+                settings_breakdown = acq_data.groupby("SettingsNumber").size()
+                print(f"  - {acq}: {settings_breakdown.to_dict()} rows per setting")
+            
             mask = session_df["Acquisition"].isin(multi)
             session_df.loc[mask, "Acquisition"] = (
                 session_df.loc[mask, "Acquisition"] + "-" + session_df.loc[mask, "SettingsNumber"].astype(int).astype(str)
             )
+            print(f"DEBUG: After splitting - new acquisition names: {session_df['Acquisition'].unique()}")
+        else:
+            print(f"DEBUG: No acquisition splits needed")
 
         session_df = session_df.drop(columns="SettingsNumber").reset_index(drop=True)
 
-        final_run_keys = ["Acquisition", "SeriesDescription", "ImageType"] + [
+        final_run_keys = ["Acquisition", "SeriesDescription"] + [
             f for f in ["PatientName", "PatientID", "StudyDate"] if f in session_df
         ]
 
