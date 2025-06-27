@@ -33,7 +33,8 @@ setup(
         "nibabel"
     ],
     extras_require={
-        "interactive": ["curses"]
+        "interactive": ["curses"],
+        "test": ["pytest-asyncio"]
     },
     python_requires=">=3.8",
     classifiers=[

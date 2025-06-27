@@ -766,7 +766,7 @@ def assign_acquisition_and_run_numbers(
     
     # initial grouping so we can label acquisitions
     if acquisition_fields:
-        session_df = session_df.groupby(acquisition_fields).apply(
+        session_df = session_df.groupby(acquisition_fields, group_keys=False).apply(
             lambda x: x.reset_index(drop=True)
         )
 
