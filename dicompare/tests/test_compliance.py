@@ -237,3 +237,375 @@ def test_qsm_compliance_failure_pixel_bandwidth():
         or (isinstance(rec.get("expected"), str) and "PixelBandwidth" in rec.get("expected"))
         for rec in compliance
     )
+
+
+# -------------------- Additional Tests for Missing Coverage --------------------
+
+def test_json_compliance_contains_validation():
+    """Test 'contains' validation in JSON reference compliance."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1"],
+        "ProtocolName": ["BOLD_task", "BOLD_rest"],
+        "SeriesDescription": ["func_task", "func_rest"]
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ProtocolName", "contains": "BOLD"},
+                    {"field": "SeriesDescription", "contains": "func"}
+                ],
+                "series": []
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should pass - both fields contain the required substrings
+    assert all(rec["passed"] for rec in compliance)
+
+
+def test_json_compliance_contains_validation_failure():
+    """Test 'contains' validation failure in JSON reference compliance."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1"],
+        "ProtocolName": ["T1w_MPR", "T2w_TSE"],
+        "SeriesDescription": ["anat_T1", "anat_T2"]
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ProtocolName", "contains": "BOLD"}
+                ],
+                "series": []
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should fail - ProtocolName values don't contain "BOLD"
+    assert any(not rec["passed"] for rec in compliance)
+    failed_records = [r for r in compliance if not r["passed"]]
+    assert any("Expected to contain 'BOLD'" in r["message"] for r in failed_records)
+
+
+def test_json_compliance_tolerance_validation():
+    """Test numeric tolerance validation in JSON reference compliance."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1"],
+        "RepetitionTime": [2000, 2005],
+        "FlipAngle": [90, 90]
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "RepetitionTime", "value": 2000, "tolerance": 10},
+                    {"field": "FlipAngle", "value": 90, "tolerance": 5}
+                ],
+                "series": []
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should pass - values are within tolerance
+    assert all(rec["passed"] for rec in compliance)
+
+
+def test_json_compliance_tolerance_validation_failure():
+    """Test numeric tolerance validation failure in JSON reference compliance."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1"],
+        "RepetitionTime": [2100],  # Outside tolerance
+        "FlipAngle": [90]
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "RepetitionTime", "value": 2000, "tolerance": 50}
+                ],
+                "series": []
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should fail - RepetitionTime is outside tolerance
+    assert any(not rec["passed"] for rec in compliance)
+    failed_records = [r for r in compliance if not r["passed"]]
+    assert any("Invalid values found" in r["message"] for r in failed_records)
+
+
+def test_json_compliance_non_numeric_tolerance():
+    """Test tolerance validation with non-numeric values."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1"],
+        "ProtocolName": ["T1w_MPR"],  # String value with tolerance constraint
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ProtocolName", "value": "T1w", "tolerance": 5}
+                ],
+                "series": []
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should fail - non-numeric values can't use tolerance
+    assert any(not rec["passed"] for rec in compliance)
+    failed_records = [r for r in compliance if not r["passed"]]
+    assert any("Field must be numeric" in r["message"] for r in failed_records)
+
+
+def test_json_compliance_list_value_matching_fixed():
+    """Test list-based value matching now works correctly with tuples from make_hashable.
+    
+    This test verifies that the refactored compliance code correctly handles
+    both lists and tuples when comparing values.
+    """
+    from dicompare.utils import make_hashable
+    
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1"],
+        "ImageType": [["ORIGINAL", "PRIMARY"], ["ORIGINAL", "PRIMARY"]],
+    })
+    
+    # Apply make_hashable to simulate real processing - converts lists to tuples
+    for col in in_session.columns:
+        in_session[col] = in_session[col].apply(make_hashable)
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ImageType", "value": ["ORIGINAL", "PRIMARY"]},
+                ],
+                "series": []
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should now pass - the bug has been fixed in the refactoring
+    assert all(rec["passed"] for rec in compliance)
+
+
+def test_json_compliance_case_insensitive_matching():
+    """Test case-insensitive string matching in JSON reference compliance."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1"],
+        "PatientName": ["JOHN DOE"],
+        "SeriesDescription": ["  T1w MPR  "]  # Extra whitespace
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "PatientName", "value": "john doe"},
+                    {"field": "SeriesDescription", "value": "t1w mpr"}
+                ],
+                "series": []
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should pass - case-insensitive matching with whitespace trimming
+    assert all(rec["passed"] for rec in compliance)
+
+
+def test_json_compliance_single_element_list_unwrapping():
+    """Test unwrapping of single-element lists for string comparison."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1"],
+        "ProtocolName": ["T1w_MPR"],  # String value
+        "SeriesDescription": "T1w_MPR"   # String
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ProtocolName", "value": "T1w_MPR"},
+                    {"field": "SeriesDescription", "value": "T1w_MPR"}
+                ],
+                "series": []
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should pass - string values match exactly
+    assert all(rec["passed"] for rec in compliance)
+
+
+def test_json_compliance_series_validation_complex():
+    """Test complex series validation with multiple constraints."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1", "acq1"],
+        "SeriesDescription": ["BOLD_run1", "BOLD_run1", "T1w_MPR"],
+        "EchoTime": [30, 30, 0],
+        "RepetitionTime": [2000, 2000, 500],
+        "FlipAngle": [90, 90, 10]
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [],
+                "series": [
+                    {
+                        "name": "BOLD_series",
+                        "fields": [
+                            {"field": "SeriesDescription", "contains": "BOLD"},
+                            {"field": "EchoTime", "value": 30, "tolerance": 5},
+                            {"field": "RepetitionTime", "value": 2000}
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should pass - series validation finds matching rows
+    assert all(rec["passed"] for rec in compliance)
+
+
+def test_json_compliance_series_not_found():
+    """Test series validation when no matching series is found."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1"],
+        "SeriesDescription": ["T1w_MPR", "T2w_TSE"],
+        "EchoTime": [0, 100],
+        "RepetitionTime": [500, 5000]
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [],
+                "series": [
+                    {
+                        "name": "BOLD_series",
+                        "fields": [
+                            {"field": "SeriesDescription", "contains": "BOLD"},
+                            {"field": "EchoTime", "value": 30}
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should fail - no series matches the constraints
+    assert any(not rec["passed"] for rec in compliance)
+    failed_records = [r for r in compliance if not r["passed"]]
+    assert any("not found with the specified constraints" in r["message"] for r in failed_records)
+
+
+def test_json_compliance_missing_series_field():
+    """Test series validation when a required field is missing."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1"],
+        "SeriesDescription": ["BOLD_run1"],
+        "RepetitionTime": [2000]
+        # Missing EchoTime field
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [],
+                "series": [
+                    {
+                        "name": "BOLD_series",
+                        "fields": [
+                            {"field": "SeriesDescription", "contains": "BOLD"},
+                            {"field": "EchoTime", "value": 30}
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should fail - EchoTime field is missing
+    assert any(not rec["passed"] for rec in compliance)
+    failed_records = [r for r in compliance if not r["passed"]]
+    assert any("not found in input for series" in r["message"] for r in failed_records)
+
+
+def test_python_module_compliance_no_model():
+    """Test Python module compliance when no model is found for acquisition."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1"],
+        "ProtocolName": ["T1w_MPR"]
+    })
+    
+    ref_models = {}  # No models available
+    session_map = {"ref1": "acq1"}
+    
+    compliance = check_session_compliance_with_python_module(in_session, ref_models, session_map)
+    
+    # Should fail - no model found
+    assert any(not rec["passed"] for rec in compliance)
+    failed_records = [r for r in compliance if not r["passed"]]
+    assert any("No model found for reference acquisition" in r["message"] for r in failed_records)
+
+
+def test_json_compliance_empty_input_session():
+    """Test JSON compliance with empty input session."""
+    in_session = pd.DataFrame({"Acquisition": []})  # Empty DataFrame with required column
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [{"field": "ProtocolName", "value": "T1w"}],
+                "series": []
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    
+    # Should handle empty session gracefully and report field not found
+    assert isinstance(compliance, list)
+    assert any("Field not found in input session" in r.get("message", "") for r in compliance)
