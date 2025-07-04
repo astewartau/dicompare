@@ -197,7 +197,7 @@ def format_constraint_description(expected_value: Any = None, tolerance: float =
 
 
 def create_compliance_record(
-    ref_acq_name: str,
+    schema_acq_name: str,
     in_acq_name: str,
     series_name: Optional[str],
     field_name: str,
@@ -212,7 +212,7 @@ def create_compliance_record(
     Create a standardized compliance record.
     
     Args:
-        ref_acq_name: Reference acquisition name
+        schema_acq_name: Schema acquisition name
         in_acq_name: Input acquisition name
         series_name: Series name (None for acquisition-level)
         field_name: Field name being validated
@@ -232,7 +232,7 @@ def create_compliance_record(
         expected_desc = f"(value={expected_value}, tolerance={tolerance}, contains={contains})"
     
     return {
-        "reference acquisition": ref_acq_name,
+        "schema acquisition": schema_acq_name,
         "input acquisition": in_acq_name,
         "series": series_name,
         "field": field_name,
