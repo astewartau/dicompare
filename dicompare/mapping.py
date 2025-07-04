@@ -10,13 +10,14 @@ import pandas as pd
 from typing import Any, Dict
 from tabulate import tabulate
 from scipy.optimize import linear_sum_assignment
+from .config import MAX_DIFF_SCORE
 
 try:
     import curses
 except ImportError:
     curses = None
 
-MAX_DIFF_SCORE = 10  # Maximum allowed difference score for each field to avoid unmanageably large values
+# MAX_DIFF_SCORE imported from config
 
 def levenshtein_distance(s1, s2):
     """

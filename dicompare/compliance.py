@@ -8,8 +8,7 @@ The module supports compliance checks for JSON-based reference sessions and Pyth
 from typing import List, Dict, Any
 from dicompare.validation import BaseValidationModel
 from dicompare.validation_helpers import (
-    normalize_value, check_equality, check_contains, validate_constraint,
-    validate_field_values, create_compliance_record
+    validate_constraint, validate_field_values, create_compliance_record, format_constraint_description
 )
 import pandas as pd
 
@@ -127,7 +126,6 @@ def check_session_compliance_with_json_reference(
             actual_values_agg[field] = values
 
             # Format constraint description
-            from dicompare.validation_helpers import format_constraint_description
             constraints_agg[field] = format_constraint_description(e_val, tol, ctn)
 
             # Validate field values

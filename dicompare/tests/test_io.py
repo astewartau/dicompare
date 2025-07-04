@@ -238,7 +238,8 @@ def test_async_load_dicom_session_error():
 
 # ---------- Tests for assign_acquisition_and_run_numbers ----------
 
-def test_assign_acquisition_and_run_numbers():
+def test_assign_acquisition_and_run_numbers_basic():
+    """Test basic acquisition and run number assignment."""
     # Create a DataFrame with necessary columns.
     data = {
         "SeriesDescription": ["desc1", "desc1", "desc2"],
@@ -262,6 +263,166 @@ def test_assign_acquisition_and_run_numbers():
     for arr in runs:
         for run in arr:
             assert run >= 1
+
+
+def test_assign_acquisition_and_run_numbers_multiple_protocols():
+    """Test handling of multiple different protocols (acquisitions)."""
+    data = {
+        "ProtocolName": ["T1w", "T1w", "T2w", "T2w"],
+        "SeriesDescription": ["T1_MPR", "T1_MPR", "T2_TSE", "T2_TSE"], 
+        "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
+        "SeriesTime": ["120000", "120000", "130000", "130000"],
+        "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
+        "PatientID": ["ID1", "ID1", "ID1", "ID1"],
+        "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
+    }
+    df = pd.DataFrame(data)
+    df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
+    
+    # Should have two different acquisitions
+    unique_acquisitions = df_out["Acquisition"].unique()
+    assert len(unique_acquisitions) == 2
+    assert "acq-t1w" in unique_acquisitions
+    assert "acq-t2w" in unique_acquisitions
+    
+    # Each acquisition should have run number 1 (no temporal repeats)
+    for acq in unique_acquisitions:
+        acq_data = df_out[df_out["Acquisition"] == acq]
+        assert all(acq_data["RunNumber"] == 1)
+
+
+def test_assign_acquisition_and_run_numbers_settings_splitting():
+    """Test acquisition splitting when different settings are detected."""
+    data = {
+        "ProtocolName": ["fMRI", "fMRI", "fMRI", "fMRI"],
+        "SeriesDescription": ["BOLD", "BOLD", "BOLD", "BOLD"],
+        "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
+        "SeriesTime": ["120000", "120000", "130000", "130000"],
+        "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
+        "PatientID": ["ID1", "ID1", "ID1", "ID1"],
+        "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
+        # Add a reference field that varies - this should trigger splitting
+        "FlipAngle": [90, 90, 45, 45],  # Two different flip angles
+        "RepetitionTime": [2000, 2000, 2000, 2000],  # Same TR
+    }
+    df = pd.DataFrame(data)
+    
+    # Use specific reference fields that include the varying field
+    df_out = dicompare.assign_acquisition_and_run_numbers(
+        df.copy(), 
+        reference_fields=["FlipAngle", "RepetitionTime"]
+    )
+    
+    # Should split into two acquisitions due to different FlipAngle
+    unique_acquisitions = df_out["Acquisition"].unique()
+    assert len(unique_acquisitions) == 2
+    
+    # Check that acquisitions are named with settings numbers
+    acq_names = sorted(unique_acquisitions)
+    assert "acq-fmri-1" in acq_names and "acq-fmri-2" in acq_names
+
+
+def test_assign_acquisition_and_run_numbers_temporal_runs():
+    """Test detection of temporal runs (same acquisition repeated over time)."""
+    data = {
+        "ProtocolName": ["rsfMRI", "rsfMRI", "rsfMRI", "rsfMRI"],
+        "SeriesDescription": ["BOLD", "BOLD", "BOLD", "BOLD"],
+        "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
+        "SeriesTime": ["120000", "120000", "140000", "140000"],  # Two different times
+        "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
+        "PatientID": ["ID1", "ID1", "ID1", "ID1"],
+        "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
+        "FlipAngle": [90, 90, 90, 90],  # Same settings
+        "RepetitionTime": [2000, 2000, 2000, 2000],
+    }
+    df = pd.DataFrame(data)
+    df_out = dicompare.assign_acquisition_and_run_numbers(
+        df.copy(),
+        reference_fields=["FlipAngle", "RepetitionTime"]
+    )
+    
+    # Should have one acquisition type
+    unique_acquisitions = df_out["Acquisition"].unique()
+    assert len(unique_acquisitions) == 1
+    
+    # Current behavior: Run detection happens but may not work as expected in this case
+    # because the logic groups by various fields before detecting runs
+    run_numbers = sorted(df_out["RunNumber"].unique())
+    assert len(run_numbers) == 2  # Two runs detected
+
+
+def test_assign_acquisition_and_run_numbers_coil_type_splitting():
+    """Test CoilType-based acquisition splitting."""
+    data = {
+        "ProtocolName": ["GRE", "GRE", "GRE", "GRE"],
+        "SeriesDescription": ["GRE_magnitude", "GRE_magnitude", "GRE_magnitude", "GRE_magnitude"],
+        "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
+        "SeriesTime": ["120000", "120000", "120000", "120000"],
+        "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
+        "PatientID": ["ID1", "ID1", "ID1", "ID1"],
+        "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
+        "CoilType": ["Combined", "Combined", "Uncombined", "Uncombined"],  # Different coil types
+        "FlipAngle": [15, 15, 15, 15],
+    }
+    df = pd.DataFrame(data)
+    df_out = dicompare.assign_acquisition_and_run_numbers(
+        df.copy(),
+        reference_fields=["FlipAngle"]
+    )
+    
+    # New implementation correctly splits on CoilType differences
+    unique_acquisitions = df_out["Acquisition"].unique()
+    assert len(unique_acquisitions) == 2
+    
+    # Verify CoilType is preserved in output
+    assert "CoilType" in df_out.columns
+
+
+def test_assign_acquisition_and_run_numbers_missing_protocol():
+    """Test handling when ProtocolName is missing."""
+    data = {
+        "SeriesDescription": ["T1_MPR", "T1_MPR", "T2_TSE"],
+        "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
+        "SeriesTime": ["120000", "120000", "130000"],
+        "PatientName": ["Patient1", "Patient1", "Patient1"],
+        "PatientID": ["ID1", "ID1", "ID1"],
+        "StudyDate": ["20210101", "20210101", "20210101"],
+        # No ProtocolName column
+    }
+    df = pd.DataFrame(data)
+    df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
+    
+    # Should create ProtocolName from SeriesDescription
+    assert "ProtocolName" in df_out.columns
+    assert "Acquisition" in df_out.columns
+    assert "RunNumber" in df_out.columns
+
+
+def test_assign_acquisition_and_run_numbers_custom_fields():
+    """Test using custom acquisition and reference fields."""
+    data = {
+        "CustomProtocol": ["Scan1", "Scan1", "Scan2"],
+        "SeriesDescription": ["desc1", "desc1", "desc2"],
+        "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
+        "SeriesTime": ["120000", "120000", "130000"],
+        "PatientName": ["Patient1", "Patient1", "Patient1"],
+        "PatientID": ["ID1", "ID1", "ID1"],
+        "StudyDate": ["20210101", "20210101", "20210101"],
+        "CustomField": ["A", "A", "B"],
+    }
+    df = pd.DataFrame(data)
+    df_out = dicompare.assign_acquisition_and_run_numbers(
+        df.copy(),
+        acquisition_fields=["CustomProtocol"],
+        reference_fields=["CustomField"],
+        run_group_fields=["PatientName", "PatientID", "StudyDate"]
+    )
+    
+    # Should create acquisitions based on CustomProtocol
+    unique_acquisitions = df_out["Acquisition"].unique()
+    assert len(unique_acquisitions) == 2
+    assert any("scan1" in acq.lower() for acq in unique_acquisitions)
+    assert any("scan2" in acq.lower() for acq in unique_acquisitions)
 
 # ---------- Tests for load_json_session ----------
 

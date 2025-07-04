@@ -7,35 +7,7 @@ used in DICOM compliance checks.
 from typing import Callable, List, Dict, Any, Tuple
 import pandas as pd
 from itertools import chain
-
-def make_hashable(value):
-    """
-    Convert a value into a hashable format for use in dictionaries or sets.
-
-    Notes:
-        - Lists are converted to tuples.
-        - Dictionaries are converted to sorted tuples of key-value pairs.
-        - Sets are converted to sorted tuples of elements.
-        - Nested structures are processed recursively.
-        - Primitive hashable types (e.g., int, str) are returned unchanged.
-
-    Args:
-        value (Any): The value to make hashable.
-
-    Returns:
-        Any: A hashable version of the input value.
-    """
-
-    if isinstance(value, dict):
-        return tuple((k, make_hashable(v)) for k, v in value.items())
-    elif isinstance(value, list):
-        return tuple(make_hashable(v) for v in value)
-    elif isinstance(value, set):
-        return tuple(sorted(make_hashable(v) for v in value))  # Sort sets for consistent hash
-    elif isinstance(value, tuple):
-        return tuple(make_hashable(v) for v in value)
-    else:
-        return value  # Assume the value is already hashable
+from .utils import make_hashable
     
 def get_unique_combinations(data: pd.DataFrame, fields: List[str]) -> pd.DataFrame:
     """
