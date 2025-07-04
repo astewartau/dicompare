@@ -424,10 +424,10 @@ def test_assign_acquisition_and_run_numbers_custom_fields():
     assert any("scan1" in acq.lower() for acq in unique_acquisitions)
     assert any("scan2" in acq.lower() for acq in unique_acquisitions)
 
-# ---------- Tests for load_json_session ----------
+# ---------- Tests for load_json_schema ----------
 
-def test_load_json_session(json_file):
-    fields, ref_data = dicompare.load_json_session(json_file)
+def test_load_json_schema(json_file):
+    fields, ref_data = dicompare.load_json_schema(json_file)
     # Expect two fields: one from acquisitions and one from series.
     assert "TestField" in fields
     assert "SeriesField" in fields
@@ -440,17 +440,17 @@ def test_load_json_session(json_file):
     assert acq["series"][0]["name"] == "series1"
 
 
-# ---------- Tests for load_python_session ----------
+# ---------- Tests for load_python_schema ----------
 
-def test_load_python_session_valid(valid_python_module):
-    models = dicompare.load_python_session(valid_python_module)
+def test_load_python_schema_valid(valid_python_module):
+    models = dicompare.load_python_schema(valid_python_module)
     assert isinstance(models, dict)
     assert "dummy" in models
 
-def test_load_python_session_no_models(no_models_python_module):
+def test_load_python_schema_no_models(no_models_python_module):
     with pytest.raises(ValueError, match="does not define 'ACQUISITION_MODELS'"):
-        dicompare.load_python_session(no_models_python_module)
+        dicompare.load_python_schema(no_models_python_module)
 
-def test_load_python_session_invalid(invalid_models_python_module):
+def test_load_python_schema_invalid(invalid_models_python_module):
     with pytest.raises(ValueError, match="'ACQUISITION_MODELS' must be a dictionary"):
-        dicompare.load_python_session(invalid_models_python_module)
+        dicompare.load_python_schema(invalid_models_python_module)

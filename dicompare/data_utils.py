@@ -190,3 +190,33 @@ def prepare_session_dataframe(session_data: List[Dict[str, Any]]) -> pd.DataFram
         session_df.sort_values("DICOM_Path", inplace=True)
     
     return session_df
+
+
+def standardize_session_dataframe(df: pd.DataFrame, 
+                                reference_fields: List[str] = None) -> pd.DataFrame:
+    """
+    Standard preparation for session DataFrames used in schema generation and validation.
+    
+    Args:
+        df: DataFrame to standardize
+        reference_fields: Optional list of fields to sort by
+        
+    Returns:
+        Standardized DataFrame
+    """
+    from .acquisition import assign_acquisition_and_run_numbers
+    
+    # Make all values hashable
+    df = make_dataframe_hashable(df)
+    
+    # Ensure acquisition assignment
+    if "Acquisition" not in df.columns:
+        df = assign_acquisition_and_run_numbers(df)
+    
+    # Sort by acquisition and reference fields if provided
+    sort_columns = ["Acquisition"]
+    if reference_fields:
+        sort_columns.extend(reference_fields)
+    df.sort_values(by=sort_columns, inplace=True)
+    
+    return df

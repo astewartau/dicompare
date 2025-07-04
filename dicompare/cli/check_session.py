@@ -1,29 +1,36 @@
 import sys
 import json
 import argparse
+import logging
 import pandas as pd
+from typing import List, Dict, Any
 
-from dicompare.io import load_json_session, load_python_session, load_dicom_session
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
+
+from dicompare.io import load_json_schema, load_python_schema, load_dicom_session
 from dicompare.compliance import check_session_compliance_with_json_reference, check_session_compliance_with_python_module
 from dicompare.mapping import map_to_json_reference, interactive_mapping_to_json_reference, interactive_mapping_to_python_reference
+from dicompare.data_utils import standardize_session_dataframe
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Generate compliance summaries for a DICOM session.")
-    parser.add_argument("--json_ref", help="Path to the JSON reference file.")
-    parser.add_argument("--python_ref", help="Path to the Python module containing validation models.")
+    parser.add_argument("--json_schema", help="Path to the JSON schema file.")
+    parser.add_argument("--python_schema", help="Path to the Python module containing validation models.")
     parser.add_argument("--in_session", required=True, help="Directory path for the DICOM session.")
     parser.add_argument("--out_json", default="compliance_report.json", help="Path to save the JSON compliance summary report.")
     parser.add_argument("--auto_yes", action="store_true", help="Automatically map acquisitions to series.")
     args = parser.parse_args()
 
-    if not (args.json_ref or args.python_ref):
-        raise ValueError("You must provide either --json_ref or --python_ref.")
+    if not (args.json_schema or args.python_schema):
+        raise ValueError("You must provide either --json_schema or --python_schema.")
 
-    # Load the reference models and fields
-    if args.json_ref:
-        reference_fields, ref_session = load_json_session(json_ref=args.json_ref)
-    elif args.python_ref:
-        ref_models = load_python_session(module_path=args.python_ref)
+    # Load the schema models and fields
+    if args.json_schema:
+        reference_fields, json_schema = load_json_schema(json_schema_path=args.json_schema)
+    elif args.python_schema:
+        py_schema = load_python_schema(module_path=args.python_schema)
     acquisition_fields = ["ProtocolName"]
 
     # Load the input session
@@ -32,9 +39,11 @@ def main():
         acquisition_fields=acquisition_fields,
     )
 
-    if args.json_ref:
-        # reset index to avoid issues with groupby
+    if args.json_schema:
+        # Standardize session DataFrame 
+        in_session = standardize_session_dataframe(in_session, reference_fields)
         in_session.reset_index(drop=True, inplace=True)
+        
         # Group by acquisition fields to create Series labels starting from 1 for each acquisition
         in_session["Series"] = (
             in_session.groupby(acquisition_fields).apply(
@@ -45,32 +54,32 @@ def main():
         in_session.sort_values(by=["Acquisition", "Series"] + acquisition_fields + reference_fields, inplace=True)
 
 
-    if args.json_ref:
-        session_map = map_to_json_reference(in_session, ref_session)
+    if args.json_schema:
+        session_map = map_to_json_reference(in_session, json_schema)
         if not args.auto_yes and sys.stdin.isatty():
-            session_map = interactive_mapping_to_json_reference(in_session, ref_session, initial_mapping=session_map)
+            session_map = interactive_mapping_to_json_reference(in_session, json_schema, initial_mapping=session_map)
     else:
-        session_map = interactive_mapping_to_python_reference(in_session, ref_models)
+        session_map = interactive_mapping_to_python_reference(in_session, py_schema)
     
 
     # Perform compliance check
-    if args.json_ref:
+    if args.json_schema:
         compliance_summary = check_session_compliance_with_json_reference(
             in_session=in_session,
-            ref_session=ref_session,
+            ref_session=json_schema,
             session_map=session_map
         )
     else:
         compliance_summary = check_session_compliance_with_python_module(
             in_session=in_session,
-            ref_models=ref_models,
+            ref_models=py_schema,
             session_map=session_map
         )
     compliance_df = pd.DataFrame(compliance_summary)
 
-    # If compliance_df is empty, print message and exit
+    # If compliance_df is empty, log message and exit
     if compliance_df.empty:
-        print("Session is fully compliant with the reference model.")
+        logger.info("Session is fully compliant with the schema model.")
         return
 
     # Inline summary output

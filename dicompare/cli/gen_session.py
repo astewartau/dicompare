@@ -2,69 +2,22 @@
 
 import argparse
 import json
+import logging
 import pandas as pd
-from dicompare.io import load_dicom_session, assign_acquisition_and_run_numbers
-from dicompare.utils import clean_string, make_hashable
+from typing import List, Dict, Any
+from dicompare.io import load_dicom_session
+from dicompare.generate_schema import create_json_schema
 
-def create_json_reference(session_df, reference_fields):
-    """
-    Create a JSON reference from the session DataFrame.
-
-    Args:
-        session_df (pd.DataFrame): DataFrame of the DICOM session.
-        reference_fields (List[str]): Fields to include in JSON reference.
-
-    Returns:
-        dict: JSON structure representing the reference.
-    """
-    if "Acquisition" not in session_df.columns:
-        session_df = assign_acquisition_and_run_numbers(session_df)
-
-    # Sort by acquisition, then all other fields
-    session_df.sort_values(by=["Acquisition"] + reference_fields, inplace=True)
-
-    # Ensure all values in the DataFrame are hashable
-    for col in session_df.columns:
-        session_df[col] = session_df[col].apply(make_hashable)
-
-    json_reference = {"acquisitions": {}}
-
-    # Group by acquisition
-    for acquisition_name, group in session_df.groupby("Acquisition"):
-        acquisition_entry = {"fields": [], "series": []}
-
-        # Check reference fields for constant or varying values
-        varying_fields = []
-        for field in reference_fields:
-            unique_values = group[field].dropna().unique()
-            if len(unique_values) == 1:
-                # Constant field: Add to acquisition-level fields
-                acquisition_entry["fields"].append({"field": field, "value": unique_values[0]})
-            else:
-                # Varying field: Track for series-level fields
-                varying_fields.append(field)
-
-        # Group by series based on varying fields
-        if varying_fields:
-            series_groups = group.groupby(varying_fields, dropna=False)
-            for i, (series_key, series_group) in enumerate(series_groups, start=1):
-                series_entry = {
-                    "name": f"Series {i}",
-                    "fields": [{"field": field, "value": series_key[j]} for j, field in enumerate(varying_fields)]
-                }
-                acquisition_entry["series"].append(series_entry)
-
-        # Add to JSON reference
-        json_reference["acquisitions"][clean_string(acquisition_name)] = acquisition_entry
-
-    return json_reference
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Generate a JSON reference for DICOM compliance.")
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate a JSON schema for DICOM compliance.")
     parser.add_argument("--in_session_dir", required=True, help="Directory containing DICOM files for the session.")
-    parser.add_argument("--out_json_ref", required=True, help="Path to save the generated JSON reference.")
-    parser.add_argument("--reference_fields", nargs="+", required=True, help="Fields to include in JSON reference with their values.")
+    parser.add_argument("--out_json_schema", required=True, help="Path to save the generated JSON schema.")
+    parser.add_argument("--reference_fields", nargs="+", required=True, help="Fields to include in JSON schema with their values.")
     parser.add_argument("--name_template", default="{ProtocolName}", help="Naming template for each acquisition series.")
     args = parser.parse_args()
 
@@ -74,16 +27,16 @@ def main():
         show_progress=True
     )
 
-    # Generate JSON reference
-    json_reference = create_json_reference(
+    # Generate JSON schema
+    json_schema = create_json_schema(
         session_df=session_data,
         reference_fields=args.reference_fields
     )
 
     # Write JSON to output file
-    with open(args.out_json_ref, "w") as f:
-        json.dump(json_reference, f, indent=4)
-    print(f"JSON reference saved to {args.out_json_ref}")
+    with open(args.out_json_schema, "w") as f:
+        json.dump(json_schema, f, indent=4)
+    logger.info(f"JSON schema saved to {args.out_json_schema}")
 
 
 if __name__ == "__main__":

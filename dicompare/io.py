@@ -530,21 +530,21 @@ def load_dicom_session(
 from .acquisition import assign_acquisition_and_run_numbers
 
 
-def load_json_session(json_ref: str) -> Tuple[List[str], Dict[str, Any]]:
+def load_json_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any]]:
     """
-    Load a JSON reference file and extract fields for acquisitions and series.
+    Load a JSON schema file and extract fields for acquisitions and series.
 
     Notes:
         - Fields are normalized for easier comparison.
         - Nested fields in acquisitions and series are processed recursively.
 
     Args:
-        json_ref (str): Path to the JSON reference file.
+        json_schema_path (str): Path to the JSON schema file.
 
     Returns:
         Tuple[List[str], Dict[str, Any]]:
             - Sorted list of all reference fields encountered.
-            - Processed reference data as a dictionary.
+            - Processed schema data as a dictionary.
 
     Raises:
         FileNotFoundError: If the specified JSON file path does not exist.
@@ -565,15 +565,15 @@ def load_json_session(json_ref: str) -> Tuple[List[str], Dict[str, Any]]:
             processed_fields.append(processed)
         return processed_fields
 
-    with open(json_ref, "r") as f:
-        reference_data = json.load(f)
+    with open(json_schema_path, "r") as f:
+        schema_data = json.load(f)
 
-    reference_data = normalize_numeric_values(reference_data)
+    schema_data = normalize_numeric_values(schema_data)
 
     acquisitions = {}
     reference_fields = set()
 
-    for acq_name, acquisition in reference_data.get("acquisitions", {}).items():
+    for acq_name, acquisition in schema_data.get("acquisitions", {}).items():
         acq_entry = {
             "fields": process_fields(acquisition.get("fields", [])),
             "series": [],
@@ -593,9 +593,9 @@ def load_json_session(json_ref: str) -> Tuple[List[str], Dict[str, Any]]:
     return sorted(reference_fields), {"acquisitions": acquisitions}
 
 
-def load_python_session(module_path: str) -> Dict[str, BaseValidationModel]:
+def load_python_schema(module_path: str) -> Dict[str, BaseValidationModel]:
     """
-    Load validation models from a Python module for DICOM compliance checks.
+    Load validation models from a Python schema module for DICOM compliance checks.
 
     Notes:
         - The module must define `ACQUISITION_MODELS` as a dictionary mapping acquisition names to validation models.

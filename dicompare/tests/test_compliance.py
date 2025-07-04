@@ -9,7 +9,7 @@ from dicompare.compliance import (
     check_session_compliance_with_json_reference,
     check_session_compliance_with_python_module
 )
-from dicompare.io import load_json_session, load_python_session
+from dicompare.io import load_json_schema, load_python_schema
 from dicompare.validation import BaseValidationModel
 
 # -------------------- Dummy Model for Python Module Compliance --------------------
@@ -159,7 +159,7 @@ def test_check_session_compliance_with_python_module_raise_error(dummy_in_sessio
 
 # -------------------- Tests for JSON and Python Session Loaders --------------------
 
-def test_load_json_session_and_fields(tmp_path):
+def test_load_json_schema_and_fields(tmp_path):
     ref = {
         "acquisitions": {
             "test_acq": {
@@ -175,14 +175,14 @@ def test_load_json_session_and_fields(tmp_path):
     file = tmp_path / "ref.json"
     file.write_text(json.dumps(ref))
 
-    fields, data = load_json_session(str(file))
+    fields, data = load_json_schema(str(file))
     assert "F1" in fields
     assert "test_acq" in data["acquisitions"]
 
 
-def test_load_python_session_qsm_fixture():
+def test_load_python_schema_qsm_fixture():
     fixture_path = Path(__file__).parent / "fixtures" / "ref_qsm.py"
-    models = load_python_session(str(fixture_path))
+    models = load_python_schema(str(fixture_path))
     assert "QSM" in models
     assert issubclass(models["QSM"], BaseValidationModel)
 
@@ -210,7 +210,7 @@ def create_base_qsm_df_over_echos(echos, count=5, mra_type="3D", tr=700, b0=3.0,
 
 def test_qsm_compliance_pass():
     fixture_path = Path(__file__).parent / "fixtures" / "ref_qsm.py"
-    models = load_python_session(str(fixture_path))
+    models = load_python_schema(str(fixture_path))
     QSM_cls = models["QSM"]
     df = create_base_qsm_df_over_echos([10, 20, 30])
     compliance = check_session_compliance_with_python_module(
@@ -222,7 +222,7 @@ def test_qsm_compliance_pass():
 
 def test_qsm_compliance_failure_pixel_bandwidth():
     fixture_path = Path(__file__).parent / "fixtures" / "ref_qsm.py"
-    models = load_python_session(str(fixture_path))
+    models = load_python_schema(str(fixture_path))
     QSM_cls = models["QSM"]
     # set bandwidth above acceptable threshold for 3T
     df = create_base_qsm_df_over_echos([10, 20, 30], bw=300)
