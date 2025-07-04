@@ -6,8 +6,11 @@ reducing repetitive progress update patterns.
 """
 
 import asyncio
+import logging
 from typing import Optional, Callable, Any, List
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 class ProgressTracker:
@@ -148,7 +151,7 @@ async def track_iteration(
                 result = process_func(item)
                 results.append(result)
             except Exception as e:
-                print(f"Error processing {item}: {e}")
+                logger.error(f"Error processing {item}: {e}")
             
             await tracker.update()
     

@@ -7,10 +7,13 @@ rather than iteratively splitting and reassigning.
 """
 
 import pandas as pd
+import logging
 from typing import List, Optional
 
 from .config import DEFAULT_SETTINGS_FIELDS, DEFAULT_ACQUISITION_FIELDS, DEFAULT_RUN_GROUP_FIELDS
 from .utils import clean_string, make_hashable
+
+logger = logging.getLogger(__name__)
 
 
 def _validate_and_setup_fields(session_df, settings_fields, acquisition_fields, run_group_fields):
@@ -37,7 +40,7 @@ def _validate_and_setup_fields(session_df, settings_fields, acquisition_fields, 
     
     # Ensure ProtocolName exists
     if "ProtocolName" not in session_df.columns:
-        print("Warning: 'ProtocolName' not found in session_df columns. Setting it to 'SeriesDescription' instead.")
+        logger.warning("'ProtocolName' not found in session_df columns. Setting it to 'SeriesDescription' instead.")
         session_df["ProtocolName"] = session_df.get("SeriesDescription", "Unknown")
     
     return settings_fields, acquisition_fields, run_group_fields
@@ -110,10 +113,10 @@ def build_acquisition_signatures(session_df, acquisition_fields, reference_field
     ).apply(clean_string)
     
     # Build comprehensive signatures by protocol
-    print("DEBUG: Building acquisition signatures...")
+    logger.debug("Building acquisition signatures...")
     
     for protocol_name, protocol_group in session_df.groupby("ProtocolName"):
-        print(f"DEBUG: Processing protocol '{protocol_name}' with {len(protocol_group)} rows")
+        logger.debug(f"Processing protocol '{protocol_name}' with {len(protocol_group)} rows")
         
         # Determine settings group fields
         settings_group_fields = _determine_settings_group_fields(protocol_group)
@@ -144,7 +147,7 @@ def build_acquisition_signatures(session_df, acquisition_fields, reference_field
                 # Assign signature number for this parameter combination
                 if param_tuple not in param_to_signature:
                     param_to_signature[param_tuple] = counter
-                    print(f"  - NEW parameter combination #{counter}: {param_tuple}")
+                    logger.debug(f"  - NEW parameter combination #{counter}: {param_tuple}")
                     counter += 1
                 
                 signature_num = param_to_signature[param_tuple]
@@ -176,7 +179,7 @@ def assign_temporal_runs(session_df, run_group_fields):
     Returns:
         pd.DataFrame: Session DataFrame with RunNumber column added
     """
-    print("DEBUG: Assigning temporal runs...")
+    logger.debug("Assigning temporal runs...")
     
     # Initialize RunNumber column
     session_df["RunNumber"] = 1
@@ -196,7 +199,7 @@ def assign_temporal_runs(session_df, run_group_fields):
                 times = sorted(series_group[series_differentiator].unique())
                 
                 if len(times) > 1:
-                    print(f"  - Detected {len(times)} runs for {acq_sig}/{series_desc}")
+                    logger.debug(f"  - Detected {len(times)} runs for {acq_sig}/{series_desc}")
                     # Assign run numbers based on time order
                     for run_num, time_point in enumerate(times, start=1):
                         mask = (
@@ -235,14 +238,14 @@ def assign_acquisition_and_run_numbers(
     Returns:
         pd.DataFrame: Session DataFrame with Acquisition and RunNumber columns
     """
-    print("DEBUG: Starting assign_acquisition_and_run_numbers (refactored)")
+    logger.debug("Starting assign_acquisition_and_run_numbers (refactored)")
     
     # 1. Validate inputs and set up fields
     reference_fields, acquisition_fields, run_group_fields = _validate_and_setup_fields(
         session_df, reference_fields, acquisition_fields, run_group_fields
     )
     
-    print(f"DEBUG: Using fields - acquisition: {acquisition_fields}, reference: {len(reference_fields)} fields, run_group: {run_group_fields}")
+    logger.debug(f"Using fields - acquisition: {acquisition_fields}, reference: {len(reference_fields)} fields, run_group: {run_group_fields}")
     
     # 2. Build complete acquisition signatures
     session_df = build_acquisition_signatures(session_df, acquisition_fields, reference_fields)
@@ -256,7 +259,7 @@ def assign_acquisition_and_run_numbers(
     # 5. Clean up temporary columns
     session_df = session_df.drop(columns=["BaseAcquisition", "AcquisitionSignature"]).reset_index(drop=True)
     
-    print(f"DEBUG: Final result - {len(session_df['Acquisition'].unique())} unique acquisitions")
-    print(f"DEBUG: Acquisitions: {list(session_df['Acquisition'].unique())}")
+    logger.debug(f"Final result - {len(session_df['Acquisition'].unique())} unique acquisitions")
+    logger.debug(f"Acquisitions: {list(session_df['Acquisition'].unique())}")
     
     return session_df

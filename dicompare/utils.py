@@ -4,6 +4,9 @@ This module provides utility functions for handling and normalizing data used in
 
 import sys
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 def normalize_numeric_values(data):
     """
@@ -155,6 +158,6 @@ def infer_type_from_extension(ref_path):
     elif ext == ".py":
         return "pydantic"
     else:
-        print("Error: Could not determine the reference type. Please specify '--type'.", file=sys.stderr)
+        logger.error("Could not determine the reference type. Please specify '--type'.")
         sys.exit(1)
 

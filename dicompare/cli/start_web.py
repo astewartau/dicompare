@@ -1,6 +1,9 @@
 import os
+import logging
 import webbrowser
 from importlib.resources import files
+
+logger = logging.getLogger(__name__)
 
 def main():
     # Get the package base directory using `importlib.resources`
@@ -11,7 +14,7 @@ def main():
 
     # Check if the file exists
     if not os.path.exists(docs_path):
-        print(f"Error: Documentation not found at {docs_path}.")
+        logger.error(f"Documentation not found at {docs_path}.")
         return
 
     # Open the documentation in the default web browser

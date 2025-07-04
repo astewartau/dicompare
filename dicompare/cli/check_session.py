@@ -84,15 +84,19 @@ def main() -> None:
 
     # Inline summary output
     for entry in compliance_summary:
-        if entry.get('input acquisition'):print(f"Acquisition: {entry.get('input acquisition')}" + f" ({entry.get('reference acquisition')})" if entry.get('reference acquisition') else "")
-        if entry.get('input series'): print(f"Series: {entry.get('input series')}")
-        if entry.get('field'): print(f"Field: {entry.get('field')}")
-        if entry.get('series'): print(f"Series: {entry.get('series')}")
-        if entry.get('expected'): print(f"Expected: {entry.get('expected')}")
-        if entry.get('value'): print(f"Value: {entry.get('value')}")
-        if entry.get('message'): print(f"Message: {entry.get('message')}")
-        if entry.get('passed'): print(f"Passed: {entry.get('passed')}")
-        print("-" * 40)
+        if entry.get('input acquisition'):
+            acq_text = f"Acquisition: {entry.get('input acquisition')}"
+            if entry.get('reference acquisition'):
+                acq_text += f" ({entry.get('reference acquisition')})"
+            logger.info(acq_text)
+        if entry.get('input series'): logger.info(f"Series: {entry.get('input series')}")
+        if entry.get('field'): logger.info(f"Field: {entry.get('field')}")
+        if entry.get('series'): logger.info(f"Series: {entry.get('series')}")
+        if entry.get('expected'): logger.info(f"Expected: {entry.get('expected')}")
+        if entry.get('value'): logger.info(f"Value: {entry.get('value')}")
+        if entry.get('message'): logger.info(f"Message: {entry.get('message')}")
+        if entry.get('passed'): logger.info(f"Passed: {entry.get('passed')}")
+        logger.info("-" * 40)
 
     # Save compliance summary to JSON
     if args.out_json:

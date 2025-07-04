@@ -454,3 +454,4 @@ def test_load_python_schema_no_models(no_models_python_module):
 def test_load_python_schema_invalid(invalid_models_python_module):
     with pytest.raises(ValueError, match="'ACQUISITION_MODELS' must be a dictionary"):
         dicompare.load_python_schema(invalid_models_python_module)
+
