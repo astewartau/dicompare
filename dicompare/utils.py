@@ -5,6 +5,8 @@ This module provides utility functions for handling and normalizing data used in
 import sys
 import os
 import logging
+import pandas as pd
+from typing import List, Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -160,4 +162,98 @@ def infer_type_from_extension(ref_path):
     else:
         logger.error("Could not determine the reference type. Please specify '--type'.")
         sys.exit(1)
+
+
+def filter_available_fields(df: pd.DataFrame, 
+                           requested_fields: List[str], 
+                           fallback_fields: Optional[List[str]] = None) -> List[str]:
+    """
+    Get fields that exist in the dataframe from requested fields.
+    
+    Args:
+        df: DataFrame to check for field availability
+        requested_fields: List of field names to check
+        fallback_fields: Optional fallback fields if none of requested_fields exist
+        
+    Returns:
+        List of available field names
+        
+    Raises:
+        ValueError: If no suitable fields are found
+        
+    Examples:
+        >>> df = pd.DataFrame({'A': [1, 2], 'B': [3, 4]})
+        >>> filter_available_fields(df, ['A', 'C', 'D'], ['B'])
+        ['A']
+        >>> filter_available_fields(df, ['X', 'Y'], ['B'])
+        ['B']
+    """
+    # Check which requested fields exist in the dataframe
+    available = [field for field in requested_fields if field in df.columns]
+    
+    # If no requested fields are available, try fallback fields
+    if not available and fallback_fields:
+        available = [field for field in fallback_fields if field in df.columns]
+    
+    # If still no fields found, raise an error
+    if not available:
+        available_cols = list(df.columns)
+        raise ValueError(
+            f"No suitable fields found in dataframe. "
+            f"Requested: {requested_fields}, "
+            f"Fallback: {fallback_fields}, "
+            f"Available: {available_cols}"
+        )
+    
+    return available
+
+
+def detect_constant_fields(df: pd.DataFrame, 
+                         fields: List[str]) -> Tuple[Dict[str, Any], List[str]]:
+    """
+    Detect which fields are constant vs variable within a dataframe.
+    
+    Args:
+        df: DataFrame to analyze
+        fields: List of field names to check
+        
+    Returns:
+        Tuple of (constant_fields_dict, variable_fields_list)
+        - constant_fields_dict: Dict mapping field names to their constant values
+        - variable_fields_list: List of field names that have multiple values
+        
+    Examples:
+        >>> df = pd.DataFrame({
+        ...     'A': [1, 1, 1], 
+        ...     'B': [2, 3, 4], 
+        ...     'C': ['x', 'x', 'x']
+        ... })
+        >>> constant, variable = detect_constant_fields(df, ['A', 'B', 'C'])
+        >>> constant
+        {'A': 1, 'C': 'x'}
+        >>> variable
+        ['B']
+    """
+    constant_fields = {}
+    variable_fields = []
+    
+    for field in fields:
+        if field not in df.columns:
+            logger.warning(f"Field '{field}' not found in dataframe columns")
+            continue
+            
+        # Get unique non-null values
+        unique_values = df[field].dropna().unique()
+        
+        if len(unique_values) == 0:
+            # All values are null
+            constant_fields[field] = None
+        elif len(unique_values) == 1:
+            # Single unique value - it's constant
+            constant_fields[field] = unique_values[0]
+        else:
+            # Multiple unique values - it's variable
+            variable_fields.append(field)
+    
+    return constant_fields, variable_fields
 

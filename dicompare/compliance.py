@@ -76,6 +76,11 @@ def check_session_compliance_with_json_schema(
         
         schema_series_name = schema_series_schema.get("name", "<unnamed>")
         schema_series_fields = schema_series_schema.get("fields", [])
+        
+        print(f"    DEBUG _check_series_fields: series '{schema_series_name}'")
+        print(f"      Schema fields: {[(f['field'], f.get('value')) for f in schema_series_fields]}")
+        print(f"      Input data shape: {in_acq.shape}")
+        
         matching_df = in_acq
 
         # First pass: check for missing fields and filter matching rows
@@ -85,7 +90,10 @@ def check_session_compliance_with_json_schema(
             tol = fdef.get("tolerance")
             ctn = fdef.get("contains")
 
+            print(f"      Processing field '{field}' with expected value: {e_val}")
+
             if field not in matching_df.columns:
+                print(f"      ERROR: Field '{field}' not found in columns")
                 compliance_summary.append(create_compliance_record(
                     schema_acq_name, in_acq_name, schema_series_name, field,
                     e_val, tol, ctn, None,
@@ -93,15 +101,24 @@ def check_session_compliance_with_json_schema(
                 ))
                 return
 
+            # Check current values before filtering
+            print(f"      Current '{field}' values: {matching_df[field].unique()}")
+            print(f"      Rows before filtering: {len(matching_df)}")
+            
             # Filter rows that match this constraint
-            matching_df = matching_df[
-                matching_df[field].apply(lambda x: validate_constraint(x, e_val, tol, ctn))
-            ]
+            matches = matching_df[field].apply(lambda x: validate_constraint(x, e_val, tol, ctn))
+            print(f"      Matching constraint validation: {matches.sum()} of {len(matches)} rows match")
+            
+            matching_df = matching_df[matches]
+            print(f"      Rows after filtering: {len(matching_df)}")
+            
             if matching_df.empty:
+                print(f"      No matching rows found, breaking")
                 break
 
         # If no matching series found, report failure
         if matching_df.empty:
+            print(f"      RESULT: No matching series found - creating failure record")
             field_names = [f["field"] for f in schema_series_fields]
             compliance_summary.append(create_compliance_record(
                 schema_acq_name, in_acq_name, schema_series_name, ", ".join(field_names),
@@ -109,6 +126,8 @@ def check_session_compliance_with_json_schema(
                 f"Series '{schema_series_name}' not found with the specified constraints.", False
             ))
             return
+        else:
+            print(f"      RESULT: Found matching series with {len(matching_df)} rows - proceeding to validation")
 
         # Second pass: validate all field values in matching series
         actual_values_agg = {}
@@ -141,6 +160,9 @@ def check_session_compliance_with_json_schema(
         field_names = [f["field"] for f in schema_series_fields]
         final_message = "; ".join(fail_messages) if any_fail else "Passed"
         
+        print(f"      FINAL: Creating series compliance record - passed: {not any_fail}")
+        print(f"      Field: {', '.join(field_names)}, Series: {schema_series_name}")
+        
         compliance_summary.append({
             "schema acquisition": schema_acq_name,
             "input acquisition": in_acq_name,
@@ -151,6 +173,8 @@ def check_session_compliance_with_json_schema(
             "message": final_message,
             "passed": not any_fail
         })
+        
+        print(f"      ADDED to compliance_summary. Total records now: {len(compliance_summary)}")
 
     # 1) Check for unmapped reference acquisitions.
     for schema_acq_name in schema_session["acquisitions"]:
@@ -165,10 +189,20 @@ def check_session_compliance_with_json_schema(
     for schema_acq_name, in_acq_name in session_map.items():
         schema_acq = schema_session["acquisitions"].get(schema_acq_name, {})
         in_acq = in_session[in_session["Acquisition"] == in_acq_name]
+        
+        print(f"DEBUG: Processing acquisition '{schema_acq_name}' -> '{in_acq_name}'")
+        print(f"  Schema has {len(schema_acq.get('fields', []))} fields, {len(schema_acq.get('series', []))} series")
+        print(f"  Input has {len(in_acq)} rows, columns: {list(in_acq.columns)}")
+        if 'ImageType' in in_acq.columns:
+            print(f"  ImageType values in input: {in_acq['ImageType'].unique()}")
+        
         schema_fields = schema_acq.get("fields", [])
         _check_acquisition_fields(schema_acq_name, in_acq_name, schema_fields, in_acq)
+        
         schema_series = schema_acq.get("series", [])
-        for sdef in schema_series:
+        print(f"  Checking {len(schema_series)} series definitions...")
+        for i, sdef in enumerate(schema_series):
+            print(f"    Series {i}: name='{sdef.get('name')}', fields={[f['field'] for f in sdef.get('fields', [])]}")
             _check_series_fields(schema_acq_name, in_acq_name, sdef, in_acq)
 
     return compliance_summary

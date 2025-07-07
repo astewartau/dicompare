@@ -36,6 +36,7 @@ def check_equality(val: Any, expected: Any) -> bool:
     """
     Compare two values in a case-insensitive manner.
     If one is a list with one string element and the other is a string, the element is unwrapped.
+    Handles numeric type mismatches between int/float values and string/numeric conversions.
     
     Args:
         val: Actual value
@@ -44,6 +45,37 @@ def check_equality(val: Any, expected: Any) -> bool:
     Returns:
         True if values are equal, False otherwise
     """
+    # Helper function to try converting a value to numeric
+    def try_numeric(value):
+        try:
+            if isinstance(value, str):
+                # Try to convert string to number
+                if '.' in value:
+                    return float(value)
+                else:
+                    return int(value)
+            elif isinstance(value, (int, float)):
+                return float(value)
+        except (ValueError, TypeError):
+            pass
+        return value
+    
+    # Helper function to normalize values for comparison
+    def normalize_for_comparison(value):
+        if isinstance(value, (list, tuple)):
+            return tuple(normalize_for_comparison(item) for item in value)
+        
+        # Try to convert to numeric if possible
+        numeric_val = try_numeric(value)
+        if numeric_val != value:  # Conversion was successful
+            return numeric_val
+        
+        # Fall back to string normalization
+        if isinstance(value, str) or hasattr(value, 'strip'):
+            return normalize_value(value)
+        
+        return value
+    
     # Unwrap if actual is a list containing one string.
     if isinstance(val, list) and isinstance(expected, str):
         if len(val) == 1 and isinstance(val[0], (str,)):
@@ -54,8 +86,23 @@ def check_equality(val: Any, expected: Any) -> bool:
             return normalize_value(val) == normalize_value(expected[0])
         return False
     if isinstance(val, (str,)) or isinstance(expected, (str,)):
+        # Check if both can be converted to numeric values
+        val_numeric = try_numeric(val)
+        expected_numeric = try_numeric(expected)
+        
+        # If both converted successfully to numeric, compare as numbers
+        if (val_numeric != val or isinstance(val, (int, float))) and \
+           (expected_numeric != expected or isinstance(expected, (int, float))):
+            return val_numeric == expected_numeric
+        
+        # Fall back to string comparison
         return normalize_value(val) == normalize_value(expected)
-    return val == expected
+    
+    # Handle numeric or convertible values
+    val_normalized = normalize_for_comparison(val)
+    expected_normalized = normalize_for_comparison(expected)
+    
+    return val_normalized == expected_normalized
 
 
 def check_contains(actual: Any, substring: str) -> bool:
@@ -140,7 +187,7 @@ def validate_field_values(
             if not check_contains(val, contains):
                 invalid_values.append(val)
         if invalid_values:
-            return False, invalid_values, f"Expected to contain '{contains}', got {invalid_values}"
+            return False, invalid_values, f"Expected to contain '{contains}', but got {invalid_values}"
     
     elif tolerance is not None:
         # Check for non-numeric values first
@@ -153,7 +200,7 @@ def validate_field_values(
             if not (expected_value - tolerance <= val <= expected_value + tolerance):
                 invalid_values.append(val)
         if invalid_values:
-            return False, invalid_values, f"Invalid values found: {invalid_values} (all values: {actual_values})"
+            return False, invalid_values, f"Expected {expected_value} ±{tolerance}, but got {invalid_values}"
     
     elif isinstance(expected_value, list):
         for val in actual_values:
@@ -167,7 +214,11 @@ def validate_field_values(
             if not check_equality(val, expected_value):
                 invalid_values.append(val)
         if invalid_values:
-            return False, invalid_values, f"Mismatched values: {invalid_values}"
+            # Create clear error message showing expected vs actual values
+            if len(invalid_values) == 1:
+                return False, invalid_values, f"Expected {expected_value} but got {invalid_values[0]}"
+            else:
+                return False, invalid_values, f"Expected {expected_value} but got values: {invalid_values}"
     
     return True, [], "Passed."
 

@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 
 from dicompare.compliance import (
-    check_session_compliance_with_json_reference,
+    check_session_compliance_with_json_schema,
     check_session_compliance_with_python_module
 )
 from dicompare.io import load_json_schema, load_python_schema
@@ -94,15 +94,15 @@ def dummy_ref_models():
 
 # -------------------- Tests for JSON Reference Compliance --------------------
 
-def test_check_session_compliance_with_json_reference_pass(dummy_in_session, dummy_ref_session_pass, dummy_session_map_pass):
-    compliance = check_session_compliance_with_json_reference(
+def test_check_session_compliance_with_json_schema_pass(dummy_in_session, dummy_ref_session_pass, dummy_session_map_pass):
+    compliance = check_session_compliance_with_json_schema(
         dummy_in_session, dummy_ref_session_pass, dummy_session_map_pass
     )
     assert all(record["passed"] for record in compliance)
 
 
-def test_check_session_compliance_with_json_reference_missing_and_unmapped(dummy_in_session, dummy_ref_session_fail, dummy_session_map_fail):
-    compliance = check_session_compliance_with_json_reference(
+def test_check_session_compliance_with_json_schema_missing_and_unmapped(dummy_in_session, dummy_ref_session_fail, dummy_session_map_fail):
+    compliance = check_session_compliance_with_json_schema(
         dummy_in_session, dummy_ref_session_fail, dummy_session_map_fail
     )
     messages = [rec.get("message", "") for rec in compliance]
@@ -110,7 +110,7 @@ def test_check_session_compliance_with_json_reference_missing_and_unmapped(dummy
     assert any("not mapped" in msg for msg in messages)
 
 
-def test_check_session_compliance_with_json_reference_series_fail(dummy_in_session):
+def test_check_session_compliance_with_json_schema_series_fail(dummy_in_session):
     ref_session = {
         "acquisitions": {
             "ref1": {
@@ -121,7 +121,7 @@ def test_check_session_compliance_with_json_reference_series_fail(dummy_in_sessi
         }
     }
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(dummy_in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(dummy_in_session, ref_session, session_map)
     assert any(rec.get("series") is not None and "not found" in rec.get("message", "") for rec in compliance)
 
 # -------------------- Tests for Python Module Compliance --------------------
@@ -262,7 +262,7 @@ def test_json_compliance_contains_validation():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should pass - both fields contain the required substrings
     assert all(rec["passed"] for rec in compliance)
@@ -288,7 +288,7 @@ def test_json_compliance_contains_validation_failure():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should fail - ProtocolName values don't contain "BOLD"
     assert any(not rec["passed"] for rec in compliance)
@@ -317,7 +317,7 @@ def test_json_compliance_tolerance_validation():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should pass - values are within tolerance
     assert all(rec["passed"] for rec in compliance)
@@ -343,12 +343,12 @@ def test_json_compliance_tolerance_validation_failure():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should fail - RepetitionTime is outside tolerance
     assert any(not rec["passed"] for rec in compliance)
     failed_records = [r for r in compliance if not r["passed"]]
-    assert any("Invalid values found" in r["message"] for r in failed_records)
+    assert any("Expected 2000" in r["message"] and "2100" in r["message"] for r in failed_records)
 
 
 def test_json_compliance_non_numeric_tolerance():
@@ -370,7 +370,7 @@ def test_json_compliance_non_numeric_tolerance():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should fail - non-numeric values can't use tolerance
     assert any(not rec["passed"] for rec in compliance)
@@ -407,7 +407,7 @@ def test_json_compliance_list_value_matching_fixed():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should now pass - the bug has been fixed in the refactoring
     assert all(rec["passed"] for rec in compliance)
@@ -434,7 +434,7 @@ def test_json_compliance_case_insensitive_matching():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should pass - case-insensitive matching with whitespace trimming
     assert all(rec["passed"] for rec in compliance)
@@ -461,7 +461,7 @@ def test_json_compliance_single_element_list_unwrapping():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should pass - string values match exactly
     assert all(rec["passed"] for rec in compliance)
@@ -496,7 +496,7 @@ def test_json_compliance_series_validation_complex():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should pass - series validation finds matching rows
     assert all(rec["passed"] for rec in compliance)
@@ -529,7 +529,7 @@ def test_json_compliance_series_not_found():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should fail - no series matches the constraints
     assert any(not rec["passed"] for rec in compliance)
@@ -564,7 +564,7 @@ def test_json_compliance_missing_series_field():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should fail - EchoTime field is missing
     assert any(not rec["passed"] for rec in compliance)
@@ -604,7 +604,7 @@ def test_json_compliance_empty_input_session():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_reference(in_session, ref_session, session_map)
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
     
     # Should handle empty session gracefully and report field not found
     assert isinstance(compliance, list)

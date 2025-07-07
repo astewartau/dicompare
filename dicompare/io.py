@@ -156,7 +156,22 @@ def _process_dicom_element(element, recurses=0, skip_pixel_data=True):
                 v, float, None, True, nonzero_keys, element.keyword
             )
 
-        # Convert to string
+        # Try to convert string values to numeric types before falling back to string
+        if isinstance(v, str):
+            # Try int conversion first (for whole numbers)
+            try:
+                if '.' not in v and 'e' not in v.lower() and 'E' not in v:
+                    return int(v)
+            except (ValueError, TypeError):
+                pass
+            
+            # Try float conversion (for decimal numbers)
+            try:
+                return float(v)
+            except (ValueError, TypeError):
+                pass
+
+        # Convert to string (existing fallback)
         result = safe_convert_value(v, str, None)
         if result == "":
             return None
