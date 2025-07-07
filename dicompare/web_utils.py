@@ -374,3 +374,443 @@ def create_download_data(data: Dict[str, Any],
         'size_bytes': len(content.encode('utf-8')),
         'status': 'ready'
     }
+
+
+def analyze_dicom_files_for_web(
+    dicom_files: Dict[str, bytes], 
+    reference_fields: List[str] = None,
+    progress_callback: Optional[callable] = None
+) -> Dict[str, Any]:
+    """
+    Complete DICOM analysis pipeline optimized for web interface.
+    
+    This function replaces the 155-line analyzeDicomFiles() function in pyodideService.ts
+    by providing a single, comprehensive call that handles all DICOM processing.
+    
+    Args:
+        dicom_files: Dictionary mapping filenames to DICOM file bytes
+        reference_fields: List of DICOM fields to analyze (uses DEFAULT_DICOM_FIELDS if None)
+        progress_callback: Optional callback for progress updates
+        
+    Returns:
+        Dict containing:
+        {
+            'acquisitions': {
+                'acquisition_name': {
+                    'fields': [...],
+                    'series': [...],
+                    'metadata': {...}
+                }
+            },
+            'total_files': int,
+            'field_summary': {...},
+            'status': 'success'|'error',
+            'message': str
+        }
+        
+    Examples:
+        >>> files = {'file1.dcm': b'...', 'file2.dcm': b'...'}
+        >>> result = analyze_dicom_files_for_web(files)
+        >>> result['total_files']
+        2
+        >>> result['acquisitions']['T1_MPRAGE']['fields']
+        [{'field': 'RepetitionTime', 'value': 2300}, ...]
+    """
+    try:
+        from .io import async_load_dicom_session
+        from .acquisition import assign_acquisition_and_run_numbers
+        from .generate_schema import create_json_schema
+        from .config import DEFAULT_DICOM_FIELDS
+        import asyncio
+        
+        # Use default fields if none provided
+        if reference_fields is None:
+            reference_fields = DEFAULT_DICOM_FIELDS
+        
+        # Load DICOM session
+        if asyncio.iscoroutinefunction(async_load_dicom_session):
+            # Handle async function
+            import asyncio
+            loop = asyncio.get_event_loop()
+            session_df = loop.run_until_complete(
+                async_load_dicom_session(
+                    dicom_bytes=dicom_files,
+                    progress_function=progress_callback
+                )
+            )
+        else:
+            # Handle sync function
+            session_df = async_load_dicom_session(
+                dicom_bytes=dicom_files,
+                progress_function=progress_callback
+            )
+        
+        # Assign acquisitions and run numbers
+        session_df = assign_acquisition_and_run_numbers(session_df)
+        
+        # Create schema from session
+        schema_result = create_json_schema(session_df, reference_fields)
+        
+        # Format for web
+        web_result = {
+            'acquisitions': schema_result.get('acquisitions', {}),
+            'total_files': len(dicom_files),
+            'field_summary': {
+                'total_fields': len(reference_fields),
+                'acquisitions_found': len(schema_result.get('acquisitions', {})),
+                'session_columns': list(session_df.columns) if session_df is not None else []
+            },
+            'status': 'success',
+            'message': f'Successfully analyzed {len(dicom_files)} DICOM files'
+        }
+        
+        return make_json_serializable(web_result)
+        
+    except Exception as e:
+        logger.error(f"Error in analyze_dicom_files_for_web: {e}")
+        return {
+            'acquisitions': {},
+            'total_files': len(dicom_files) if dicom_files else 0,
+            'field_summary': {},
+            'status': 'error',
+            'message': f'Error analyzing DICOM files: {str(e)}'
+        }
+
+
+def load_schema_for_web(
+    schema_data: Union[Dict, str], 
+    instance_id: str,
+    acquisition_filter: str = None
+) -> Dict[str, Any]:
+    """
+    Load and validate schema with web-friendly response format.
+    
+    This function replaces the 60-line loadSchema() functions in pyodideService.ts
+    by providing comprehensive schema loading with validation and error handling.
+    
+    Args:
+        schema_data: Schema dictionary or file path to schema
+        instance_id: Unique identifier for this schema instance
+        acquisition_filter: Optional filter to include only specific acquisitions
+        
+    Returns:
+        Dict containing:
+        {
+            'schema_id': str,
+            'acquisitions': {
+                'acquisition_name': {
+                    'fields': [...],
+                    'series': [...],
+                    'rules': [...]  # For Python schemas
+                }
+            },
+            'schema_type': 'json'|'python',
+            'validation_status': 'valid'|'invalid',
+            'errors': [...],
+            'metadata': {...}
+        }
+        
+    Examples:
+        >>> schema = {'acquisitions': {'T1': {'fields': [...]}}}
+        >>> result = load_schema_for_web(schema, 'schema_001')
+        >>> result['schema_id']
+        'schema_001'
+        >>> result['validation_status']
+        'valid'
+    """
+    try:
+        from .io import load_json_schema, load_python_schema
+        import os
+        
+        # Initialize result structure
+        result = {
+            'schema_id': instance_id,
+            'acquisitions': {},
+            'schema_type': 'json',
+            'validation_status': 'valid',
+            'errors': [],
+            'metadata': {
+                'total_acquisitions': 0,
+                'acquisition_names': [],
+                'schema_source': 'dict' if isinstance(schema_data, dict) else 'file'
+            }
+        }
+        
+        # Load schema based on type
+        if isinstance(schema_data, str):
+            # File path provided
+            if not os.path.exists(schema_data):
+                raise FileNotFoundError(f"Schema file not found: {schema_data}")
+            
+            if schema_data.endswith('.py'):
+                # Python schema
+                schema_dict = load_python_schema(schema_data)
+                result['schema_type'] = 'python'
+            else:
+                # JSON schema
+                schema_dict = load_json_schema(schema_data)
+                result['schema_type'] = 'json'
+        else:
+            # Dictionary provided
+            schema_dict = schema_data
+            
+            # Detect schema type
+            if schema_dict.get('type') == 'python':
+                result['schema_type'] = 'python'
+        
+        # Validate schema structure
+        if not isinstance(schema_dict, dict):
+            raise ValueError("Schema must be a dictionary")
+        
+        if 'acquisitions' not in schema_dict:
+            raise ValueError("Schema must contain 'acquisitions' key")
+        
+        acquisitions = schema_dict['acquisitions']
+        if not isinstance(acquisitions, dict):
+            raise ValueError("Schema 'acquisitions' must be a dictionary")
+        
+        # Filter acquisitions if requested
+        if acquisition_filter:
+            if acquisition_filter in acquisitions:
+                acquisitions = {acquisition_filter: acquisitions[acquisition_filter]}
+            else:
+                result['errors'].append(f"Acquisition '{acquisition_filter}' not found in schema")
+                acquisitions = {}
+        
+        # Process acquisitions
+        processed_acquisitions = {}
+        for acq_name, acq_data in acquisitions.items():
+            if not isinstance(acq_data, dict):
+                result['errors'].append(f"Acquisition '{acq_name}' data must be a dictionary")
+                continue
+            
+            processed_acq = {
+                'name': acq_name,
+                'fields': acq_data.get('fields', []),
+                'series': acq_data.get('series', []),
+                'rules': acq_data.get('rules', [])  # For Python schemas
+            }
+            
+            # Add metadata
+            processed_acq['metadata'] = {
+                'field_count': len(processed_acq['fields']),
+                'series_count': len(processed_acq['series']),
+                'rule_count': len(processed_acq['rules'])
+            }
+            
+            processed_acquisitions[acq_name] = processed_acq
+        
+        result['acquisitions'] = processed_acquisitions
+        result['metadata'].update({
+            'total_acquisitions': len(processed_acquisitions),
+            'acquisition_names': list(processed_acquisitions.keys())
+        })
+        
+        # Set validation status
+        if result['errors']:
+            result['validation_status'] = 'invalid'
+        
+        return make_json_serializable(result)
+        
+    except Exception as e:
+        logger.error(f"Error in load_schema_for_web: {e}")
+        return {
+            'schema_id': instance_id,
+            'acquisitions': {},
+            'schema_type': 'unknown',
+            'validation_status': 'invalid',
+            'errors': [str(e)],
+            'metadata': {
+                'total_acquisitions': 0,
+                'acquisition_names': [],
+                'schema_source': 'unknown'
+            }
+        }
+
+
+def check_all_compliance_for_web(
+    compliance_session,
+    schema_mappings: Dict[str, Dict[str, str]]
+) -> List[Dict[str, Any]]:
+    """
+    Run compliance checks for multiple schemas with web formatting.
+    
+    This function replaces the 270-line analyzeCompliance() function in pyodideService.ts
+    by providing a single call that handles all compliance checking logic.
+    
+    Args:
+        compliance_session: ComplianceSession instance with loaded session and schemas
+        schema_mappings: Dict mapping schema_id to user_mapping dict
+        
+    Returns:
+        List of compliance results formatted for web:
+        [
+            {
+                'schema_id': str,
+                'schema_acquisition': str,
+                'input_acquisition': str,
+                'field': str,
+                'expected': Any,
+                'actual': Any,
+                'passed': bool,
+                'message': str,
+                'series': str|None
+            }, ...
+        ]
+        
+    Examples:
+        >>> mappings = {'schema1': {'T1_MPRAGE': 't1_mprage_sag'}}
+        >>> results = check_all_compliance_for_web(session, mappings)
+        >>> len(results) > 0
+        True
+    """
+    try:
+        all_results = []
+        
+        if not hasattr(compliance_session, 'has_session') or not compliance_session.has_session():
+            logger.error("No session loaded in ComplianceSession")
+            return [{
+                'schema_id': 'error',
+                'schema_acquisition': 'error',
+                'input_acquisition': 'error',
+                'field': 'session_check',
+                'expected': 'loaded session',
+                'actual': 'no session',
+                'passed': False,
+                'message': 'No session loaded in ComplianceSession',
+                'series': None
+            }]
+        
+        # Process each schema mapping
+        for schema_id, user_mapping in schema_mappings.items():
+            try:
+                # Check if schema exists
+                if not compliance_session.has_schema(schema_id):
+                    all_results.append({
+                        'schema_id': schema_id,
+                        'schema_acquisition': 'unknown',
+                        'input_acquisition': 'unknown',
+                        'field': 'schema_validation',
+                        'expected': 'valid schema',
+                        'actual': 'schema not found',
+                        'passed': False,
+                        'message': f'Schema "{schema_id}" not found in ComplianceSession',
+                        'series': None
+                    })
+                    continue
+                
+                # Validate mapping
+                validation_result = compliance_session.validate_user_mapping(schema_id, user_mapping)
+                if not validation_result.get('valid', False):
+                    for error in validation_result.get('errors', []):
+                        all_results.append({
+                            'schema_id': schema_id,
+                            'schema_acquisition': 'unknown',
+                            'input_acquisition': 'unknown',
+                            'field': 'mapping_validation',
+                            'expected': 'valid mapping',
+                            'actual': 'invalid mapping',
+                            'passed': False,
+                            'message': error,
+                            'series': None
+                        })
+                    continue
+                
+                # Get schema data to determine type
+                schema_data = compliance_session.schemas.get(schema_id, {})
+                is_python_schema = schema_data.get('type') == 'python'
+                
+                if is_python_schema:
+                    # Use Python schema compliance
+                    from .compliance import check_session_compliance_with_python_module
+                    
+                    python_models = schema_data.get('python_models', {})
+                    if not python_models:
+                        all_results.append({
+                            'schema_id': schema_id,
+                            'schema_acquisition': 'error',
+                            'input_acquisition': 'error',
+                            'field': 'python_schema',
+                            'expected': 'python models',
+                            'actual': 'no models found',
+                            'passed': False,
+                            'message': 'Python schema missing python_models',
+                            'series': None
+                        })
+                        continue
+                    
+                    # Run Python compliance
+                    session_df = compliance_session.session_df
+                    compliance_summary = check_session_compliance_with_python_module(
+                        in_session=session_df,
+                        schema_models=python_models,
+                        session_map=user_mapping,
+                        raise_errors=False
+                    )
+                    
+                    # Convert Python results to standard format
+                    for result in compliance_summary:
+                        all_results.append({
+                            'schema_id': schema_id,
+                            'schema_acquisition': result.get('schema acquisition', 'unknown'),
+                            'input_acquisition': result.get('input acquisition', 'unknown'),
+                            'field': result.get('rule_name', result.get('field', 'unknown')),
+                            'expected': result.get('expected', ''),
+                            'actual': result.get('value', ''),
+                            'passed': result.get('passed', False),
+                            'message': result.get('message', ''),
+                            'series': result.get('series', None)
+                        })
+                else:
+                    # Use JSON schema compliance
+                    compliance_results = compliance_session.check_compliance(schema_id, user_mapping)
+                    
+                    # Extract results from ComplianceSession format
+                    acquisition_details = compliance_results.get('acquisition_details', {})
+                    
+                    for schema_acq_name, acq_details in acquisition_details.items():
+                        input_acq_name = acq_details.get('input_acquisition', schema_acq_name)
+                        
+                        for field_result in acq_details.get('detailed_results', []):
+                            result_item = {
+                                'schema_id': schema_id,
+                                'schema_acquisition': schema_acq_name,
+                                'input_acquisition': input_acq_name,
+                                'field': field_result.get('field', ''),
+                                'expected': field_result.get('expected', ''),
+                                'actual': field_result.get('actual', ''),
+                                'passed': field_result.get('compliant', False),
+                                'message': field_result.get('message', ''),
+                                'series': field_result.get('series', None)
+                            }
+                            all_results.append(result_item)
+                
+            except Exception as e:
+                logger.error(f"Error checking compliance for schema '{schema_id}': {e}")
+                all_results.append({
+                    'schema_id': schema_id,
+                    'schema_acquisition': 'error',
+                    'input_acquisition': 'error',
+                    'field': 'compliance_check',
+                    'expected': 'successful check',
+                    'actual': 'error occurred',
+                    'passed': False,
+                    'message': f'Error: {str(e)}',
+                    'series': None
+                })
+        
+        return make_json_serializable(all_results)
+        
+    except Exception as e:
+        logger.error(f"Error in check_all_compliance_for_web: {e}")
+        return [{
+            'schema_id': 'error',
+            'schema_acquisition': 'error', 
+            'input_acquisition': 'error',
+            'field': 'function_error',
+            'expected': 'successful execution',
+            'actual': 'function error',
+            'passed': False,
+            'message': f'Error in check_all_compliance_for_web: {str(e)}',
+            'series': None
+        }]

@@ -754,3 +754,281 @@ class ComplianceSession:
         
         logger.info(f"Suggested mapping for schema '{schema_id}': {suggested_mapping}")
         return suggested_mapping
+    
+    def get_schema_generation_data(self, reference_fields: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Get session data formatted for schema generation UI.
+        
+        This method replaces processExistingSession() in pyodideService.ts (45 lines)
+        by providing comprehensive session analysis for the schema generation interface.
+        
+        Args:
+            reference_fields: List of fields to analyze for schema generation
+            
+        Returns:
+            Dict containing:
+            {
+                'session_summary': {...},
+                'acquisitions': {...},
+                'field_recommendations': {...},
+                'generation_options': {...}
+            }
+            
+        Raises:
+            ValueError: If no session is loaded
+            
+        Examples:
+            >>> data = session.get_schema_generation_data()
+            >>> data['session_summary']['total_files']
+            1024
+            >>> data['acquisitions']['T1_MPRAGE']['suggested_fields']
+            ['RepetitionTime', 'EchoTime', 'FlipAngle']
+        """
+        if self.session_df is None:
+            raise ValueError("No session loaded. Call load_dicom_session() first.")
+        
+        from .web_utils import prepare_schema_generation_data
+        
+        # Use existing web utils function for comprehensive analysis
+        generation_data = prepare_schema_generation_data(self.session_df)
+        
+        # Add session-specific information
+        session_summary = {
+            'total_files': len(self.session_df),
+            'total_acquisitions': self.session_df['Acquisition'].nunique(),
+            'acquisition_names': list(self.session_df['Acquisition'].unique()),
+            'available_columns': list(self.session_df.columns),
+            'has_loaded_schemas': len(self.schemas) > 0,
+            'schema_count': len(self.schemas)
+        }
+        
+        # Enhanced generation options
+        generation_options = {
+            'use_default_fields': reference_fields is None,
+            'reference_fields': reference_fields or DEFAULT_SETTINGS_FIELDS,
+            'can_generate_from_all': True,
+            'can_generate_per_acquisition': len(session_summary['acquisition_names']) > 1,
+            'recommended_approach': 'all_acquisitions' if len(session_summary['acquisition_names']) > 1 else 'single_acquisition'
+        }
+        
+        return make_json_serializable({
+            'session_summary': session_summary,
+            'acquisitions': generation_data.get('acquisition_analysis', {}),
+            'field_recommendations': {
+                'suggested_fields': generation_data.get('suggested_fields', []),
+                'available_columns': generation_data.get('available_columns', []),
+                'total_suggested': len(generation_data.get('suggested_fields', []))
+            },
+            'generation_options': generation_options,
+            'status': 'ready'
+        })
+    
+    def batch_add_schemas(self, schemas: Dict[str, Dict[str, Any]]) -> Dict[str, bool]:
+        """
+        Add multiple schemas at once with validation.
+        
+        This method simplifies multiple loadSchema() calls in the interface
+        by allowing bulk schema loading with comprehensive validation.
+        
+        Args:
+            schemas: Dict mapping schema_id to schema_dict
+            
+        Returns:
+            Dict mapping schema_id to success status (bool)
+            
+        Examples:
+            >>> schemas = {
+            ...     'clinical': {'acquisitions': {'t1': {...}}},
+            ...     'research': {'acquisitions': {'dwi': {...}}}
+            ... }
+            >>> results = session.batch_add_schemas(schemas)
+            >>> results['clinical']
+            True
+            >>> results['research'] 
+            False  # If validation failed
+        """
+        results = {}
+        
+        for schema_id, schema_dict in schemas.items():
+            try:
+                # Validate schema structure before adding
+                if not isinstance(schema_dict, dict):
+                    logger.error(f"Schema '{schema_id}' is not a dictionary")
+                    results[schema_id] = False
+                    continue
+                
+                if 'acquisitions' not in schema_dict:
+                    logger.error(f"Schema '{schema_id}' missing 'acquisitions' key")
+                    results[schema_id] = False
+                    continue
+                
+                # Add schema
+                self.add_schema(schema_id, schema_dict)
+                results[schema_id] = True
+                
+            except Exception as e:
+                logger.error(f"Failed to add schema '{schema_id}': {e}")
+                results[schema_id] = False
+        
+        successful_count = sum(results.values())
+        total_count = len(schemas)
+        logger.info(f"Batch schema loading: {successful_count}/{total_count} schemas loaded successfully")
+        
+        return results
+    
+    def get_comprehensive_summary(self) -> Dict[str, Any]:
+        """
+        Get complete session summary for web dashboard.
+        
+        This method provides comprehensive session information including
+        session statistics, schema info, and acquisition details for
+        dashboard display and navigation.
+        
+        Returns:
+            Dict containing complete session state
+            
+        Examples:
+            >>> summary = session.get_comprehensive_summary()
+            >>> summary['overview']['session_loaded']
+            True
+            >>> summary['schemas']['count']
+            3
+            >>> summary['acquisitions']['T1_MPRAGE']['file_count']
+            176
+        """
+        if self.session_df is None:
+            return {
+                'overview': {
+                    'session_loaded': False,
+                    'status': 'no_session'
+                },
+                'schemas': {'count': 0, 'available': []},
+                'acquisitions': {},
+                'compliance': {}
+            }
+        
+        # Get basic session summary
+        base_summary = self.get_session_summary()
+        
+        # Enhanced overview
+        overview = {
+            'session_loaded': True,
+            'total_files': len(self.session_df),
+            'total_acquisitions': self.session_df['Acquisition'].nunique(),
+            'total_columns': len(self.session_df.columns),
+            'schemas_loaded': len(self.schemas),
+            'compliance_results_available': len(self.compliance_results),
+            'status': 'loaded'
+        }
+        
+        # Enhanced schema information
+        schema_details = {}
+        for schema_id, schema in self.schemas.items():
+            schema_details[schema_id] = {
+                'acquisition_count': len(schema.get('acquisitions', {})),
+                'acquisition_names': list(schema.get('acquisitions', {}).keys()),
+                'has_results': schema_id in self.compliance_results,
+                'schema_type': schema.get('type', 'json'),
+                'generated_from': schema.get('generated_from', 'unknown')
+            }
+        
+        # Acquisition details with enhanced metadata
+        acquisition_details = {}
+        for acq_name in self.session_df['Acquisition'].unique():
+            acq_data = self.session_df[self.session_df['Acquisition'] == acq_name]
+            acquisition_details[acq_name] = {
+                'file_count': len(acq_data),
+                'display_name': acq_name.replace('_', ' ').title(),
+                'sample_files': acq_data['DICOM_Path'].head(3).tolist() if 'DICOM_Path' in acq_data.columns else [],
+                'has_compliance_results': any(
+                    acq_name in results.get('formatted_results', {}).get('acquisition_details', {})
+                    for results in self.compliance_results.values()
+                )
+            }
+        
+        # Enhanced compliance summary
+        compliance_overview = {
+            'total_checks_run': len(self.compliance_results),
+            'schemas_with_results': list(self.compliance_results.keys()),
+            'average_compliance_rate': 0,
+            'last_check_timestamp': None
+        }
+        
+        if self.compliance_results:
+            rates = []
+            latest_timestamp = None
+            
+            for results in self.compliance_results.values():
+                if 'formatted_results' in results and 'summary' in results['formatted_results']:
+                    rate = results['formatted_results']['summary'].get('compliance_rate', 0)
+                    rates.append(rate)
+                
+                timestamp = results.get('timestamp')
+                if timestamp and (latest_timestamp is None or timestamp > latest_timestamp):
+                    latest_timestamp = timestamp
+            
+            if rates:
+                compliance_overview['average_compliance_rate'] = sum(rates) / len(rates)
+            compliance_overview['last_check_timestamp'] = latest_timestamp
+        
+        return make_json_serializable({
+            'overview': overview,
+            'schemas': {
+                'count': len(self.schemas),
+                'available': list(self.schemas.keys()),
+                'details': schema_details
+            },
+            'acquisitions': acquisition_details,
+            'compliance': compliance_overview,
+            'session_metadata': self.session_metadata
+        })
+    
+    def export_session_for_web(self) -> Dict[str, Any]:
+        """
+        Export complete session state for web persistence.
+        
+        This method enables session save/restore functionality in the interface
+        by providing a complete, serializable representation of the session state.
+        
+        Returns:
+            Dict containing complete session state for persistence
+            
+        Examples:
+            >>> export_data = session.export_session_for_web()
+            >>> export_data['session_state']['has_session']
+            True
+            >>> len(export_data['schemas'])
+            3
+        """
+        if self.session_df is None:
+            return {
+                'session_state': {
+                    'has_session': False,
+                    'export_timestamp': pd.Timestamp.now().isoformat()
+                },
+                'schemas': {},
+                'compliance_results': {},
+                'metadata': self.session_metadata
+            }
+        
+        # Prepare session data for export (without full DataFrame due to size)
+        session_state = {
+            'has_session': True,
+            'total_files': len(self.session_df),
+            'total_acquisitions': self.session_df['Acquisition'].nunique(),
+            'acquisition_names': list(self.session_df['Acquisition'].unique()),
+            'columns': list(self.session_df.columns),
+            'export_timestamp': pd.Timestamp.now().isoformat()
+        }
+        
+        # Include a sample of data for verification during import
+        sample_data = self.session_df.head(10).to_dict('records') if len(self.session_df) <= 100 else self.session_df.head(5).to_dict('records')
+        session_state['sample_data'] = sample_data
+        
+        return make_json_serializable({
+            'session_state': session_state,
+            'schemas': self.schemas,
+            'compliance_results': self.compliance_results,
+            'metadata': self.session_metadata,
+            'export_version': '1.0'
+        })

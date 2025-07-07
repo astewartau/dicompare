@@ -87,6 +87,98 @@ NONZERO_FIELDS = [
 # Maximum difference score for field matching
 MAX_DIFF_SCORE = 10
 
+# Comprehensive DICOM field list for web interface
+# Used by both schema generation and compliance checking components
+DEFAULT_DICOM_FIELDS = [
+    # Core Identifiers
+    'SeriesDescription',
+    'SequenceName',
+    'SequenceVariant',
+    'ScanningSequence',
+    'ImageType',
+
+    'Manufacturer',
+    'ManufacturerModelName',
+    'SoftwareVersion',
+
+    # Geometry
+    'MRAcquisitionType',
+    'SliceThickness',
+    'PixelSpacing',
+    'Rows',
+    'Columns',
+    'Slices',
+    'AcquisitionMatrix',
+    'ReconstructionDiameter',
+
+    # Timing / Contrast
+    'RepetitionTime',
+    'EchoTime',
+    'InversionTime',
+    'FlipAngle',
+    'EchoTrainLength',
+    'GradientEchoTrainLength',
+    'NumberOfTemporalPositions',
+    'TemporalResolution',
+    'SliceTiming',
+
+    # Diffusion-specific
+    'DiffusionBValue',
+    'DiffusionGradientDirectionSequence',
+
+    # Parallel Imaging / Multiband
+    'ParallelAcquisitionTechnique',
+    'ParallelReductionFactorInPlane',
+    'PartialFourier',
+    'SliceAccelerationFactor',
+    'MultibandFactor',
+
+    # Bandwidth / Readout
+    'PixelBandwidth',
+    'BandwidthPerPixelPhaseEncode',
+
+    # Phase encoding
+    'InPlanePhaseEncodingDirection',
+    'PhaseEncodingDirectionPositive',
+    'NumberOfPhaseEncodingSteps',
+
+    # Scanner hardware
+    'MagneticFieldStrength',
+    'ImagingFrequency',
+    'ImagedNucleus',
+    'TransmitCoilName',
+    'ReceiveCoilName',
+    'SAR',
+    'dBdt',
+    'NumberOfAverages',
+    'CoilType',
+
+    # Coverage / FOV %
+    'PercentSampling',
+    'PercentPhaseFieldOfView',
+
+    # Scan options
+    'ScanOptions',
+    'AngioFlag',
+
+    # Triggering / gating (mostly fMRI / cardiac)
+    'TriggerTime',
+    'TriggerSourceOrType',
+    'BeatRejectionFlag',
+    'LowRRValue',
+    'HighRRValue',
+
+    # Advanced / niche
+    'SpoilingRFPhaseAngle',
+    'PerfusionTechnique',
+    'SpectrallySelectedExcitation',
+    'SaturationRecovery',
+    'SpectrallySelectedSuppression',
+    'TimeOfFlightContrast',
+    'SteadyStatePulseSequence',
+    'PartialFourierDirection',
+]
+
 # Enhanced to regular DICOM field mapping
 ENHANCED_TO_REGULAR_MAPPING = {
     "EffectiveEchoTime": "EchoTime",
