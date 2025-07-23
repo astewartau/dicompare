@@ -6,13 +6,15 @@ import unittest
 import pandas as pd
 import numpy as np
 import json
+import asyncio
+import pytest
 from unittest.mock import patch, Mock, MagicMock
 
 from dicompare.web_utils import (
     prepare_session_for_web, format_compliance_results_for_web,
     create_field_selection_helper, prepare_schema_generation_data,
     format_validation_error_for_web, convert_pyodide_data, create_download_data,
-    load_schema_for_web, check_all_compliance_for_web
+    load_schema_for_web, check_all_compliance_for_web, analyze_dicom_files_for_web
 )
 
 
@@ -427,7 +429,8 @@ class TestWebUtils(unittest.TestCase):
         self.assertIn('session_characteristics', loaded)
         self.assertIn('preview_data', loaded)
     
-    def test_analyze_dicom_files_for_web_basic(self):
+    @pytest.mark.asyncio
+    async def test_analyze_dicom_files_for_web_basic(self):
         """Test analyze_dicom_files_for_web with mock DICOM data."""
         from ..web_utils import analyze_dicom_files_for_web
         
@@ -442,7 +445,7 @@ class TestWebUtils(unittest.TestCase):
         
         # This will likely fail because we don't have real DICOM data,
         # but should return an error response gracefully
-        result = analyze_dicom_files_for_web(mock_files, reference_fields)
+        result = await analyze_dicom_files_for_web(mock_files, reference_fields)
         
         # Should return a dict with expected structure
         self.assertIsInstance(result, dict)
@@ -456,11 +459,12 @@ class TestWebUtils(unittest.TestCase):
         self.assertEqual(result['total_files'], 2)
         self.assertIsInstance(result['acquisitions'], dict)
     
-    def test_analyze_dicom_files_for_web_empty_files(self):
+    @pytest.mark.asyncio
+    async def test_analyze_dicom_files_for_web_empty_files(self):
         """Test analyze_dicom_files_for_web with empty file dict."""
         from ..web_utils import analyze_dicom_files_for_web
         
-        result = analyze_dicom_files_for_web({})
+        result = await analyze_dicom_files_for_web({})
         
         # Should handle empty input gracefully
         self.assertEqual(result['total_files'], 0)
@@ -468,13 +472,14 @@ class TestWebUtils(unittest.TestCase):
         self.assertIn('acquisitions', result)
         self.assertIn('field_summary', result)
     
-    def test_analyze_dicom_files_for_web_default_fields(self):
+    @pytest.mark.asyncio
+    async def test_analyze_dicom_files_for_web_default_fields(self):
         """Test analyze_dicom_files_for_web uses default fields when none provided."""
         from ..web_utils import analyze_dicom_files_for_web
         
         mock_files = {'test.dcm': b'mock_data'}
         
-        result = analyze_dicom_files_for_web(mock_files)  # No reference_fields provided
+        result = await analyze_dicom_files_for_web(mock_files)  # No reference_fields provided
         
         # Should use DEFAULT_DICOM_FIELDS and return proper structure
         self.assertIsInstance(result, dict)
