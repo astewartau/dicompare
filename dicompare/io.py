@@ -24,6 +24,7 @@ from .validation import BaseValidationModel
 from .config import NONZERO_FIELDS
 from .parallel_utils import process_items_parallel, process_items_sequential
 from .data_utils import make_dataframe_hashable, _process_dicom_metadata, prepare_session_dataframe, _convert_to_plain_python_types
+from .pro_parser import load_pro_file
 
 # --- IMPORT FOR CSA header parsing ---
 from nibabel.nicom.csareader import get_csa_header
@@ -359,6 +360,84 @@ def load_dicom(
         else:
             metadata["CoilType"] = "Unknown"
 
+    # Add GE ImageType mapping based on private tag (0043,102F)
+    ge_private_tag = "(0043,102F)"
+    if ge_private_tag in metadata:
+        ge_value = metadata[ge_private_tag]
+        if ge_value is not None:
+            # Map GE private tag values to ImageType
+            ge_image_type_map = {
+                0: 'M',         # Magnitude
+                1: 'P',         # Phase
+                2: 'REAL',      # Real
+                3: 'IMAGINARY'  # Imaginary
+            }
+            
+            try:
+                # Convert to int if it's a string
+                ge_value_int = int(ge_value)
+                mapped_type = ge_image_type_map.get(ge_value_int)
+                
+                if mapped_type:
+                    # Add mapped value to ImageType
+                    if 'ImageType' in metadata:
+                        # If ImageType already exists, ensure it's a list and append
+                        current_type = metadata['ImageType']
+                        if isinstance(current_type, list):
+                            if mapped_type not in current_type:
+                                metadata['ImageType'].append(mapped_type)
+                        elif isinstance(current_type, tuple):
+                            if mapped_type not in current_type:
+                                metadata['ImageType'] = list(current_type) + [mapped_type]
+                        else:
+                            # Convert to list if it's a string or other type
+                            metadata['ImageType'] = [current_type, mapped_type]
+                    else:
+                        # Create new ImageType with mapped value
+                        metadata['ImageType'] = [mapped_type]
+            except (ValueError, TypeError):
+                # If conversion fails, skip the mapping
+                pass
+
+    # Add AcquisitionPlane based on ImageOrientationPatient
+    if 'ImageOrientationPatient' in metadata:
+        iop = metadata['ImageOrientationPatient']
+        try:
+            # Convert to list if it's a tuple or other sequence
+            if isinstance(iop, (tuple, list)) and len(iop) == 6:
+                iop_list = [float(x) for x in iop]
+                
+                # Get row and column direction cosines
+                row_cosines = iop_list[:3]  # First 3 elements
+                col_cosines = iop_list[3:6]  # Last 3 elements
+                
+                # Calculate slice normal using cross product
+                slice_normal = [
+                    row_cosines[1] * col_cosines[2] - row_cosines[2] * col_cosines[1],
+                    row_cosines[2] * col_cosines[0] - row_cosines[0] * col_cosines[2],
+                    row_cosines[0] * col_cosines[1] - row_cosines[1] * col_cosines[0]
+                ]
+                
+                # Determine primary orientation based on largest component of slice normal
+                abs_normal = [abs(x) for x in slice_normal]
+                max_component = abs_normal.index(max(abs_normal))
+                
+                if max_component == 0:  # X-axis dominant
+                    metadata['AcquisitionPlane'] = 'sagittal'
+                elif max_component == 1:  # Y-axis dominant  
+                    metadata['AcquisitionPlane'] = 'coronal'
+                else:  # Z-axis dominant (max_component == 2)
+                    metadata['AcquisitionPlane'] = 'axial'
+                    
+            else:
+                metadata['AcquisitionPlane'] = 'unknown'
+        except (ValueError, TypeError, IndexError):
+            # If calculation fails, mark as unknown
+            metadata['AcquisitionPlane'] = 'unknown'
+    else:
+        # If ImageOrientationPatient is not available, mark as unknown
+        metadata['AcquisitionPlane'] = 'unknown'
+
     return metadata
 
 
@@ -638,3 +717,128 @@ def load_python_schema(module_path: str) -> Dict[str, BaseValidationModel]:
         raise ValueError("'ACQUISITION_MODELS' must be a dictionary.")
 
     return acquisition_models
+
+
+def _load_one_pro_file(pro_path: str) -> Dict[str, Any]:
+    """
+    Helper function for loading a single .pro file.
+    
+    Args:
+        pro_path: Path to the .pro file
+        
+    Returns:
+        Dictionary with DICOM-compatible field names and values
+    """
+    pro_data = load_pro_file(pro_path)
+    
+    # Use ProtocolName as the equivalent of "Acquisition"
+    protocol_name = pro_data.get("ProtocolName", "Unknown_Protocol")
+    pro_data["Acquisition"] = protocol_name
+    
+    return pro_data
+
+
+async def async_load_pro_session(
+    session_dir: Optional[str] = None,
+    pro_files: Optional[List[str]] = None,
+    pattern: str = "*.pro",
+    show_progress: bool = False,
+    progress_function: Optional[Callable[[int], None]] = None,
+    parallel_workers: int = 1,
+) -> pd.DataFrame:
+    """
+    Load and process all .pro files in a session directory or from a list of file paths.
+
+    Args:
+        session_dir: Path to a directory containing .pro files
+        pro_files: List of specific .pro file paths to load
+        pattern: Glob pattern for finding .pro files (default: "*.pro")
+        show_progress: Whether to show a progress bar
+        progress_function: Optional callback function for progress updates
+        parallel_workers: Number of threads for parallel reading (default 1 = no parallel)
+
+    Returns:
+        pd.DataFrame: A DataFrame containing metadata for all .pro files in the session
+
+    Raises:
+        ValueError: If neither session_dir nor pro_files is provided, or if no .pro files are found
+    """
+    # Determine data source
+    if pro_files is not None:
+        pro_items = pro_files
+    elif session_dir is not None:
+        import glob
+        pro_items = glob.glob(os.path.join(session_dir, "**", pattern), recursive=True)
+    else:
+        raise ValueError("Either session_dir or pro_files must be provided.")
+
+    if not pro_items:
+        raise ValueError(f"No .pro files found in the specified location.")
+
+    # Process .pro files using parallel utilities
+    if parallel_workers > 1:
+        session_data = await process_items_parallel(
+            pro_items,
+            _load_one_pro_file,
+            parallel_workers,
+            progress_function,
+            show_progress,
+            "Loading .pro files"
+        )
+    else:
+        session_data = await process_items_sequential(
+            pro_items,
+            _load_one_pro_file,
+            progress_function,
+            show_progress,
+            "Loading .pro files"
+        )
+
+    # Create DataFrame
+    if not session_data:
+        raise ValueError("No valid .pro files could be loaded.")
+
+    session_df = pd.DataFrame(session_data)
+    
+    # Apply standard dataframe processing
+    session_df = make_dataframe_hashable(session_df)
+    
+    return session_df
+
+
+def load_pro_session(
+    session_dir: Optional[str] = None,
+    pro_files: Optional[List[str]] = None,
+    pattern: str = "*.pro",
+    show_progress: bool = False,
+    progress_function: Optional[Callable[[int], None]] = None,
+    parallel_workers: int = 1,
+) -> pd.DataFrame:
+    """
+    Synchronous version of load_pro_session.
+    Load and process all .pro files in a session directory or from a list of file paths.
+
+    Args:
+        session_dir: Path to a directory containing .pro files
+        pro_files: List of specific .pro file paths to load
+        pattern: Glob pattern for finding .pro files (default: "*.pro")
+        show_progress: Whether to show a progress bar
+        progress_function: Optional callback function for progress updates
+        parallel_workers: Number of threads for parallel reading (default 1 = no parallel)
+
+    Returns:
+        pd.DataFrame: A DataFrame containing metadata for all .pro files in the session
+
+    Raises:
+        ValueError: If neither session_dir nor pro_files is provided, or if no .pro files are found
+    """
+    return asyncio.run(
+        async_load_pro_session(
+            session_dir=session_dir,
+            pro_files=pro_files,
+            pattern=pattern,
+            show_progress=show_progress,
+            progress_function=progress_function,
+            parallel_workers=parallel_workers,
+        )
+    )

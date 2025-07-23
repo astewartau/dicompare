@@ -30,7 +30,8 @@ setup(
         "tabulate",
         "scipy",
         "tqdm",
-        "nibabel"
+        "nibabel",
+        "twixtools"
     ],
     extras_require={
         "interactive": ["curses"],

@@ -95,7 +95,7 @@ DEFAULT_DICOM_FIELDS = [
     'SequenceName',
     'SequenceVariant',
     'ScanningSequence',
-    'ImageType',
+    'ImageType', # MISSING
 
     'Manufacturer',
     'ManufacturerModelName',
@@ -103,8 +103,8 @@ DEFAULT_DICOM_FIELDS = [
 
     # Geometry
     'MRAcquisitionType',
-    'SliceThickness',
-    'PixelSpacing',
+    'SliceThickness', 
+    'PixelSpacing', 
     'Rows',
     'Columns',
     'Slices',
@@ -117,14 +117,14 @@ DEFAULT_DICOM_FIELDS = [
     'InversionTime',
     'FlipAngle',
     'EchoTrainLength',
-    'GradientEchoTrainLength',
+    'GradientEchoTrainLength', # MISSING
     'NumberOfTemporalPositions',
-    'TemporalResolution',
-    'SliceTiming',
+    'TemporalResolution', # MISSING
+    'SliceTiming', # MISSING
 
     # Diffusion-specific
-    'DiffusionBValue',
-    'DiffusionGradientDirectionSequence',
+    'DiffusionBValue', # MISSING
+    'DiffusionGradientDirectionSequence', # MISSING
 
     # Parallel Imaging / Multiband
     'ParallelAcquisitionTechnique',
@@ -139,7 +139,7 @@ DEFAULT_DICOM_FIELDS = [
 
     # Phase encoding
     'InPlanePhaseEncodingDirection',
-    'PhaseEncodingDirectionPositive',
+    'PhaseEncodingDirectionPositive', # MISSING
     'NumberOfPhaseEncodingSteps',
 
     # Scanner hardware
@@ -148,7 +148,7 @@ DEFAULT_DICOM_FIELDS = [
     'ImagedNucleus',
     'TransmitCoilName',
     'ReceiveCoilName',
-    'SAR',
+    'SAR', # MISSING
     'dBdt',
     'NumberOfAverages',
     'CoilType',
@@ -158,24 +158,24 @@ DEFAULT_DICOM_FIELDS = [
     'PercentPhaseFieldOfView',
 
     # Scan options
-    'ScanOptions',
+    'ScanOptions', # MISSING
     'AngioFlag',
 
     # Triggering / gating (mostly fMRI / cardiac)
     'TriggerTime',
     'TriggerSourceOrType',
-    'BeatRejectionFlag',
-    'LowRRValue',
-    'HighRRValue',
+    'BeatRejectionFlag', # MISSING
+    'LowRRValue', # MISSING
+    'HighRRValue', # MISSING
 
     # Advanced / niche
     'SpoilingRFPhaseAngle',
-    'PerfusionTechnique',
-    'SpectrallySelectedExcitation',
-    'SaturationRecovery',
-    'SpectrallySelectedSuppression',
+    'PerfusionTechnique', # MISSING
+    'SpectrallySelectedExcitation', # MISSING
+    'SaturationRecovery', # MISSING
+    'SpectrallySelectedSuppression', # MISSING
     'TimeOfFlightContrast',
-    'SteadyStatePulseSequence',
+    'SteadyStatePulseSequence', # MISSING
     'PartialFourierDirection',
 ]
 

@@ -376,7 +376,7 @@ def create_download_data(data: Dict[str, Any],
     }
 
 
-def analyze_dicom_files_for_web(
+async def analyze_dicom_files_for_web(
     dicom_files: Dict[str, bytes], 
     reference_fields: List[str] = None,
     progress_callback: Optional[callable] = None
@@ -423,33 +423,62 @@ def analyze_dicom_files_for_web(
         from .config import DEFAULT_DICOM_FIELDS
         import asyncio
         
-        # Use default fields if none provided
-        if reference_fields is None:
+        # Handle Pyodide JSProxy objects - convert to Python native types
+        # This fixes the PyodideTask error when JS objects are passed from the browser
+        if hasattr(dicom_files, 'to_py'):
+            print(f"Converting dicom_files from JSProxy to Python dict")
+            dicom_files = dicom_files.to_py()
+            print(f"Converted dicom_files: type={type(dicom_files)}, keys={list(dicom_files.keys()) if isinstance(dicom_files, dict) else 'not dict'}")
+        
+        if hasattr(reference_fields, 'to_py'):
+            print(f"Converting reference_fields from JSProxy to Python list")
+            reference_fields = reference_fields.to_py()
+            print(f"Converted reference_fields: type={type(reference_fields)}, length={len(reference_fields) if hasattr(reference_fields, '__len__') else 'no length'}")
+        
+        # Use default fields if none provided or empty list
+        if reference_fields is None or len(reference_fields) == 0:
+            print("Using DEFAULT_DICOM_FIELDS because reference_fields is empty")
             reference_fields = DEFAULT_DICOM_FIELDS
         
+        print(f"Using reference_fields: {len(reference_fields)} fields")
+        
+        print(f"About to call async_load_dicom_session with dicom_files type: {type(dicom_files)}")
+        print(f"dicom_files has {len(dicom_files)} files" if hasattr(dicom_files, '__len__') else f"dicom_files length unknown")
+        
         # Load DICOM session
+        # In Pyodide, we need to handle async functions properly to avoid PyodideTask
         if asyncio.iscoroutinefunction(async_load_dicom_session):
-            # Handle async function
-            import asyncio
-            loop = asyncio.get_event_loop()
-            session_df = loop.run_until_complete(
-                async_load_dicom_session(
-                    dicom_bytes=dicom_files,
-                    progress_function=progress_callback
-                )
+            # Use await directly in Pyodide environment
+            print("Calling async_load_dicom_session with await...")
+            session_df = await async_load_dicom_session(
+                dicom_bytes=dicom_files,
+                progress_function=progress_callback
             )
         else:
             # Handle sync function
+            print("Calling async_load_dicom_session synchronously...")
             session_df = async_load_dicom_session(
                 dicom_bytes=dicom_files,
                 progress_function=progress_callback
             )
         
+        print(f"async_load_dicom_session returned: type={type(session_df)}, shape={getattr(session_df, 'shape', 'no shape')}")
+        
         # Assign acquisitions and run numbers
         session_df = assign_acquisition_and_run_numbers(session_df)
         
-        # Create schema from session
-        schema_result = create_json_schema(session_df, reference_fields)
+        # Filter reference fields to only include fields that exist in the session
+        available_fields = [field for field in reference_fields if field in session_df.columns]
+        missing_fields = [field for field in reference_fields if field not in session_df.columns]
+        
+        if missing_fields:
+            print(f"Warning: Missing fields from DICOM data: {missing_fields}")
+        
+        print(f"Using {len(available_fields)} available fields out of {len(reference_fields)} requested")
+        print(f"Available fields: {available_fields}")
+        
+        # Create schema from session with only available fields
+        schema_result = create_json_schema(session_df, available_fields)
         
         # Format for web
         web_result = {
@@ -467,6 +496,9 @@ def analyze_dicom_files_for_web(
         return make_json_serializable(web_result)
         
     except Exception as e:
+        import traceback
+        print(f"Full traceback of error in analyze_dicom_files_for_web:")
+        traceback.print_exc()
         logger.error(f"Error in analyze_dicom_files_for_web: {e}")
         return {
             'acquisitions': {},
@@ -665,6 +697,10 @@ def check_all_compliance_for_web(
         True
     """
     try:
+        # Handle Pyodide JSProxy objects - convert to Python native types
+        if hasattr(schema_mappings, 'to_py'):
+            schema_mappings = schema_mappings.to_py()
+        
         all_results = []
         
         if not hasattr(compliance_session, 'has_session') or not compliance_session.has_session():

@@ -1,25 +1,186 @@
 {
+    "name": "T1 Biobank",
+    "description": "",
+    "authors": [
+      "Ashley"
+    ],
     "acquisitions": {
-        "T1": {
-            "fields": [
-                {"field": "EchoTime", "tolerance": 0.1, "value": 3.0},
-                {"field": "RepetitionTime", "value": 8.0},
-                {"field": "SeriesDescription", "value": "*T1*"}
-            ],
-            "series": [
-                {
-                    "name": "Series 1",
-                    "fields": [
-                        {"field": "ImageType", "contains": "M"}
-                    ]
-                },
-                {
-                    "name": "Series 2",
-                    "fields": [
-                        {"field": "ImageType", "contains": "P"}
-                    ]
-                }
+      "acq-t1p21mmfov256sagti880": {
+        "fields": [
+          {
+            "field": "SeriesDescription",
+            "value": "T1_p2_1mm_fov256_sag_TI_880"
+          },
+          {
+            "field": "SequenceName",
+            "value": "*tfl3d1_16ns"
+          },
+          {
+            "field": "SequenceVariant",
+            "value": [
+              "SK",
+              "SP",
+              "MP",
+              "OSP"
             ]
-        }
+          },
+          {
+            "field": "ScanningSequence",
+            "value": [
+              "GR",
+              "IR"
+            ]
+          },
+          {
+            "field": "Manufacturer",
+            "value": "SIEMENS"
+          },
+          {
+            "field": "ManufacturerModelName",
+            "value": "Skyra"
+          },
+          {
+            "field": "MRAcquisitionType",
+            "value": "3D"
+          },
+          {
+            "field": "SliceThickness",
+            "value": 1
+          },
+          {
+            "field": "PixelSpacing",
+            "value": [
+              1,
+              1
+            ]
+          },
+          {
+            "field": "Rows",
+            "value": 256
+          },
+          {
+            "field": "Columns",
+            "value": 256
+          },
+          {
+            "field": "AcquisitionMatrix",
+            "value": [
+              0,
+              256,
+              256,
+              0
+            ]
+          },
+          {
+            "field": "RepetitionTime",
+            "value": 2000
+          },
+          {
+            "field": "EchoTime",
+            "value": 2.01
+          },
+          {
+            "field": "InversionTime",
+            "value": 880
+          },
+          {
+            "field": "FlipAngle",
+            "value": 8
+          },
+          {
+            "field": "EchoTrainLength",
+            "value": 1
+          },
+          {
+            "field": "PixelBandwidth",
+            "value": 240
+          },
+          {
+            "field": "InPlanePhaseEncodingDirection",
+            "value": "ROW"
+          },
+          {
+            "field": "PhaseEncodingDirectionPositive",
+            "value": [
+              1
+            ]
+          },
+          {
+            "field": "NumberOfPhaseEncodingSteps",
+            "value": 269
+          },
+          {
+            "field": "MagneticFieldStrength",
+            "value": 3
+          },
+          {
+            "field": "ImagingFrequency",
+            "value": 123.26391
+          },
+          {
+            "field": "ImagedNucleus",
+            "value": "1H"
+          },
+          {
+            "field": "TransmitCoilName",
+            "value": "Body"
+          },
+          {
+            "field": "SAR",
+            "value": 0.069
+          },
+          {
+            "field": "NumberOfAverages",
+            "value": 1
+          },
+          {
+            "field": "PercentSampling",
+            "value": 100
+          },
+          {
+            "field": "PercentPhaseFieldOfView",
+            "value": 100
+          },
+          {
+            "field": "ScanOptions",
+            "value": "IR"
+          },
+          {
+            "field": "AngioFlag",
+            "value": "N"
+          }
+        ],
+        "series": [
+          {
+            "name": "1",
+            "fields": [
+              {
+                "field": "ImageType",
+                "value": [
+                  "ORIGINAL",
+                  "PRIMARY",
+                  "M",
+                  "ND"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "2",
+            "fields": [
+              {
+                "field": "ImageType",
+                "value": [
+                  "ORIGINAL",
+                  "PRIMARY",
+                  "M",
+                  "ND",
+                  "NORM"
+                ]
+              }
+            ]
+          }
+        ]
+      }
     }
-}
+  }

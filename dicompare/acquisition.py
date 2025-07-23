@@ -43,6 +43,9 @@ def _validate_and_setup_fields(session_df, settings_fields, acquisition_fields, 
         logger.warning("'ProtocolName' not found in session_df columns. Setting it to 'SeriesDescription' instead.")
         session_df["ProtocolName"] = session_df.get("SeriesDescription", "Unknown")
     
+    # Ensure ProtocolName values are strings and handle NaN values
+    session_df["ProtocolName"] = session_df["ProtocolName"].fillna("Unknown").astype(str)
+    
     return settings_fields, acquisition_fields, run_group_fields
 
 
@@ -254,7 +257,7 @@ def assign_acquisition_and_run_numbers(
     session_df = assign_temporal_runs(session_df, run_group_fields)
     
     # 4. Create final Acquisition labels from signatures
-    session_df["Acquisition"] = session_df["AcquisitionSignature"]
+    session_df["Acquisition"] = session_df["AcquisitionSignature"].fillna("Unknown").astype(str)
     
     # 5. Clean up temporary columns
     session_df = session_df.drop(columns=["BaseAcquisition", "AcquisitionSignature"]).reset_index(drop=True)

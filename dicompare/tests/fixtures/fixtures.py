@@ -63,7 +63,7 @@ def empty_json() -> dict:
         "BodyPartExamined": "BRAIN",
         "PatientPosition": "HFS",
         "ProcedureStepDescription": "MRI Brain",
-        "SoftwareVersions": "syngo MR E11",
+        "SoftwareVersion": "syngo MR E11",
         "MRAcquisitionType": "3D",
         "SeriesDescription": "Magnitude",
         "ProtocolName": "T1w_MPRAGE",

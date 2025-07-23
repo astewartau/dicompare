@@ -17,7 +17,9 @@ def create_test_dicom_file(
     rows: int = 64,
     columns: int = 64,
     pixel_data: Optional[np.ndarray] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
+    study_instance_uid: Optional[str] = None,
+    series_instance_uid: Optional[str] = None
 ) -> str:
     """
     Create a test DICOM file with pixel data.
@@ -28,6 +30,8 @@ def create_test_dicom_file(
         columns: Number of columns in pixel data  
         pixel_data: Custom pixel data array, if None creates random data
         metadata: Additional DICOM metadata tags
+        study_instance_uid: Study UID to use, generates new one if None
+        series_instance_uid: Series UID to use, generates new one if None
         
     Returns:
         Path to the created DICOM file
@@ -78,14 +82,14 @@ def create_test_dicom_file(
     ds.PatientSex = "M"
     
     # Required Study Information
-    ds.StudyInstanceUID = generate_uid()
+    ds.StudyInstanceUID = study_instance_uid or generate_uid()
     ds.StudyDate = "20230101"
     ds.StudyTime = "120000"
     ds.StudyID = "1"
     ds.AccessionNumber = "ACC001"
     
     # Required Series Information
-    ds.SeriesInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = series_instance_uid or generate_uid()
     ds.SeriesDate = "20230101"
     ds.SeriesTime = "120000"
     ds.SeriesNumber = 1
@@ -107,6 +111,11 @@ def create_test_dicom_file(
     ds.PixelRepresentation = 0  # unsigned
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.PlanarConfiguration = 0  # Even though for monochrome, some viewers expect it
+    
+    # Add transfer syntax info to help pydicom interpret pixel data
+    ds.is_implicit_VR = False
+    ds.is_little_endian = True
     
     # MR specific metadata (common defaults)
     ds.RepetitionTime = 2000.0
@@ -119,13 +128,28 @@ def create_test_dicom_file(
     ds.SliceLocation = 0.0
     ds.MagneticFieldStrength = 3.0
     
+    # Add display/windowing parameters for proper visualization
+    ds.RescaleIntercept = 0
+    ds.RescaleSlope = 1
+    ds.WindowCenter = 500
+    ds.WindowWidth = 1000
+    
     # Add custom metadata if provided
     if metadata:
         for key, value in metadata.items():
             setattr(ds, key, value)
     
     # Add pixel data
-    ds.PixelData = pixel_data.tobytes()
+    pixel_bytes = pixel_data.tobytes()
+    
+    # Ensure even byte length (though uint16 should always be even)
+    if len(pixel_bytes) % 2 != 0:
+        pixel_bytes = pixel_bytes + b'\x00'
+    
+    ds.PixelData = pixel_bytes
+    
+    # Ensure the transfer syntax is properly set in file meta
+    ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
     
     # Save the file
     ds.save_as(file_path, write_like_original=False)
@@ -171,6 +195,14 @@ def create_test_dicom_series(
     file_paths = []
     dicom_bytes = {}
     
+    # Generate shared UIDs for this series - all slices will belong to same study and series
+    study_uid = generate_uid()
+    # Check if series UID is provided in metadata_base, otherwise generate one
+    if metadata_base and 'SeriesInstanceUID' in metadata_base:
+        series_uid = metadata_base['SeriesInstanceUID']
+    else:
+        series_uid = generate_uid()
+    
     # Set up base metadata
     base_metadata = {
         'SeriesDescription': acquisition_name,
@@ -201,7 +233,19 @@ def create_test_dicom_series(
         
         # Create file
         file_path = base_dir / f"{acquisition_name}_slice_{i+1:03d}.dcm"
-        create_test_dicom_file(str(file_path), rows, columns, pixel_data, slice_metadata)
+        
+        # Use series UID from slice metadata if it was set via varying_fields, otherwise use shared series UID
+        slice_series_uid = slice_metadata.get('SeriesInstanceUID', series_uid)
+        
+        create_test_dicom_file(
+            str(file_path), 
+            rows, 
+            columns, 
+            pixel_data, 
+            slice_metadata,
+            study_instance_uid=study_uid,
+            series_instance_uid=slice_series_uid
+        )
         
         file_paths.append(str(file_path))
         
