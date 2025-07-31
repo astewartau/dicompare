@@ -5,6 +5,15 @@ This module provides common validation patterns used in compliance.py to reduce 
 """
 
 from typing import Any, List, Dict, Tuple, Optional
+from enum import Enum
+
+
+class ComplianceStatus(Enum):
+    """Enum for compliance check status."""
+    OK = "ok"
+    ERROR = "error"
+    WARNING = "warning"
+    NA = "na"  # Not Applicable - e.g., field not found in input
 
 
 def normalize_value(val: Any) -> Any:
@@ -257,7 +266,8 @@ def create_compliance_record(
     contains: str = None,
     actual_values: List[Any] = None,
     message: str = "",
-    passed: bool = True
+    passed: bool = True,
+    status: Optional[ComplianceStatus] = None
 ) -> Dict[str, Any]:
     """
     Create a standardized compliance record.
@@ -273,6 +283,7 @@ def create_compliance_record(
         actual_values: List of actual values found
         message: Validation message
         passed: Whether validation passed
+        status: Compliance status (if None, will be derived from passed/message)
         
     Returns:
         Compliance record dictionary
@@ -282,7 +293,18 @@ def create_compliance_record(
     else:
         expected_desc = f"(value={expected_value}, tolerance={tolerance}, contains={contains})"
     
-    return {
+    # Determine status if not explicitly provided
+    if status is None:
+        if "Field not found in input" in message:
+            print(f"DEBUG: Setting status to NA for message: '{message}'")
+            status = ComplianceStatus.NA
+        elif passed:
+            status = ComplianceStatus.OK
+        else:
+            print(f"DEBUG: Setting status to ERROR for message: '{message}', passed: {passed}")
+            status = ComplianceStatus.ERROR
+    
+    result = {
         "schema acquisition": schema_acq_name,
         "input acquisition": in_acq_name,
         "series": series_name,
@@ -290,5 +312,12 @@ def create_compliance_record(
         "expected": expected_desc,
         "value": actual_values,
         "message": message,
-        "passed": passed
+        "passed": passed,
+        "status": status.value  # Store as string for JSON serialization
     }
+    
+    # Debug: print records with "not found" message
+    if "not found" in message.lower():
+        print(f"DEBUG create_compliance_record: Created record with status '{status.value}' for message: '{message}'")
+    
+    return result

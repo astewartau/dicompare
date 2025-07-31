@@ -117,7 +117,8 @@ def format_compliance_results_for_web(compliance_results: Dict[str, Any]) -> Dic
                     'actual': result.get('actual', ''),
                     'compliant': result.get('compliant', False),
                     'message': result.get('message', ''),
-                    'difference_score': result.get('difference_score', 0)
+                    'difference_score': result.get('difference_score', 0),
+                    'status': result.get('status')  # Include the status field
                 }
                 # Preserve series information if this is a series-level result
                 if 'series' in result:

@@ -258,6 +258,10 @@ class ComplianceSession:
         schema_acquisition_results = {}
         
         for result in raw_results:
+            # Debug: print raw results with status
+            if "not found" in result.get('message', '').lower():
+                print(f"DEBUG ComplianceSession raw_result: {result}")
+            
             # Use schema acquisition as the key, not input acquisition
             schema_acq_name = result.get('schema acquisition', 'unknown')
             input_acq_name = result.get('input acquisition', 'unknown')
@@ -278,7 +282,8 @@ class ComplianceSession:
                 'actual': result.get('value', ''),  # Fixed: use 'value' key from compliance record
                 'compliant': result.get('passed', False),
                 'message': result.get('message', ''),
-                'difference_score': 0  # Not provided by raw results
+                'difference_score': 0,  # Not provided by raw results
+                'status': result.get('status')  # Include the status field
             }
             
             # Add series information if this is a series-level result

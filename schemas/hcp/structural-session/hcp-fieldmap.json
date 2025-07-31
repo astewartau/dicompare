@@ -1,0 +1,257 @@
+{
+    "name": "HCP FieldMap",
+    "description": "Human Connectome Project Structural Session FieldMap scan for B0 field mapping",
+    "authors": [
+        "WU-Minn Consortium"
+    ],
+    "acquisitions": {
+        "acq-fieldmap": {
+            "fields": [
+                {
+                    "field": "SeriesDescription",
+                    "value": "FieldMap"
+                },
+                {
+                    "field": "SequenceName",
+                    "value": "*fm2d1"
+                },
+                {
+                    "field": "Manufacturer",
+                    "value": "SIEMENS"
+                },
+                {
+                    "field": "ManufacturerModelName",
+                    "value": "MAGNETOM ConnectomS"
+                },
+                {
+                    "field": "SoftwareVersions",
+                    "value": "syngo MR D11"
+                },
+                {
+                    "field": "MRAcquisitionType",
+                    "value": "2D"
+                },
+                {
+                    "field": "SliceThickness",
+                    "value": 2.0
+                },
+                {
+                    "field": "PixelSpacing",
+                    "value": [
+                        2.0,
+                        2.0
+                    ]
+                },
+                {
+                    "field": "Rows",
+                    "value": 104
+                },
+                {
+                    "field": "Columns",
+                    "value": 104
+                },
+                {
+                    "field": "AcquisitionMatrix",
+                    "value": [
+                        104,
+                        0,
+                        0,
+                        104
+                    ]
+                },
+                {
+                    "field": "RepetitionTime",
+                    "value": 731.0
+                },
+                {
+                    "field": "EchoTime",
+                    "value": 4.92
+                },
+                {
+                    "field": "FlipAngle",
+                    "value": 50
+                },
+                {
+                    "field": "PixelBandwidth",
+                    "value": 433
+                },
+                {
+                    "field": "InPlanePhaseEncodingDirection",
+                    "value": "ROW"
+                },
+                {
+                    "field": "PhaseEncodingDirectionPositive",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "field": "NumberOfPhaseEncodingSteps",
+                    "value": 104
+                },
+                {
+                    "field": "MagneticFieldStrength",
+                    "value": 3
+                },
+                {
+                    "field": "ImagingFrequency",
+                    "value": 123.254038
+                },
+                {
+                    "field": "ImagedNucleus",
+                    "value": "1H"
+                },
+                {
+                    "field": "TransmitCoilName",
+                    "value": "Body"
+                },
+                {
+                    "field": "ReceiveCoilName",
+                    "value": "HEA;HEP"
+                },
+                {
+                    "field": "NumberOfAverages",
+                    "value": 1
+                },
+                {
+                    "field": "PercentSampling",
+                    "value": 100
+                },
+                {
+                    "field": "PercentPhaseFieldOfView",
+                    "value": 86.5
+                },
+                {
+                    "field": "AcquisitionDuration",
+                    "value": 135
+                },
+                {
+                    "field": "NumberOfSliceGroups",
+                    "value": 1
+                },
+                {
+                    "field": "SlicesPerGroup",
+                    "value": 72
+                },
+                {
+                    "field": "SliceSpacing",
+                    "value": 2.0
+                },
+                {
+                    "field": "ImageOrientationPatient",
+                    "value": "Transversal"
+                },
+                {
+                    "field": "MultiSliceMode",
+                    "value": "Interleaved"
+                },
+                {
+                    "field": "ScanningSequence",
+                    "value": [
+                        "GR"
+                    ]
+                },
+                {
+                    "field": "SequenceVariant",
+                    "value": [
+                        "SP"
+                    ]
+                },
+                {
+                    "field": "AsymmetricEcho",
+                    "value": "Off"
+                },
+                {
+                    "field": "AutoAlign",
+                    "value": "Head > Brain"
+                },
+                {
+                    "field": "PatientPosition",
+                    "value": "Isocenter"
+                },
+                {
+                    "field": "CoilCombineMode",
+                    "value": "Sum of Squares"
+                },
+                {
+                    "field": "RFSpoiling",
+                    "value": "On"
+                },
+                {
+                    "field": "AveragingMode",
+                    "value": "Short term"
+                },
+                {
+                    "field": "GradientMode",
+                    "value": "Fast"
+                },
+                {
+                    "field": "RFPulseType",
+                    "value": "Normal"
+                },
+                {
+                    "field": "FlowCompensation",
+                    "value": "Yes"
+                },
+                {
+                    "field": "Contrasts",
+                    "value": 2
+                },
+                {
+                    "field": "ReconstructionType",
+                    "value": "Magn./Phase"
+                },
+                {
+                    "field": "PrescanNormalize",
+                    "value": "Off"
+                },
+                {
+                    "field": "ShimMode",
+                    "value": "Standard"
+                },
+                {
+                    "field": "AutoCoilSelect",
+                    "value": "Default"
+                }
+            ],
+            "series": [
+                {
+                    "name": "1",
+                    "fields": [
+                        {
+                            "field": "ImageType",
+                            "value": [
+                                "ORIGINAL",
+                                "PRIMARY",
+                                "M",
+                                "ND"
+                            ]
+                        },
+                        {
+                            "field": "SeriesNumber",
+                            "value": 1
+                        }
+                    ]
+                },
+                {
+                    "name": "2",
+                    "fields": [
+                        {
+                            "field": "ImageType",
+                            "value": [
+                                "ORIGINAL",
+                                "PRIMARY",
+                                "P",
+                                "ND"
+                            ]
+                        },
+                        {
+                            "field": "SeriesNumber",
+                            "value": 2
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

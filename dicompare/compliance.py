@@ -8,7 +8,8 @@ The module supports compliance checks for JSON-based schema sessions and Python 
 from typing import List, Dict, Any
 from dicompare.validation import BaseValidationModel
 from dicompare.validation_helpers import (
-    validate_constraint, validate_field_values, create_compliance_record, format_constraint_description
+    validate_constraint, validate_field_values, create_compliance_record, format_constraint_description,
+    ComplianceStatus
 )
 import pandas as pd
 
@@ -47,10 +48,12 @@ def check_session_compliance_with_json_schema(
             contains = fdef.get("contains")
 
             if field not in in_acq.columns:
+                print(f"DEBUG compliance.py: Field '{field}' not found, creating NA record")
                 compliance_summary.append(create_compliance_record(
                     schema_acq_name, in_acq_name, None, field,
                     expected_value, tolerance, contains, None,
-                    "Field not found in input session.", False
+                    "Field not found in input session.", False,
+                    status=ComplianceStatus.NA
                 ))
                 continue
 
@@ -97,7 +100,8 @@ def check_session_compliance_with_json_schema(
                 compliance_summary.append(create_compliance_record(
                     schema_acq_name, in_acq_name, schema_series_name, field,
                     e_val, tol, ctn, None,
-                    f"Field '{field}' not found in input for series '{schema_series_name}'.", False
+                    f"Field '{field}' not found in input for series '{schema_series_name}'.", False,
+                    status=ComplianceStatus.NA
                 ))
                 return
 
@@ -245,7 +249,8 @@ def check_session_compliance_with_python_module(
                 "rule_name": "Acquisition presence",
                 "expected": "Specified input acquisition must be present.",
                 "message": f"Input acquisition '{in_acq_name}' not found in data.",
-                "passed": False
+                "passed": False,
+                "status": ComplianceStatus.NA.value
             })
             continue
 
@@ -260,7 +265,8 @@ def check_session_compliance_with_python_module(
                 "rule_name": "Model presence",
                 "expected": "Schema model must exist.",
                 "message": f"No model found for reference acquisition '{schema_acq_name}'.",
-                "passed": False
+                "passed": False,
+                "status": ComplianceStatus.ERROR.value
             })
             continue
         schema_model = schema_model_cls()
@@ -273,6 +279,8 @@ def check_session_compliance_with_python_module(
 
         # Record errors
         for error in errors:
+            # Check if this is a "field not found" error
+            status = ComplianceStatus.NA if "not found" in error.get('message', '').lower() else ComplianceStatus.ERROR
             compliance_summary.append({
                 "schema acquisition": schema_acq_name,
                 "input acquisition": in_acq_name,
@@ -281,7 +289,8 @@ def check_session_compliance_with_python_module(
                 "expected": error['expected'],
                 "message": error['message'],
                 "rule_name": error['rule_name'],
-                "passed": False
+                "passed": False,
+                "status": status.value
             })
 
         # Record passes
@@ -294,7 +303,8 @@ def check_session_compliance_with_python_module(
                 "expected": passed_test['expected'],
                 "message": passed_test['message'],
                 "rule_name": passed_test['rule_name'],
-                "passed": True
+                "passed": True,
+                "status": ComplianceStatus.OK.value
             })
 
         # Raise an error if validation fails and `raise_errors` is True

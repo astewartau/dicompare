@@ -1,0 +1,227 @@
+{
+    "name": "HCP AAHScout",
+    "description": "Human Connectome Project Structural Session AAHScout scan",
+    "authors": [
+        "WU-Minn Consortium"
+    ],
+    "acquisitions": {
+        "acq-aahscout": {
+            "fields": [
+                {
+                    "field": "SeriesDescription",
+                    "value": "AAHScout"
+                },
+                {
+                    "field": "Manufacturer",
+                    "value": "SIEMENS"
+                },
+                {
+                    "field": "ManufacturerModelName",
+                    "value": "MAGNETOM ConnectomS"
+                },
+                {
+                    "field": "SoftwareVersions",
+                    "value": "syngo MR D11"
+                },
+                {
+                    "field": "MRAcquisitionType",
+                    "value": "3D"
+                },
+                {
+                    "field": "SliceThickness",
+                    "value": 1.6
+                },
+                {
+                    "field": "PixelSpacing",
+                    "value": [
+                        1.6,
+                        1.6
+                    ]
+                },
+                {
+                    "field": "Rows",
+                    "value": 160
+                },
+                {
+                    "field": "Columns",
+                    "value": 160
+                },
+                {
+                    "field": "AcquisitionMatrix",
+                    "value": [
+                        0,
+                        160,
+                        160,
+                        0
+                    ]
+                },
+                {
+                    "field": "RepetitionTime",
+                    "value": 3.15
+                },
+                {
+                    "field": "EchoTime",
+                    "value": 1.37
+                },
+                {
+                    "field": "FlipAngle",
+                    "value": 8
+                },
+                {
+                    "field": "EchoTrainLength",
+                    "value": 1
+                },
+                {
+                    "field": "PixelBandwidth",
+                    "value": 540
+                },
+                {
+                    "field": "InPlanePhaseEncodingDirection",
+                    "value": "COL"
+                },
+                {
+                    "field": "PhaseEncodingDirectionPositive",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "field": "NumberOfPhaseEncodingSteps",
+                    "value": 160
+                },
+                {
+                    "field": "MagneticFieldStrength",
+                    "value": 3
+                },
+                {
+                    "field": "ImagingFrequency",
+                    "value": 123.254038
+                },
+                {
+                    "field": "ImagedNucleus",
+                    "value": "1H"
+                },
+                {
+                    "field": "TransmitCoilName",
+                    "value": "Body"
+                },
+                {
+                    "field": "ReceiveCoilName",
+                    "value": "HEA;HEP"
+                },
+                {
+                    "field": "NumberOfAverages",
+                    "value": 1
+                },
+                {
+                    "field": "PercentSampling",
+                    "value": 100
+                },
+                {
+                    "field": "PercentPhaseFieldOfView",
+                    "value": 100.0
+                },
+                {
+                    "field": "AcquisitionDuration",
+                    "value": 14
+                },
+                {
+                    "field": "NumberOfSlabGroups",
+                    "value": 1
+                },
+                {
+                    "field": "SlabsPerGroup",
+                    "value": 1
+                },
+                {
+                    "field": "SlicesPerSlab",
+                    "value": 128
+                },
+                {
+                    "field": "SliceSpacing",
+                    "value": 1.92
+                },
+                {
+                    "field": "ImageOrientationPatient",
+                    "value": "Sagittal"
+                },
+                {
+                    "field": "MultiSliceMode",
+                    "value": "Sequential"
+                },
+                {
+                    "field": "ScanningSequence",
+                    "value": [
+                        "GR"
+                    ]
+                },
+                {
+                    "field": "SequenceVariant",
+                    "value": [
+                        "SP"
+                    ]
+                },
+                {
+                    "field": "ParallelAcquisitionTechnique",
+                    "value": "GRAPPA"
+                },
+                {
+                    "field": "ParallelReductionFactorInPlane",
+                    "value": 3
+                },
+                {
+                    "field": "ParallelReductionFactorOutOfPlane",
+                    "value": 1
+                },
+                {
+                    "field": "GRAPPAKernelSize",
+                    "value": 24
+                },
+                {
+                    "field": "PartialFourier",
+                    "value": 0.75
+                },
+                {
+                    "field": "SlicePartialFourier",
+                    "value": 0.75
+                },
+                {
+                    "field": "SliceResolution",
+                    "value": 69
+                },
+                {
+                    "field": "AsymmetricEcho",
+                    "value": "Weak"
+                },
+                {
+                    "field": "AutoAlign",
+                    "value": "Head"
+                },
+                {
+                    "field": "TimeToCenterOfKSpace",
+                    "value": 6.2
+                }
+            ],
+            "series": [
+                {
+                    "name": "1",
+                    "fields": [
+                        {
+                            "field": "ImageType",
+                            "value": [
+                                "ORIGINAL",
+                                "PRIMARY",
+                                "M",
+                                "ND"
+                            ]
+                        },
+                        {
+                            "field": "SeriesNumber",
+                            "value": 1
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,342 @@
+{
+    "name": "HCP DWI_RL_dir95",
+    "description": "Human Connectome Project Diffusion Session multi-shell diffusion-weighted imaging scan with 95 directions",
+    "authors": [
+        "WU-Minn Consortium"
+    ],
+    "acquisitions": {
+        "acq-dwi-rl-dir95": {
+            "fields": [
+                {
+                    "field": "SeriesDescription",
+                    "value": "DWI_RL_dir95"
+                },
+                {
+                    "field": "SequenceName",
+                    "value": "cmrr_mbep2d_diff"
+                },
+                {
+                    "field": "Manufacturer",
+                    "value": "SIEMENS"
+                },
+                {
+                    "field": "ManufacturerModelName",
+                    "value": "MAGNETOM ConnectomS"
+                },
+                {
+                    "field": "SoftwareVersions",
+                    "value": "syngo MR D11"
+                },
+                {
+                    "field": "MRAcquisitionType",
+                    "value": "2D"
+                },
+                {
+                    "field": "SliceThickness",
+                    "value": 1.25
+                },
+                {
+                    "field": "PixelSpacing",
+                    "value": [
+                        1.25,
+                        1.25
+                    ]
+                },
+                {
+                    "field": "Rows",
+                    "value": 168
+                },
+                {
+                    "field": "Columns",
+                    "value": 144
+                },
+                {
+                    "field": "AcquisitionMatrix",
+                    "value": [
+                        144,
+                        0,
+                        0,
+                        168
+                    ]
+                },
+                {
+                    "field": "RepetitionTime",
+                    "value": 5520
+                },
+                {
+                    "field": "EchoTime",
+                    "value": 89.50
+                },
+                {
+                    "field": "FlipAngle",
+                    "value": 78
+                },
+                {
+                    "field": "RefocusFlipAngle",
+                    "value": 160
+                },
+                {
+                    "field": "EchoSpacing",
+                    "value": 0.78
+                },
+                {
+                    "field": "EPIFactor",
+                    "value": 144
+                },
+                {
+                    "field": "PixelBandwidth",
+                    "value": 1488
+                },
+                {
+                    "field": "InPlanePhaseEncodingDirection",
+                    "value": "ROW"
+                },
+                {
+                    "field": "PhaseEncodingDirectionPositive",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "field": "NumberOfPhaseEncodingSteps",
+                    "value": 144
+                },
+                {
+                    "field": "PartialFourier",
+                    "value": 0.75
+                },
+                {
+                    "field": "MagneticFieldStrength",
+                    "value": 3
+                },
+                {
+                    "field": "ImagingFrequency",
+                    "value": 123.254038
+                },
+                {
+                    "field": "ImagedNucleus",
+                    "value": "1H"
+                },
+                {
+                    "field": "TransmitCoilName",
+                    "value": "Body"
+                },
+                {
+                    "field": "ReceiveCoilName",
+                    "value": "HEA;HEP"
+                },
+                {
+                    "field": "NumberOfAverages",
+                    "value": 1
+                },
+                {
+                    "field": "PercentSampling",
+                    "value": 100
+                },
+                {
+                    "field": "PercentPhaseFieldOfView",
+                    "value": 85.7
+                },
+                {
+                    "field": "AcquisitionDuration",
+                    "value": 581
+                },
+                {
+                    "field": "NumberOfSliceGroups",
+                    "value": 1
+                },
+                {
+                    "field": "SlicesPerGroup",
+                    "value": 111
+                },
+                {
+                    "field": "SliceSpacing",
+                    "value": 1.25
+                },
+                {
+                    "field": "ImageOrientationPatient",
+                    "value": "T > C-20.0"
+                },
+                {
+                    "field": "MultiSliceMode",
+                    "value": "Interleaved"
+                },
+                {
+                    "field": "ScanningSequence",
+                    "value": [
+                        "EP"
+                    ]
+                },
+                {
+                    "field": "SequenceVariant",
+                    "value": [
+                        "SK"
+                    ]
+                },
+                {
+                    "field": "MultibandAccelerationFactor",
+                    "value": 3
+                },
+                {
+                    "field": "DiffusionScheme",
+                    "value": "Monopolar"
+                },
+                {
+                    "field": "ExcitePulseDuration",
+                    "value": 3200
+                },
+                {
+                    "field": "RefocusPulseDuration",
+                    "value": 7040
+                },
+                {
+                    "field": "SingleBandImages",
+                    "value": "On"
+                },
+                {
+                    "field": "SENSE1CoilCombine",
+                    "value": "On"
+                },
+                {
+                    "field": "LogPhysiologyToFile",
+                    "value": "On"
+                },
+                {
+                    "field": "InvertROPEPolarity",
+                    "value": "Off"
+                },
+                {
+                    "field": "OnlineMultibandRecon",
+                    "value": "Remote"
+                },
+                {
+                    "field": "AutoAlign",
+                    "value": "Head > Brain"
+                },
+                {
+                    "field": "PatientPosition",
+                    "value": "L0.0 P3.0 H6.0 mm"
+                },
+                {
+                    "field": "CoilCombineMode",
+                    "value": "Sum of Squares"
+                },
+                {
+                    "field": "AveragingMode",
+                    "value": "Long term"
+                },
+                {
+                    "field": "GradientMode",
+                    "value": "Fast"
+                },
+                {
+                    "field": "RFPulseType",
+                    "value": "Normal"
+                },
+                {
+                    "field": "DelayInTR",
+                    "value": 0
+                },
+                {
+                    "field": "PrescanNormalize",
+                    "value": "Off"
+                },
+                {
+                    "field": "ShimMode",
+                    "value": "Standard"
+                },
+                {
+                    "field": "AutoCoilSelect",
+                    "value": "Default"
+                },
+                {
+                    "field": "DiffusionMode",
+                    "value": "Free"
+                },
+                {
+                    "field": "DiffusionWeightings",
+                    "value": 1
+                },
+                {
+                    "field": "BValue",
+                    "value": 3000
+                },
+                {
+                    "field": "DiffusionWeightedImages",
+                    "value": "On"
+                },
+                {
+                    "field": "TraceWeightedImages",
+                    "value": "Off"
+                },
+                {
+                    "field": "ADCMaps",
+                    "value": "Off"
+                },
+                {
+                    "field": "FAMaps",
+                    "value": "Off"
+                },
+                {
+                    "field": "Mosaic",
+                    "value": "On"
+                },
+                {
+                    "field": "Tensor",
+                    "value": "Off"
+                },
+                {
+                    "field": "ExponentialADCMaps",
+                    "value": "Off"
+                },
+                {
+                    "field": "CalculatedImage",
+                    "value": "Off"
+                },
+                {
+                    "field": "CalculatedBValue",
+                    "value": 1400
+                },
+                {
+                    "field": "NumberOfDirections",
+                    "value": 95
+                },
+                {
+                    "field": "BValueShells",
+                    "value": [
+                        0,
+                        1000,
+                        2000,
+                        3000
+                    ]
+                },
+                {
+                    "field": "DiffusionGradientTable",
+                    "value": "dir95"
+                }
+            ],
+            "series": [
+                {
+                    "name": "1",
+                    "fields": [
+                        {
+                            "field": "ImageType",
+                            "value": [
+                                "ORIGINAL",
+                                "PRIMARY",
+                                "DIFFUSION",
+                                "EPI",
+                                "M",
+                                "ND"
+                            ]
+                        },
+                        {
+                            "field": "SeriesNumber",
+                            "value": 1
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
