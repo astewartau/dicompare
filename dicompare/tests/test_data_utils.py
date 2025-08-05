@@ -163,7 +163,7 @@ class TestConvertToPlainPythonTypes:
     def test_convert_to_plain_python_types_basic(self):
         """Test basic type conversion."""
         # Test various types
-        assert _convert_to_plain_python_types([1, 2, 3]) == (1, 2, 3)
+        assert _convert_to_plain_python_types([1, 2, 3]) == [1, 2, 3]
         assert _convert_to_plain_python_types({'a': 1, 'b': 2}) == {'a': 1, 'b': 2}
         assert _convert_to_plain_python_types(3.14159) == 3.14159  # Should be rounded to 5 places
         assert _convert_to_plain_python_types(5) == 5
@@ -182,7 +182,7 @@ class TestConvertToPlainPythonTypes:
         
         result = _convert_to_plain_python_types(data)
         
-        assert isinstance(result['list'], tuple)
+        assert isinstance(result['list'], list)
         assert result['list'][1] == 2.12346  # Rounded float
         assert result['list'][2]['nested'] == 3.98765  # Nested rounded float
         assert result['float'] == 1.12346
@@ -206,7 +206,7 @@ class TestProcessDicomMetadata:
         # Should be flattened and processed
         assert 'PatientName' in result
         assert 'SubValue' in result  # Flattened from NestedInfo_SubValue
-        assert isinstance(result['ListData'], tuple)  # Converted to tuple
+        assert isinstance(result['ListData'], list)  # Should be list
 
     def test_process_dicom_metadata_enhanced_mapping(self):
         """Test enhanced to regular mapping."""

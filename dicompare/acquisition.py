@@ -16,6 +16,36 @@ from .utils import clean_string, make_hashable
 logger = logging.getLogger(__name__)
 
 
+def _dicom_time_to_seconds(time_str):
+    """
+    Convert DICOM time string (HHMMSS or HHMMSS.FFFFFF) to seconds.
+    
+    Args:
+        time_str: DICOM time string
+        
+    Returns:
+        float: Time in seconds since midnight
+    """
+    if pd.isna(time_str) or time_str == '':
+        return 0
+        
+    # Handle string type
+    if isinstance(time_str, str):
+        # Remove fractional seconds if present
+        time_str = time_str.split('.')[0]
+        # Pad with zeros if needed
+        time_str = time_str.ljust(6, '0')
+        
+        hours = int(time_str[0:2])
+        minutes = int(time_str[2:4])
+        seconds = int(time_str[4:6])
+        
+        return hours * 3600 + minutes * 60 + seconds
+    
+    # If it's already numeric, return as is
+    return float(time_str)
+
+
 def _validate_and_setup_fields(session_df, settings_fields, acquisition_fields, run_group_fields):
     """
     Validate inputs and set up default field lists.
@@ -200,6 +230,17 @@ def assign_temporal_runs(session_df, run_group_fields):
             for series_desc, series_group in acq_group.groupby("SeriesDescription"):
                 # Get unique time points for this series
                 times = sorted(series_group[series_differentiator].unique())
+
+                # Convert times to seconds if using SeriesTime
+                if series_differentiator == "SeriesTime":
+                    times_in_seconds = [_dicom_time_to_seconds(t) for t in times]
+                    # Keep only times that are > 5s apart
+                    filtered_indices = [i for i, t in enumerate(times_in_seconds) 
+                                      if i == 0 or (t - times_in_seconds[i-1]) > 5]
+                    times = [times[i] for i in filtered_indices]
+                else:
+                    # For SeriesInstanceUID, keep all unique values
+                    pass
                 
                 if len(times) > 1:
                     logger.debug(f"  - Detected {len(times)} runs for {acq_sig}/{series_desc}")

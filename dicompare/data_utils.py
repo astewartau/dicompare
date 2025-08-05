@@ -115,7 +115,7 @@ def _convert_to_plain_python_types(value: Any) -> Any:
         Converted value
     """
     if isinstance(value, (list, MultiValue, tuple)):
-        return tuple(_convert_to_plain_python_types(item) for item in value)
+        return [_convert_to_plain_python_types(item) for item in value]
     elif isinstance(value, dict):
         return {k: _convert_to_plain_python_types(v) for k, v in value.items()}
     elif isinstance(value, float):

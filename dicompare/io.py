@@ -317,14 +317,12 @@ def load_dicom(
         ds_raw = pydicom.dcmread(
             BytesIO(dicom_file),
             stop_before_pixels=skip_pixel_data,
-            force=True,
             defer_size=len(dicom_file),
         )
     else:
         ds_raw = pydicom.dcmread(
             dicom_file,
             stop_before_pixels=skip_pixel_data,
-            force=True,
             defer_size=True,
         )
 

@@ -7,7 +7,7 @@ Pyodide integration, data preparation, and web-friendly formatting.
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Tuple
 import json
 import logging
 from .serialization import make_json_serializable
@@ -15,6 +15,29 @@ from .utils import filter_available_fields, detect_constant_fields
 from .generate_schema import detect_acquisition_variability, create_acquisition_summary
 
 logger = logging.getLogger(__name__)
+
+# Global session cache for DataFrame reuse across API calls
+_current_session_df = None
+_current_session_metadata = None
+_current_analysis_result = None
+
+def _cache_session(session_df: pd.DataFrame, metadata: Dict[str, Any], analysis_result: Dict[str, Any]):
+    """Cache session data for reuse across API calls."""
+    global _current_session_df, _current_session_metadata, _current_analysis_result
+    _current_session_df = session_df.copy() if session_df is not None else None
+    _current_session_metadata = metadata.copy() if metadata else {}
+    _current_analysis_result = analysis_result.copy() if analysis_result else {}
+
+def _get_cached_session() -> Tuple[pd.DataFrame, Dict[str, Any], Dict[str, Any]]:
+    """Get cached session data."""
+    return _current_session_df, _current_session_metadata, _current_analysis_result
+
+def clear_session_cache():
+    """Clear cached session data."""
+    global _current_session_df, _current_session_metadata, _current_analysis_result
+    _current_session_df = None
+    _current_session_metadata = None
+    _current_analysis_result = None
 
 
 def prepare_session_for_web(session_df: pd.DataFrame,
@@ -851,3 +874,951 @@ def check_all_compliance_for_web(
             'message': f'Error in check_all_compliance_for_web: {str(e)}',
             'series': None
         }]
+
+
+# New API Wrapper Functions for React Interface
+
+def analyze_dicom_files(files: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Analyze DICOM files to detect acquisitions and extract field metadata.
+    Matches the exact API specification from dicompare_api.md.
+    
+    Args:
+        files: List of file objects with structure:
+               [{"name": "file1.dcm", "content": bytes}, ...]
+    
+    Returns:
+        AnalysisResult containing acquisitions and summary statistics
+    """
+    try:
+        # Convert files list to dict format expected by analyze_dicom_files_for_web
+        dicom_files = {}
+        for file_obj in files:
+            if isinstance(file_obj, dict) and 'name' in file_obj and 'content' in file_obj:
+                dicom_files[file_obj['name']] = file_obj['content']
+            else:
+                return {
+                    "error": "Invalid file format. Expected dict with 'name' and 'content' keys.",
+                    "error_type": "DicomError",
+                    "details": {"context": "analyze_dicom_files", "file_obj": str(type(file_obj))}
+                }
+        
+        # Use existing analyze_dicom_files_for_web logic
+        import asyncio
+        
+        # Create event loop if needed
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Run the async function
+        result = loop.run_until_complete(analyze_dicom_files_for_web(dicom_files, None))
+        
+        if result.get('status') == 'error':
+            return {
+                "error": result.get('message', 'Unknown error'),
+                "error_type": "DicomError",
+                "details": {"context": "analyze_dicom_files"}
+            }
+        
+        # Get the session DataFrame that should be cached by analyze_dicom_files_for_web
+        # We need to extract it from the processing
+        from .io import async_load_dicom_session
+        from .acquisition import assign_acquisition_and_run_numbers
+        
+        # Reload to get DataFrame (this is efficient since files are already processed)
+        session_df = loop.run_until_complete(async_load_dicom_session(dicom_files))
+        session_df = assign_acquisition_and_run_numbers(session_df)
+        
+        # Convert to exact AnalysisResult format
+        analysis_result = _format_as_analysis_result(result, session_df)
+        
+        # Cache for later API calls
+        _cache_session(session_df, {}, analysis_result)
+        
+        return analysis_result
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "error_type": "DicomError",
+            "details": {"context": "analyze_dicom_files"}
+        }
+
+
+def _format_as_analysis_result(web_result: Dict[str, Any], session_df: pd.DataFrame) -> Dict[str, Any]:
+    """Convert web_utils result to exact AnalysisResult format."""
+    acquisitions = []
+    
+    # Extract acquisitions from web result
+    web_acquisitions = web_result.get('acquisitions', {})
+    
+    for acq_name, acq_data in web_acquisitions.items():
+        # Extract acquisition data from DataFrame
+        acq_df = session_df[session_df['Acquisition'] == acq_name] if 'Acquisition' in session_df.columns else session_df
+        
+        acquisition = {
+            "id": acq_name,
+            "protocol_name": acq_data.get('protocol_name', ''),
+            "series_description": acq_data.get('series_description', ''),
+            "total_files": len(acq_df),
+            "acquisition_fields": _extract_field_info(acq_df, level='acquisition'),
+            "series_fields": _extract_field_info(acq_df, level='series'),
+            "series": _extract_series_info(acq_df),
+            "metadata": acq_data.get('metadata', {
+                "suggested_for_validation": True,
+                "confidence": "high" if len(acq_df) > 10 else "medium"
+            })
+        }
+        acquisitions.append(acquisition)
+    
+    # Create summary
+    summary = {
+        "total_files": len(session_df),
+        "total_acquisitions": len(acquisitions),
+        "common_fields": _detect_common_fields(session_df),
+        "suggested_validation_fields": _suggest_validation_fields(session_df)
+    }
+    
+    return {
+        "acquisitions": acquisitions,
+        "summary": summary
+    }
+
+
+def _extract_field_info(acq_df: pd.DataFrame, level: str = 'acquisition') -> List[Dict[str, Any]]:
+    """Extract FieldInfo objects from acquisition DataFrame."""
+    from dicompare.tags import get_tag_info, determine_field_type_from_values
+    
+    fields = []
+    
+    for col in acq_df.columns:
+        if col in ['DicomPath', 'DICOM_Path', 'Acquisition', 'RunNumber']:  # Skip metadata columns
+            continue
+            
+        unique_values = acq_df[col].dropna().unique()
+        
+        # Get tag info which includes the type
+        tag_info = get_tag_info(col)
+        
+        # Determine type based on actual values
+        data_type = determine_field_type_from_values(col, acq_df[col])
+        
+        field_info = {
+            "tag": tag_info["tag"].strip("()") if tag_info["tag"] else None,
+            "name": col,
+            "vr": _get_vr_for_field(col),
+            "level": level,
+            "consistency": "constant" if len(unique_values) <= 1 else "varying",
+            "data_type": data_type  # Use enhanced type detection
+        }
+        
+        if len(unique_values) == 1:
+            field_info["value"] = unique_values[0]
+        else:
+            field_info["values"] = list(unique_values)
+        
+        fields.append(field_info)
+    
+    return fields
+
+
+def _transform_fields_to_dict(fields: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Transform array of field objects to dictionary keyed by tag.
+    
+    Args:
+        fields: List of field dictionaries with 'tag' and 'value' keys
+        
+    Returns:
+        Dictionary mapping tag to value
+    """
+    field_dict = {}
+    for field in fields:
+        if field.get('tag') and 'value' in field:
+            field_dict[field['tag']] = field['value']
+        elif field.get('tag') and 'values' in field:
+            # Handle multi-valued fields
+            field_dict[field['tag']] = field['values']
+    return field_dict
+
+
+def _extract_series_info(acq_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    """Extract series information from acquisition DataFrame."""
+    series_list = []
+    
+    # Group by series-level identifiers if available
+    if 'SeriesInstanceUID' in acq_df.columns:
+        for series_uid, series_df in acq_df.groupby('SeriesInstanceUID'):
+            # Get field info as array first
+            field_array = _extract_field_info(series_df, level='series')
+            
+            # Transform to dictionary for UI compatibility
+            field_dict = _transform_fields_to_dict(field_array)
+            
+            series_info = {
+                "series_instance_uid": series_uid,
+                "series_number": series_df['SeriesNumber'].iloc[0] if 'SeriesNumber' in series_df.columns else None,
+                "file_count": len(series_df),
+                "fields": field_dict,  # Now a dictionary keyed by tag
+                "field_metadata": field_array  # Keep original array for metadata if needed
+            }
+            series_list.append(series_info)
+    else:
+        # Similar transformation for single series case
+        field_array = _extract_field_info(acq_df, level='series')
+        field_dict = _transform_fields_to_dict(field_array)
+        
+        series_info = {
+            "series_instance_uid": "unknown",
+            "series_number": 1,
+            "file_count": len(acq_df),
+            "fields": field_dict,
+            "field_metadata": field_array
+        }
+        series_list.append(series_info)
+    
+    return series_list
+
+
+def _detect_common_fields(session_df: pd.DataFrame) -> List[str]:
+    """Detect fields present across all acquisitions."""
+    common_fields = []
+    
+    if 'Acquisition' not in session_df.columns:
+        return list(session_df.columns)[:10]  # Return first 10 columns if no acquisitions
+    
+    for col in session_df.columns:
+        if col not in ['DicomPath', 'DICOM_Path', 'Acquisition', 'RunNumber']:
+            # Check if field has values in all acquisitions
+            non_null_by_acq = session_df.groupby('Acquisition')[col].apply(lambda x: x.notna().any())
+            if non_null_by_acq.all():
+                common_fields.append(col)
+    
+    return common_fields
+
+
+def _suggest_validation_fields(session_df: pd.DataFrame) -> List[str]:
+    """Suggest fields suitable for validation."""
+    try:
+        from .utils import filter_available_fields
+        from .config import DEFAULT_DICOM_FIELDS
+        
+        available_fields = filter_available_fields(session_df, DEFAULT_DICOM_FIELDS)
+        return available_fields[:10]  # Limit suggestions
+    except ImportError:
+        # Fallback to common fields if config is not available
+        return _detect_common_fields(session_df)[:10]
+
+
+def _get_dicom_tag_for_field(field_name: str) -> str:
+    """Get DICOM tag for field name using the tags module."""
+    from dicompare.tags import get_tag_info
+    
+    info = get_tag_info(field_name)
+    if info["tag"]:
+        # Convert from (XXXX,XXXX) to XXXX,XXXX format
+        return info["tag"].strip("()")
+    
+    # Return None for fields without tags
+    return None
+
+
+def _get_vr_for_field(field_name: str) -> str:
+    """Get VR (Value Representation) for field name."""
+    from dicompare.tags import get_tag_info
+    from pydicom.datadict import dictionary_VR, tag_for_keyword
+    
+    info = get_tag_info(field_name)
+    if info["tag"]:
+        try:
+            # Convert tag string to tuple
+            tag_str = info["tag"].strip("()")
+            tag_parts = tag_str.split(",")
+            tag_tuple = (int(tag_parts[0], 16), int(tag_parts[1], 16))
+            
+            if tag_tuple in dictionary_VR:
+                return dictionary_VR[tag_tuple]
+        except:
+            pass
+    
+    # Default to LO (Long String) as safe fallback
+    return 'LO'
+
+
+def _infer_data_type(value: Any) -> str:
+    """Infer data type from a single value."""
+    if pd.isna(value):
+        return "string"
+    elif isinstance(value, (int, float, np.number)):
+        return "number"
+    elif isinstance(value, bool):
+        return "boolean"
+    else:
+        return "string"
+
+
+def _infer_data_type_from_list(values: List[Any]) -> str:
+    """Infer data type from a list of values."""
+    if not values:
+        return "string"
+    
+    # Check if all values are numeric
+    numeric_count = sum(1 for v in values if isinstance(v, (int, float, np.number)) and not pd.isna(v))
+    
+    if numeric_count == len(values):
+        return "number"
+    elif numeric_count > 0:
+        return "mixed"
+    else:
+        return "string"
+
+
+def validate_compliance(
+    dicom_data: Optional[Dict[str, Any]] = None,
+    schema_content: str = "",
+    format: str = "json"
+) -> Dict[str, Any]:
+    """
+    Validate DICOM data compliance against schema rules.
+    Uses cached DataFrame for efficiency.
+    
+    Args:
+        dicom_data: AnalysisResult from analyze_dicom_files (optional if using cache)
+        schema_content: Schema content as string
+        format: Schema format ("json" or "python")
+    
+    Returns:
+        Dict with compliance_report or error message
+    """
+    try:
+        # Get cached session data
+        session_df, metadata, analysis_result = _get_cached_session()
+        
+        if session_df is None and dicom_data is None:
+            return {
+                "error": "No DICOM data available. Call analyze_dicom_files first or provide dicom_data.",
+                "error_type": "ValidationError"
+            }
+        
+        # Use cached DataFrame or extract from dicom_data
+        if session_df is not None:
+            df_to_use = session_df
+        else:
+            # TODO: Extract DataFrame from dicom_data if needed
+            df_to_use = _extract_dataframe_from_analysis_result(dicom_data)
+        
+        # Parse schema
+        if format == "json":
+            try:
+                from .io import load_json_schema
+                if isinstance(schema_content, str):
+                    import json
+                    schema = json.loads(schema_content)
+                else:
+                    schema = schema_content
+            except Exception as e:
+                return {
+                    "error": f"Failed to parse JSON schema: {str(e)}",
+                    "error_type": "SchemaParseError"
+                }
+        else:
+            return {
+                "error": f"Unsupported schema format: {format}",
+                "error_type": "SchemaParseError"
+            }
+        
+        # Create session mapping (acquisition names mapping)
+        session_map = _create_session_mapping(df_to_use, schema)
+        
+        # Run compliance check
+        try:
+            from .compliance import check_session_compliance_with_json_schema
+            raw_results = check_session_compliance_with_json_schema(df_to_use, schema, session_map)
+            
+            # Format for web
+            formatted_results = format_compliance_results_for_web(raw_results)
+            
+            return {"compliance_report": formatted_results}
+        except ImportError:
+            return {
+                "error": "Compliance module not available",
+                "error_type": "ValidationError"
+            }
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "error_type": "ValidationError",
+            "details": {"schema_format": format}
+        }
+
+
+def _create_session_mapping(session_df: pd.DataFrame, schema: Dict[str, Any]) -> Dict[str, str]:
+    """Create mapping between schema acquisitions and session acquisitions."""
+    # Simple mapping - match by name similarity or use acquisition names as-is
+    acquisitions_in_session = session_df['Acquisition'].unique() if 'Acquisition' in session_df.columns else []
+    schema_acquisitions = list(schema.get('acquisitions', {}).keys())
+    
+    # For now, use exact matching or create 1:1 mapping
+    mapping = {}
+    for schema_acq in schema_acquisitions:
+        if schema_acq in acquisitions_in_session:
+            mapping[schema_acq] = schema_acq
+        elif len(acquisitions_in_session) > 0:
+            # Default to first available acquisition
+            mapping[schema_acq] = acquisitions_in_session[0]
+    
+    return mapping
+
+
+def _extract_dataframe_from_analysis_result(dicom_data: Dict[str, Any]) -> pd.DataFrame:
+    """Extract DataFrame from AnalysisResult (placeholder implementation)."""
+    # This would need to reconstruct the DataFrame from the analysis result
+    # For now, return empty DataFrame
+    return pd.DataFrame()
+
+
+def generate_validation_template(
+    acquisitions: List[Dict[str, Any]],
+    metadata: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Generate a validation template from acquisition configurations.
+    
+    Args:
+        acquisitions: List of acquisition configurations with validation rules
+        metadata: Template metadata (name, version, authors, etc.)
+    
+    Returns:
+        ValidationTemplate with generated rules and statistics
+    """
+    try:
+        # Get cached session data
+        session_df, _, _ = _get_cached_session()
+        
+        if session_df is None:
+            return {
+                "error": "No session data available. Call analyze_dicom_files first.",
+                "error_type": "ValidationError"
+            }
+        
+        # Extract reference fields from acquisition configurations
+        reference_fields = []
+        for acq in acquisitions:
+            acq_fields = acq.get('acquisition_fields', [])
+            for field in acq_fields:
+                if field.get('tag') and field['tag'] not in [f.get('tag') for f in reference_fields]:
+                    reference_fields.append(field)
+        
+        # Convert to field names for schema generation
+        field_names = []
+        for field in reference_fields:
+            if field.get('name'):
+                field_names.append(field['name'])
+        
+        # Generate schema using existing function
+        try:
+            from .generate_schema import create_json_schema
+            template_data = create_json_schema(session_df, field_names)
+        except ImportError:
+            # Fallback if generate_schema is not available
+            template_data = {
+                "acquisitions": {
+                    acq['id']: {
+                        "fields": acq.get('acquisition_fields', [])
+                    } for acq in acquisitions
+                }
+            }
+        
+        # Add metadata
+        template = {
+            "version": metadata.get("version", "1.0"),
+            "name": metadata.get("name", "Generated Template"),
+            "description": metadata.get("description", "Auto-generated validation template"),
+            "created": pd.Timestamp.now().isoformat(),
+            "acquisitions": template_data.get("acquisitions", {}),
+            "global_constraints": {}
+        }
+        
+        # Calculate statistics
+        total_acquisitions = len(template["acquisitions"])
+        total_fields = sum(len(acq.get("fields", [])) for acq in template["acquisitions"].values())
+        
+        statistics = {
+            "total_acquisitions": total_acquisitions,
+            "total_validation_fields": total_fields,
+            "estimated_validation_time": f"{total_fields * 0.1:.1f} seconds"
+        }
+        
+        return {
+            "template": template,
+            "statistics": statistics
+        }
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "error_type": "ValidationError"
+        }
+
+
+def parse_schema(schema_content: str, format: str = "json") -> Dict[str, Any]:
+    """
+    Parse schema content and extract detailed validation rules.
+    
+    Args:
+        schema_content: Raw schema content as string
+        format: Schema format ("json" or "python")
+    
+    Returns:
+        Dict with parsed_schema or error message
+    """
+    try:
+        if format == "json":
+            try:
+                import json
+                parsed = json.loads(schema_content)
+                
+                # Validate basic schema structure
+                if not isinstance(parsed, dict):
+                    return {
+                        "error": "Schema must be a JSON object",
+                        "error_type": "SchemaParseError"
+                    }
+                
+                if 'acquisitions' not in parsed:
+                    return {
+                        "error": "Schema must contain 'acquisitions' key",
+                        "error_type": "SchemaParseError"
+                    }
+                
+                return {"parsed_schema": parsed}
+                
+            except json.JSONDecodeError as e:
+                return {
+                    "error": f"Invalid JSON: {str(e)}",
+                    "error_type": "SchemaParseError"
+                }
+            
+        elif format == "python":
+            return {
+                "error": "Python schema format not yet implemented",
+                "error_type": "SchemaParseError"
+            }
+        else:
+            return {
+                "error": f"Unsupported schema format: {format}",
+                "error_type": "SchemaParseError"
+            }
+            
+    except Exception as e:
+        return {
+            "error": f"Schema parsing failed: {str(e)}",
+            "error_type": "SchemaParseError",
+            "details": {"format": format}
+        }
+
+
+def get_field_info(tag: str) -> Dict[str, Any]:
+    """
+    Get comprehensive field information from DICOM dictionary.
+    
+    Args:
+        tag: DICOM tag in format "0008,0060" or "00080060"
+    
+    Returns:
+        FieldDictionary with complete field information
+    """
+    try:
+        import pydicom
+        from pydicom.datadict import dictionary_VR, keyword_dict, dictionary_description
+        
+        # Normalize tag format
+        clean_tag = tag.replace(",", "").replace("(", "").replace(")", "").replace(" ", "")
+        if len(clean_tag) == 8:
+            try:
+                tag_int = int(clean_tag, 16)
+            except ValueError:
+                return {
+                    "error": f"Invalid hexadecimal tag format: {tag}",
+                    "error_type": "TagNotFoundError"
+                }
+        else:
+            return {
+                "error": f"Invalid tag format: {tag}. Expected 8 hex digits.",
+                "error_type": "TagNotFoundError"
+            }
+        
+        # Get field information from pydicom
+        vr = dictionary_VR.get(tag_int, "UN")
+        keyword = None
+        description = dictionary_description.get(tag_int, "Unknown field")
+        
+        # Find keyword by reverse lookup
+        for kw, t in keyword_dict.items():
+            if t == tag_int:
+                keyword = kw
+                break
+        
+        if keyword is None:
+            return {
+                "error": f"DICOM tag not found: {tag}",
+                "error_type": "TagNotFoundError"
+            }
+        
+        # Format response
+        tag_formatted = f"{tag_int:08X}"
+        tag_display = f"{tag_formatted[:4]},{tag_formatted[4:]}"
+        
+        field_info = {
+            "tag": tag_display,
+            "name": keyword.replace("_", " ").title(),
+            "keyword": keyword,
+            "vr": vr,
+            "vm": "1",  # Default, could be enhanced
+            "description": description,
+            "suggested_data_type": _map_vr_to_data_type(vr),
+            "suggested_validation": _suggest_validation_for_vr(vr),
+            "common_values": [],  # Could be populated from analysis
+            "validation_hints": _get_validation_hints_for_vr(vr)
+        }
+        
+        return field_info
+        
+    except ImportError:
+        return {
+            "error": "pydicom not available for field lookup",
+            "error_type": "TagNotFoundError"
+        }
+    except Exception as e:
+        return {
+            "error": f"Field lookup failed: {str(e)}",
+            "error_type": "TagNotFoundError"
+        }
+
+
+def search_fields(query: str, limit: int = 20) -> List[Dict[str, Any]]:
+    """
+    Search DICOM fields by name, tag, or keyword.
+    
+    Args:
+        query: Search term (partial names, tags, or keywords)
+        limit: Maximum number of results to return
+    
+    Returns:
+        List of matching FieldDictionary entries, ranked by relevance
+    """
+    try:
+        import pydicom
+        from pydicom.datadict import keyword_dict, dictionary_description
+        
+        results = []
+        query_lower = query.lower()
+        
+        # Search through keyword dictionary
+        for keyword, tag_int in keyword_dict.items():
+            # Check if query matches keyword or description
+            keyword_lower = keyword.lower()
+            description = dictionary_description.get(tag_int, "").lower()
+            tag_str = f"{tag_int:08X}"
+            tag_display = f"{tag_str[:4]},{tag_str[4:]}"
+            
+            if (query_lower in keyword_lower or 
+                query_lower in description or
+                query.replace(",", "").replace("(", "").replace(")", "").upper() in tag_str):
+                
+                field_info = get_field_info(tag_display)
+                if "error" not in field_info:
+                    # Add relevance score
+                    relevance = 0
+                    if query_lower == keyword_lower:
+                        relevance = 100  # Exact match
+                    elif keyword_lower.startswith(query_lower):
+                        relevance = 90   # Starts with query
+                    elif query_lower in keyword_lower:
+                        relevance = 70   # Contains query in keyword
+                    elif query_lower in description:
+                        relevance = 60   # Contains query in description
+                    else:
+                        relevance = 50   # Tag match
+                    
+                    field_info["relevance"] = relevance
+                    results.append(field_info)
+        
+        # Sort by relevance and limit
+        results.sort(key=lambda x: x.get("relevance", 0), reverse=True)
+        return results[:limit]
+        
+    except ImportError:
+        return [{
+            "error": "pydicom not available for field search",
+            "error_type": "SearchError"
+        }]
+    except Exception as e:
+        return [{
+            "error": f"Field search failed: {str(e)}",
+            "error_type": "SearchError"
+        }]
+
+
+def _map_vr_to_data_type(vr: str) -> str:
+    """Map DICOM VR to suggested data type."""
+    from dicompare.tags import VR_TO_DATA_TYPE
+    return VR_TO_DATA_TYPE.get(vr, "string")
+
+
+def _suggest_validation_for_vr(vr: str) -> str:
+    """Suggest validation approach for VR type."""
+    if vr in ["DS", "IS", "FD", "FL", "SS", "US", "SL", "UL"]:
+        return "tolerance"
+    elif vr in ["CS", "LO", "SH"]:
+        return "exact"
+    else:
+        return "contains"
+
+
+def _get_validation_hints_for_vr(vr: str) -> Optional[Dict[str, Any]]:
+    """Get validation hints for VR type."""
+    hints = {}
+    if vr in ["DS", "IS", "FD", "FL"]:
+        hints["tolerance_typical"] = 0.001
+    elif vr in ["SS", "US", "SL", "UL"]:
+        hints["tolerance_typical"] = 1
+    return hints if hints else None
+
+
+def get_example_dicom_data() -> Dict[str, Any]:
+    """
+    Get example DICOM data (same structure as analyze_dicom_files).
+    
+    Returns:
+        AnalysisResult with realistic example data
+    """
+    # Create example AnalysisResult structure
+    example_data = {
+        "acquisitions": [
+            {
+                "id": "T1_MPRAGE",
+                "protocol_name": "T1 MPRAGE",
+                "series_description": "T1 weighted MPRAGE", 
+                "total_files": 176,
+                "acquisition_fields": [
+                    {
+                        "tag": "0008,0060",
+                        "name": "Modality",
+                        "value": "MR",
+                        "vr": "CS",
+                        "level": "acquisition",
+                        "data_type": "string",
+                        "consistency": "constant"
+                    },
+                    {
+                        "tag": "0018,0080",
+                        "name": "Repetition Time",
+                        "value": 2300.0,
+                        "vr": "DS", 
+                        "level": "acquisition",
+                        "data_type": "number",
+                        "consistency": "constant"
+                    },
+                    {
+                        "tag": "0018,0081",
+                        "name": "Echo Time",
+                        "value": 2.98,
+                        "vr": "DS",
+                        "level": "acquisition", 
+                        "data_type": "number",
+                        "consistency": "constant"
+                    },
+                    {
+                        "tag": "0018,1314",
+                        "name": "Flip Angle",
+                        "value": 9.0,
+                        "vr": "DS",
+                        "level": "acquisition",
+                        "data_type": "number", 
+                        "consistency": "constant"
+                    }
+                ],
+                "series_fields": [
+                    {
+                        "tag": "0020,0011",
+                        "name": "Series Number",
+                        "value": 3,
+                        "vr": "IS",
+                        "level": "series",
+                        "data_type": "number",
+                        "consistency": "constant"
+                    }
+                ],
+                "series": [
+                    {
+                        "series_instance_uid": "1.2.3.4.5.6.7.8.9.10",
+                        "series_number": 3,
+                        "file_count": 176,
+                        "fields": [
+                            {
+                                "tag": "0020,0013",
+                                "name": "Instance Number", 
+                                "values": list(range(1, 177)),
+                                "vr": "IS",
+                                "level": "series",
+                                "data_type": "number",
+                                "consistency": "varying"
+                            }
+                        ]
+                    }
+                ],
+                "metadata": {
+                    "suggested_for_validation": True,
+                    "confidence": "high"
+                }
+            },
+            {
+                "id": "T2_FLAIR", 
+                "protocol_name": "T2 FLAIR",
+                "series_description": "T2 FLAIR axial",
+                "total_files": 25,
+                "acquisition_fields": [
+                    {
+                        "tag": "0008,0060",
+                        "name": "Modality",
+                        "value": "MR",
+                        "vr": "CS",
+                        "level": "acquisition",
+                        "data_type": "string",
+                        "consistency": "constant"
+                    },
+                    {
+                        "tag": "0018,0080", 
+                        "name": "Repetition Time",
+                        "value": 11000.0,
+                        "vr": "DS",
+                        "level": "acquisition",
+                        "data_type": "number",
+                        "consistency": "constant"
+                    },
+                    {
+                        "tag": "0018,0081",
+                        "name": "Echo Time", 
+                        "value": 125.0,
+                        "vr": "DS",
+                        "level": "acquisition",
+                        "data_type": "number",
+                        "consistency": "constant"
+                    }
+                ],
+                "series_fields": [
+                    {
+                        "tag": "0020,0011",
+                        "name": "Series Number",
+                        "value": 5,
+                        "vr": "IS",
+                        "level": "series", 
+                        "data_type": "number",
+                        "consistency": "constant"
+                    }
+                ],
+                "series": [
+                    {
+                        "series_instance_uid": "1.2.3.4.5.6.7.8.9.11",
+                        "series_number": 5,
+                        "file_count": 25,
+                        "fields": []
+                    }
+                ],
+                "metadata": {
+                    "suggested_for_validation": True,
+                    "confidence": "high"
+                }
+            }
+        ],
+        "summary": {
+            "total_files": 201,
+            "total_acquisitions": 2,
+            "common_fields": ["Modality", "RepetitionTime", "EchoTime"],
+            "suggested_validation_fields": ["Modality", "RepetitionTime", "EchoTime", "FlipAngle"]
+        }
+    }
+    
+    return example_data
+
+
+def get_example_dicom_data_for_ui() -> List[Dict[str, Any]]:
+    """
+    Get example DICOM data in UI format.
+    
+    Returns:
+        List of UI-formatted acquisition objects
+    """
+    example_data = get_example_dicom_data()
+    return example_data["acquisitions"]
+
+
+def get_example_validation_schema() -> Dict[str, Any]:
+    """
+    Get example validation schema for testing.
+    
+    Returns:
+        Example JSON schema with realistic validation rules
+    """
+    example_schema = {
+        "version": "1.0",
+        "name": "Example MR Protocol Validation",
+        "description": "Example validation schema for MR imaging protocols",
+        "acquisitions": {
+            "T1_MPRAGE": {
+                "fields": [
+                    {
+                        "field": "Modality",
+                        "expected": "MR",
+                        "validation": "exact"
+                    },
+                    {
+                        "field": "RepetitionTime", 
+                        "expected": 2300.0,
+                        "validation": "tolerance",
+                        "tolerance": 50.0
+                    },
+                    {
+                        "field": "EchoTime",
+                        "expected": 2.98,
+                        "validation": "tolerance", 
+                        "tolerance": 0.5
+                    },
+                    {
+                        "field": "FlipAngle",
+                        "expected": 9.0,
+                        "validation": "tolerance",
+                        "tolerance": 1.0
+                    }
+                ]
+            },
+            "T2_FLAIR": {
+                "fields": [
+                    {
+                        "field": "Modality",
+                        "expected": "MR", 
+                        "validation": "exact"
+                    },
+                    {
+                        "field": "RepetitionTime",
+                        "expected": 11000.0,
+                        "validation": "tolerance",
+                        "tolerance": 500.0
+                    },
+                    {
+                        "field": "EchoTime",
+                        "expected": 125.0,
+                        "validation": "tolerance",
+                        "tolerance": 5.0
+                    }
+                ]
+            }
+        }
+    }
+    
+    return example_schema

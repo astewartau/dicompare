@@ -14,7 +14,11 @@ from dicompare.web_utils import (
     prepare_session_for_web, format_compliance_results_for_web,
     create_field_selection_helper, prepare_schema_generation_data,
     format_validation_error_for_web, convert_pyodide_data, create_download_data,
-    load_schema_for_web, check_all_compliance_for_web, analyze_dicom_files_for_web
+    load_schema_for_web, check_all_compliance_for_web, analyze_dicom_files_for_web,
+    # New wrapper functions
+    analyze_dicom_files, validate_compliance, generate_validation_template,
+    parse_schema, get_field_info, search_fields, get_example_dicom_data,
+    get_example_dicom_data_for_ui, get_example_validation_schema, clear_session_cache
 )
 
 
@@ -874,6 +878,246 @@ class TestWebInterfaceFunctions(unittest.TestCase):
         error_result = error_results[0]
         self.assertFalse(error_result['passed'])
         self.assertIn('not found', error_result['message'])
+
+
+class TestNewWrapperFunctions(unittest.TestCase):
+    """Test cases for new API wrapper functions."""
+    
+    def setUp(self):
+        """Set up test data."""
+        # Clear any cached session data
+        clear_session_cache()
+    
+    def test_parse_schema_valid_json(self):
+        """Test parse_schema with valid JSON."""
+        schema_content = '{"acquisitions": {"T1": {"fields": []}}}'
+        result = parse_schema(schema_content, "json")
+        
+        self.assertIn("parsed_schema", result)
+        self.assertEqual(result["parsed_schema"]["acquisitions"]["T1"]["fields"], [])
+    
+    def test_parse_schema_invalid_json(self):
+        """Test parse_schema with invalid JSON."""
+        schema_content = '{"invalid json'
+        result = parse_schema(schema_content, "json")
+        
+        self.assertIn("error", result)
+        self.assertEqual(result["error_type"], "SchemaParseError")
+    
+    def test_parse_schema_missing_acquisitions(self):
+        """Test parse_schema with missing acquisitions key."""
+        schema_content = '{"name": "test"}'
+        result = parse_schema(schema_content, "json")
+        
+        self.assertIn("error", result)
+        self.assertIn("acquisitions", result["error"])
+    
+    def test_parse_schema_unsupported_format(self):
+        """Test parse_schema with unsupported format."""
+        result = parse_schema("{}", "unsupported")
+        
+        self.assertIn("error", result)
+        self.assertIn("Unsupported schema format", result["error"])
+    
+    def test_get_example_dicom_data(self):
+        """Test get_example_dicom_data returns valid structure."""
+        result = get_example_dicom_data()
+        
+        self.assertIn("acquisitions", result)
+        self.assertIn("summary", result)
+        self.assertIsInstance(result["acquisitions"], list)
+        self.assertGreater(len(result["acquisitions"]), 0)
+        
+        # Check first acquisition structure
+        acq = result["acquisitions"][0]
+        self.assertIn("id", acq)
+        self.assertIn("acquisition_fields", acq)
+        self.assertIn("series_fields", acq)
+        self.assertIn("series", acq)
+        self.assertIn("metadata", acq)
+    
+    def test_get_example_dicom_data_for_ui(self):
+        """Test get_example_dicom_data_for_ui returns acquisition list."""
+        result = get_example_dicom_data_for_ui()
+        
+        self.assertIsInstance(result, list)
+        self.assertGreater(len(result), 0)
+        
+        # Should be same as acquisitions from get_example_dicom_data
+        full_data = get_example_dicom_data()
+        self.assertEqual(result, full_data["acquisitions"])
+    
+    def test_get_example_validation_schema(self):
+        """Test get_example_validation_schema returns valid schema."""
+        result = get_example_validation_schema()
+        
+        self.assertIn("acquisitions", result)
+        self.assertIn("version", result)
+        self.assertIn("name", result)
+        self.assertIsInstance(result["acquisitions"], dict)
+        
+        # Check schema structure
+        for acq_name, acq_data in result["acquisitions"].items():
+            self.assertIn("fields", acq_data)
+            self.assertIsInstance(acq_data["fields"], list)
+            
+            # Check field structure
+            for field in acq_data["fields"]:
+                self.assertIn("field", field)
+                self.assertIn("expected", field)
+                self.assertIn("validation", field)
+    
+    @patch('pydicom.datadict.dictionary_VR', {0x00080060: 'CS'})
+    @patch('pydicom.datadict.keyword_dict', {'Modality': 0x00080060})
+    @patch('pydicom.datadict.dictionary_description', {0x00080060: 'Modality'})
+    def test_get_field_info_valid_tag(self):
+        """Test get_field_info with valid DICOM tag."""
+        result = get_field_info("0008,0060")
+        
+        self.assertNotIn("error", result)
+        self.assertEqual(result["tag"], "0008,0060")
+        self.assertEqual(result["keyword"], "Modality")
+        self.assertEqual(result["vr"], "CS")
+        self.assertEqual(result["suggested_data_type"], "string")
+    
+    def test_get_field_info_invalid_tag_format(self):
+        """Test get_field_info with invalid tag format."""
+        result = get_field_info("invalid")
+        
+        self.assertIn("error", result)
+        self.assertEqual(result["error_type"], "TagNotFoundError")
+    
+    @patch('pydicom.datadict.keyword_dict', {
+        'Modality': 0x00080060,
+        'RepetitionTime': 0x00180080,
+        'EchoTime': 0x00180081
+    })
+    @patch('pydicom.datadict.dictionary_description', {
+        0x00080060: 'Modality',
+        0x00180080: 'Repetition Time',
+        0x00180081: 'Echo Time'
+    })
+    @patch('pydicom.datadict.dictionary_VR', {
+        0x00080060: 'CS',
+        0x00180080: 'DS',
+        0x00180081: 'DS'
+    })
+    def test_search_fields_basic(self):
+        """Test search_fields with basic query."""
+        with patch('dicompare.web_utils.get_field_info') as mock_get_field:
+            mock_get_field.return_value = {
+                "tag": "0008,0060",
+                "keyword": "Modality",
+                "vr": "CS"
+            }
+            
+            result = search_fields("modality", limit=5)
+            
+            self.assertIsInstance(result, list)
+            self.assertLessEqual(len(result), 5)
+    
+    def test_validate_compliance_no_session(self):
+        """Test validate_compliance with no cached session."""
+        clear_session_cache()
+        
+        result = validate_compliance(schema_content='{"acquisitions": {}}')
+        
+        self.assertIn("error", result)
+        self.assertEqual(result["error_type"], "ValidationError")
+        self.assertIn("No DICOM data available", result["error"])
+    
+    def test_generate_validation_template_no_session(self):
+        """Test generate_validation_template with no cached session."""
+        clear_session_cache()
+        
+        result = generate_validation_template([], {})
+        
+        self.assertIn("error", result)
+        self.assertEqual(result["error_type"], "ValidationError")
+        self.assertIn("No session data available", result["error"])
+    
+    def test_analyze_dicom_files_invalid_format(self):
+        """Test analyze_dicom_files with invalid file format."""
+        invalid_files = ["not_a_dict"]
+        
+        result = analyze_dicom_files(invalid_files)
+        
+        self.assertIn("error", result)
+        self.assertEqual(result["error_type"], "DicomError")
+        self.assertIn("Invalid file format", result["error"])
+    
+    def test_analyze_dicom_files_valid_format(self):
+        """Test analyze_dicom_files with valid file format but mock data."""
+        mock_files = [
+            {"name": "file1.dcm", "content": b"mock_dicom_data"}
+        ]
+        
+        # This will likely fail due to invalid DICOM data, but should handle gracefully
+        result = analyze_dicom_files(mock_files)
+        
+        # Should return a structured response even on error
+        self.assertIn("error", result)  # Expected due to mock data
+        self.assertEqual(result["error_type"], "DicomError")
+
+
+class TestFieldTransformation(unittest.TestCase):
+    """Test field transformation functions for series field dictionaries."""
+    
+    def test_transform_fields_to_dict_with_values(self):
+        """Test _transform_fields_to_dict with single values."""
+        from dicompare.web_utils import _transform_fields_to_dict
+        
+        fields = [
+            {"tag": "0008,0060", "name": "Modality", "value": "MR"},
+            {"tag": "0018,0080", "name": "RepetitionTime", "value": 2300.0},
+            {"tag": None, "name": "UnknownField", "value": "test"}  # Should be ignored
+        ]
+        
+        result = _transform_fields_to_dict(fields)
+        
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result["0008,0060"], "MR")
+        self.assertEqual(result["0018,0080"], 2300.0)
+        self.assertNotIn(None, result)
+    
+    def test_transform_fields_to_dict_with_multi_values(self):
+        """Test _transform_fields_to_dict with multi-valued fields."""
+        from dicompare.web_utils import _transform_fields_to_dict
+        
+        fields = [
+            {"tag": "0018,0020", "name": "ScanningSequence", "values": ["SE", "IR"]},
+            {"tag": "0028,0030", "name": "PixelSpacing", "values": [0.5, 0.5]}
+        ]
+        
+        result = _transform_fields_to_dict(fields)
+        
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result["0018,0020"], ["SE", "IR"])
+        self.assertEqual(result["0028,0030"], [0.5, 0.5])
+    
+    def test_transform_fields_to_dict_empty_input(self):
+        """Test _transform_fields_to_dict with empty input."""
+        from dicompare.web_utils import _transform_fields_to_dict
+        
+        result = _transform_fields_to_dict([])
+        
+        self.assertEqual(len(result), 0)
+        self.assertIsInstance(result, dict)
+    
+    def test_transform_fields_to_dict_missing_data(self):
+        """Test _transform_fields_to_dict with missing tag or value data."""
+        from dicompare.web_utils import _transform_fields_to_dict
+        
+        fields = [
+            {"name": "MissingTag", "value": "test"},  # No tag
+            {"tag": "0008,0060"},  # No value
+            {"tag": "0018,0080", "name": "RepetitionTime", "value": 2300.0}  # Valid
+        ]
+        
+        result = _transform_fields_to_dict(fields)
+        
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result["0018,0080"], 2300.0)
 
 
 if __name__ == '__main__':

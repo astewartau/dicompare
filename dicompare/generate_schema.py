@@ -9,6 +9,7 @@ import pandas as pd
 from typing import List, Dict, Any, Tuple
 from .data_utils import standardize_session_dataframe
 from .utils import clean_string, filter_available_fields, detect_constant_fields
+from .tags import get_tag_info
 
 
 def create_json_schema(session_df: pd.DataFrame, reference_fields: List[str]) -> Dict[str, Any]:
@@ -55,9 +56,19 @@ def create_json_schema(session_df: pd.DataFrame, reference_fields: List[str]) ->
         if varying_fields:
             series_groups = group.groupby(varying_fields, dropna=False)
             for i, (series_key, series_group) in enumerate(series_groups, start=1):
+                # Get tag info for each field
+                fields_with_tags = []
+                for j, field in enumerate(varying_fields):
+                    tag_info = get_tag_info(field)
+                    fields_with_tags.append({
+                        "field": field,
+                        "tag": tag_info["tag"].strip("()") if tag_info["tag"] else None,
+                        "value": series_key[j]
+                    })
+                
                 series_entry = {
                     "name": f"Series {i}",
-                    "fields": [{"field": field, "value": series_key[j]} for j, field in enumerate(varying_fields)]
+                    "fields": fields_with_tags
                 }
                 acquisition_entry["series"].append(series_entry)
 
