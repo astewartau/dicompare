@@ -168,7 +168,7 @@ def build_acquisition_signatures(session_df, acquisition_fields, reference_field
         
         if grouping_fields:
             # Group by the actual field values to detect different settings
-            unique_combinations = list(protocol_group.groupby(grouping_fields))
+            unique_combinations = list(protocol_group.groupby(grouping_fields, dropna=False))
             
             for param_vals, param_group in unique_combinations:
                 # Create parameter tuple for this unique combination
