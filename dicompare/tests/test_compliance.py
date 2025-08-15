@@ -161,13 +161,20 @@ def test_check_session_compliance_with_python_module_raise_error(dummy_in_sessio
 
 def test_load_json_schema_and_fields(tmp_path):
     ref = {
+        "version": "1.0",
+        "name": "Test Schema",
         "acquisitions": {
             "test_acq": {
                 "fields": [
-                    {"field": "F1", "value": [1,2], "tolerance": 0.5}
+                    {"field": "F1", "value": [1, 2], "tolerance": 0.5}
                 ],
                 "series": [
-                    {"name": "S1", "fields": [{"field": "F1", "value": 1}]}
+                    {
+                        "name": "S1",
+                        "fields": [
+                            {"field": "F1", "value": 1}
+                        ]
+                    }
                 ]
             }
         }

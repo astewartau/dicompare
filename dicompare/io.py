@@ -94,7 +94,6 @@ def extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
         csa_metadata["TotalReadoutTime"] = get_csa_value("TotalReadoutTime")
         csa_metadata["MosaicRefAcqTimes"] = get_csa_value("MosaicRefAcqTimes", scalar=False)
         csa_metadata["SliceTiming"] = get_csa_value("SliceTiming", scalar=False)
-        csa_metadata["PhaseEncodingDirectionPositive"] = get_csa_value("PhaseEncodingDirectionPositive", scalar=False)
         csa_metadata["NumberOfImagesInMosaic"] = get_csa_value("NumberOfImagesInMosaic")
         csa_metadata["DiffusionDirectionality"] = get_csa_value("DiffusionDirectionality")
         csa_metadata["GradientMode"] = get_csa_value("GradientMode")
@@ -625,10 +624,8 @@ from .acquisition import assign_acquisition_and_run_numbers
 def load_json_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any]]:
     """
     Load a JSON schema file and extract fields for acquisitions and series.
-
-    Notes:
-        - Fields are normalized for easier comparison.
-        - Nested fields in acquisitions and series are processed recursively.
+    
+    Expects the modern dict-based acquisitions format used by React applications.
 
     Args:
         json_schema_path (str): Path to the JSON schema file.
@@ -636,53 +633,88 @@ def load_json_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any]]:
     Returns:
         Tuple[List[str], Dict[str, Any]]:
             - Sorted list of all reference fields encountered.
-            - Processed schema data as a dictionary.
+            - Schema data as loaded from the file.
 
     Raises:
         FileNotFoundError: If the specified JSON file path does not exist.
         JSONDecodeError: If the file is not a valid JSON file.
     """
-    def process_fields(fields: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        processed_fields = []
-        for field in fields:
-            processed = {"field": field["field"]}
-            if "value" in field:
-                processed["value"] = (
-                    tuple(field["value"]) if isinstance(field["value"], list) else field["value"]
-                )
-            if "tolerance" in field:
-                processed["tolerance"] = field["tolerance"]
-            if "contains" in field:
-                processed["contains"] = field["contains"]
-            processed_fields.append(processed)
-        return processed_fields
-
     with open(json_schema_path, "r") as f:
         schema_data = json.load(f)
 
     schema_data = normalize_numeric_values(schema_data)
 
-    acquisitions = {}
+    # Extract field names from the schema
     reference_fields = set()
+    acquisitions_data = schema_data.get("acquisitions", {})
+    
+    for acq_name, acq_data in acquisitions_data.items():
+        # Extract field names from acquisition fields
+        for field in acq_data.get("fields", []):
+            if "field" in field:
+                reference_fields.add(field["field"])
+        
+        # Extract field names from series fields
+        for series in acq_data.get("series", []):
+            for field in series.get("fields", []):
+                if "field" in field:
+                    reference_fields.add(field["field"])
+    
+    return sorted(reference_fields), schema_data
 
-    for acq_name, acquisition in schema_data.get("acquisitions", {}).items():
-        acq_entry = {
-            "fields": process_fields(acquisition.get("fields", [])),
-            "series": [],
-        }
-        reference_fields.update(field["field"] for field in acquisition.get("fields", []))
 
-        for series in acquisition.get("series", []):
-            series_entry = {
-                "name": series["name"],
-                "fields": process_fields(series.get("fields", [])),
-            }
-            acq_entry["series"].append(series_entry)
-            reference_fields.update(field["field"] for field in series.get("fields", []))
-
-        acquisitions[acq_name] = acq_entry
-
-    return sorted(reference_fields), {"acquisitions": acquisitions}
+def load_hybrid_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any], Dict[str, Any]]:
+    """
+    Load a hybrid JSON schema file that supports both field validation and embedded Python rules.
+    
+    This function extends load_json_schema to also extract and prepare validation rules
+    for dynamic model generation. It maintains backward compatibility with field-only schemas.
+    
+    Args:
+        json_schema_path (str): Path to the JSON schema file.
+        
+    Returns:
+        Tuple[List[str], Dict[str, Any], Dict[str, Any]]:
+            - Sorted list of all reference fields encountered.
+            - Schema data as loaded from the file.
+            - Dictionary mapping acquisition names to their validation rules.
+            
+    Raises:
+        FileNotFoundError: If the specified JSON file path does not exist.
+        JSONDecodeError: If the file is not a valid JSON file.
+    """
+    with open(json_schema_path, "r") as f:
+        schema_data = json.load(f)
+    
+    schema_data = normalize_numeric_values(schema_data)
+    
+    # Extract field names and rules from the schema
+    reference_fields = set()
+    validation_rules = {}
+    acquisitions_data = schema_data.get("acquisitions", {})
+    
+    for acq_name, acq_data in acquisitions_data.items():
+        # Extract field names from acquisition fields
+        for field in acq_data.get("fields", []):
+            if "field" in field:
+                reference_fields.add(field["field"])
+        
+        # Extract field names from series fields
+        for series in acq_data.get("series", []):
+            for field in series.get("fields", []):
+                if "field" in field:
+                    reference_fields.add(field["field"])
+        
+        # Extract validation rules if present
+        if "rules" in acq_data:
+            validation_rules[acq_name] = acq_data["rules"]
+            # Also add fields referenced in rules to the reference fields
+            for rule in acq_data["rules"]:
+                if "fields" in rule:
+                    for field in rule["fields"]:
+                        reference_fields.add(field)
+    
+    return sorted(reference_fields), schema_data, validation_rules
 
 
 def load_python_schema(module_path: str) -> Dict[str, BaseValidationModel]:

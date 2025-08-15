@@ -4,9 +4,10 @@ used in DICOM compliance checks.
 
 """
 
-from typing import Callable, List, Dict, Any, Tuple
+from typing import Callable, List, Dict, Any, Tuple, Type
 import pandas as pd
 from itertools import chain
+import math
 from .utils import make_hashable
     
 def get_unique_combinations(data: pd.DataFrame, fields: List[str]) -> pd.DataFrame:
@@ -227,5 +228,161 @@ class BaseValidationModel:
 
         overall_success = len(errors) == 0
         return overall_success, errors, passes
+
+
+def safe_exec_rule(code: str, context: Dict[str, Any]) -> Any:
+    """
+    Safely execute rule implementation code with restricted globals.
+    
+    This function provides a sandboxed environment for executing validation rules
+    embedded in JSON schemas, with access only to approved functions and modules.
+    
+    Args:
+        code (str): The Python code to execute.
+        context (Dict[str, Any]): Local variables available to the code.
+        
+    Returns:
+        Any: The result of the code execution.
+        
+    Raises:
+        ValidationError: If the code raises a validation error.
+        Exception: If the code raises any other exception.
+    """
+    # Define allowed globals for safe execution
+    allowed_globals = {
+        '__builtins__': {},
+        'ValidationError': ValidationError,
+        'pd': pd,
+        'math': math,
+        'abs': abs,
+        'len': len,
+        'all': all,
+        'any': any,
+        'min': min,
+        'max': max,
+        'sum': sum,
+        'round': round,
+        'isinstance': isinstance,
+        'float': float,
+        'int': int,
+        'str': str,
+        'list': list,
+        'dict': dict,
+        'set': set,
+        'tuple': tuple,
+        'range': range,
+        'enumerate': enumerate,
+        'zip': zip,
+        'sorted': sorted,
+    }
+    
+    # Execute the code in the restricted environment
+    exec(code, allowed_globals, context)
+    
+    # Return the 'value' from context if it was modified
+    return context.get('value')
+
+
+def create_validation_model_from_rules(acquisition_name: str, rules: List[Dict[str, Any]]) -> BaseValidationModel:
+    """
+    Dynamically create a BaseValidationModel subclass from JSON rules.
+    
+    This function generates a validation model class at runtime based on rules
+    defined in a JSON schema, allowing for dynamic validation without Python modules.
+    
+    Args:
+        acquisition_name (str): Name of the acquisition for the model.
+        rules (List[Dict[str, Any]]): List of rule definitions, each containing:
+            - id: Unique identifier for the rule
+            - name: Human-readable name
+            - fields: List of field names the rule applies to
+            - implementation: Python code implementing the validation logic
+            - description (optional): Description of what the rule validates
+            
+    Returns:
+        BaseValidationModel: An instance of the dynamically created validation model.
+        
+    Example:
+        >>> rules = [{
+        ...     "id": "validate_echo_count",
+        ...     "name": "Multi-echo Validation",
+        ...     "fields": ["EchoTime"],
+        ...     "implementation": "if len(value['EchoTime']) < 3: raise ValidationError('Need 3+ echoes')"
+        ... }]
+        >>> model = create_validation_model_from_rules("QSM", rules)
+    """
+    # Create dynamic class name
+    class_name = f"Dynamic{acquisition_name}Model"
+    
+    # Dictionary to hold class attributes (methods)
+    class_attrs = {}
+    
+    # Create validator methods from rules
+    for rule in rules:
+        rule_id = rule['id']
+        rule_name = rule.get('name', rule_id)
+        rule_fields = rule['fields']
+        rule_message = rule.get('description', '')
+        rule_impl = rule['implementation']
+        
+        # Create the validator method
+        def make_validator(impl_code, name, message):
+            """Closure to capture rule-specific variables."""
+            def validator_method(cls, value):
+                """Dynamically generated validator method."""
+                # Create a context for code execution
+                context = {'value': value}
+                
+                # Execute the rule implementation
+                try:
+                    result = safe_exec_rule(impl_code, context)
+                    return result if result is not None else value
+                except ValidationError:
+                    # Re-raise validation errors as-is
+                    raise
+                except Exception as e:
+                    # Wrap other exceptions as validation errors
+                    raise ValidationError(f"Rule '{name}' failed: {str(e)}")
+            
+            # Add metadata for the validator decorator system
+            validator_method._is_field_validator = True
+            validator_method._field_names = rule_fields
+            validator_method._rule_name = name
+            validator_method._rule_message = message
+            
+            return validator_method
+        
+        # Add the validator method to the class attributes
+        class_attrs[rule_id] = make_validator(rule_impl, rule_name, rule_message)
+    
+    # Create and return an instance of the dynamic class
+    DynamicModel = type(class_name, (BaseValidationModel,), class_attrs)
+    return DynamicModel()
+
+
+def create_validation_models_from_rules(validation_rules: Dict[str, List[Dict[str, Any]]]) -> Dict[str, BaseValidationModel]:
+    """
+    Create multiple validation models from a dictionary of rules.
+    
+    Args:
+        validation_rules (Dict[str, List[Dict[str, Any]]]): Dictionary mapping
+            acquisition names to their validation rules.
+            
+    Returns:
+        Dict[str, BaseValidationModel]: Dictionary mapping acquisition names to
+            their dynamically created validation models.
+            
+    Example:
+        >>> rules = {
+        ...     "QSM": [{"id": "rule1", ...}],
+        ...     "T1w": [{"id": "rule2", ...}]
+        ... }
+        >>> models = create_validation_models_from_rules(rules)
+    """
+    models = {}
+    for acq_name, rules in validation_rules.items():
+        if rules:  # Only create model if there are rules
+            models[acq_name] = create_validation_model_from_rules(acq_name, rules)
+    return models
 
 

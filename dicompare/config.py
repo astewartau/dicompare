@@ -61,6 +61,19 @@ DEFAULT_SETTINGS_FIELDS = [
     "MultibandFactor"
 ]
 
+DEFAULT_SERIES_FIELDS = [
+    "SeriesInstanceUID",
+    "SeriesDescription",
+    "SeriesNumber",
+    "SeriesDate",
+    "SeriesTime",
+    "ImageType",
+    "EchoTime",
+    "DiffusionBValue",
+    "DiffusionGradientDirectionSequence",
+    "InversionTime"
+]
+
 # Default acquisition identification fields
 DEFAULT_ACQUISITION_FIELDS = ["ProtocolName"]
 
@@ -139,7 +152,6 @@ DEFAULT_DICOM_FIELDS = [
 
     # Phase encoding
     'InPlanePhaseEncodingDirection',
-    'PhaseEncodingDirectionPositive', # MISSING
     'NumberOfPhaseEncodingSteps',
 
     # Scanner hardware

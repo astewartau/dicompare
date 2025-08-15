@@ -10,7 +10,7 @@ import pandas as pd
 import logging
 from typing import List, Optional
 
-from .config import DEFAULT_SETTINGS_FIELDS, DEFAULT_ACQUISITION_FIELDS, DEFAULT_RUN_GROUP_FIELDS
+from .config import DEFAULT_SETTINGS_FIELDS, DEFAULT_ACQUISITION_FIELDS, DEFAULT_RUN_GROUP_FIELDS, DEFAULT_SERIES_FIELDS
 from .utils import clean_string, make_hashable
 
 logger = logging.getLogger(__name__)
@@ -201,6 +201,66 @@ def build_acquisition_signatures(session_df, acquisition_fields, reference_field
     return session_df
 
 
+def assign_series_within_acquisitions(session_df, reference_fields):
+    """
+    Assign Series column that groups files within each acquisition based on varying parameter values.
+    
+    Args:
+        session_df (pd.DataFrame): Session DataFrame with Acquisition column
+        reference_fields (List[str]): Fields that were used for acquisition grouping - we'll exclude these
+        
+    Returns:
+        pd.DataFrame: Session DataFrame with Series column added
+    """
+    logger.debug("Assigning series within acquisitions...")
+    
+    # Filter out parameters that were already used for acquisition grouping
+    # This prevents double-grouping where acquisition signatures already split based on these fields
+    series_params = [p for p in DEFAULT_SERIES_FIELDS if p not in reference_fields]
+    
+    # Initialize Series column
+    session_df["Series"] = ""
+    
+    # Process each acquisition separately
+    for acquisition_name, acq_group in session_df.groupby("Acquisition"):
+        logger.debug(f"Processing acquisition '{acquisition_name}' with {len(acq_group)} rows")
+        
+        # Find parameters that vary within this acquisition
+        varying_params = []
+        for param in series_params:
+            if param in acq_group.columns and acq_group[param].nunique() > 1:
+                # Check if there's actual meaningful variation (not just NaN vs values)
+                non_null_values = acq_group[param].dropna()
+                if len(non_null_values) > 0 and non_null_values.nunique() > 1:
+                    varying_params.append(param)
+        
+        logger.debug(f"  - Varying parameters: {varying_params}")
+        
+        if varying_params:
+            # Group by varying parameters to create series
+            try:
+                series_groups = list(acq_group.groupby(varying_params, dropna=False))
+                logger.debug(f"  - Created {len(series_groups)} series groups")
+                
+                for i, (group_key, group_df) in enumerate(series_groups):
+                    series_name = f"{acquisition_name}_Series_{i+1:03d}"
+                    session_df.loc[group_df.index, "Series"] = series_name
+                    logger.debug(f"    - Series {i+1}: {series_name} ({len(group_df)} files)")
+                    
+            except Exception as e:
+                logger.warning(f"  - Could not create series groups for {acquisition_name}: {e}")
+                # Fall back to single series
+                series_name = f"{acquisition_name}_Series_001"
+                session_df.loc[acq_group.index, "Series"] = series_name
+        else:
+            # No varying parameters - single series
+            series_name = f"{acquisition_name}_Series_001"
+            session_df.loc[acq_group.index, "Series"] = series_name
+            logger.debug(f"  - Single series: {series_name}")
+    
+    return session_df
+
+
 def assign_temporal_runs(session_df, run_group_fields):
     """
     Identify temporal runs within each acquisition signature.
@@ -268,9 +328,10 @@ def assign_acquisition_and_run_numbers(
     run_group_fields: Optional[List[str]] = None
 ):
     """
-    Assign acquisition and run numbers in a single coherent pass.
+    Assign acquisition, series, and run numbers in a single coherent pass.
     
-    This function builds complete acquisition signatures upfront and then assigns
+    This function builds complete acquisition signatures upfront, assigns series
+    within each acquisition based on varying parameter values, and then assigns
     temporal runs, avoiding the need for iterative splitting and reassignment.
     
     Args:
@@ -280,7 +341,7 @@ def assign_acquisition_and_run_numbers(
         run_group_fields (Optional[List[str]]): Fields for identifying runs
         
     Returns:
-        pd.DataFrame: Session DataFrame with Acquisition and RunNumber columns
+        pd.DataFrame: Session DataFrame with Acquisition, Series, and Run columns
     """
     logger.debug("Starting assign_acquisition_and_run_numbers (refactored)")
     
@@ -294,16 +355,20 @@ def assign_acquisition_and_run_numbers(
     # 2. Build complete acquisition signatures
     session_df = build_acquisition_signatures(session_df, acquisition_fields, reference_fields)
     
-    # 3. Assign temporal runs within each signature
-    session_df = assign_temporal_runs(session_df, run_group_fields)
-    
-    # 4. Create final Acquisition labels from signatures
+    # 3. Create final Acquisition labels from signatures
     session_df["Acquisition"] = session_df["AcquisitionSignature"].fillna("Unknown").astype(str)
     
-    # 5. Clean up temporary columns
+    # 4. Assign series within each acquisition based on varying parameters
+    session_df = assign_series_within_acquisitions(session_df, reference_fields)
+    
+    # 5. Assign temporal runs within each signature
+    session_df = assign_temporal_runs(session_df, run_group_fields)
+    
+    # 6. Clean up temporary columns
     session_df = session_df.drop(columns=["BaseAcquisition", "AcquisitionSignature"]).reset_index(drop=True)
     
-    logger.debug(f"Final result - {len(session_df['Acquisition'].unique())} unique acquisitions")
+    logger.debug(f"Final result - {len(session_df['Acquisition'].unique())} unique acquisitions, {len(session_df['Series'].unique())} unique series")
     logger.debug(f"Acquisitions: {list(session_df['Acquisition'].unique())}")
+    logger.debug(f"Series: {list(session_df['Series'].unique())}")
     
     return session_df

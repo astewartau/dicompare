@@ -48,13 +48,31 @@ def create_dummy_nifti(tmp_dir, filename="sub-01_task-rest.nii", array_shape=(2,
 
 def create_temp_json(tmp_dir, filename="dummy.json"):
     data = {
+        "version": "1.0",
+        "name": "Test Template",
+        "description": "Test template for schema loading",
+        "created": "2025-08-08T04:29:05.132Z",
+        "authors": ["Test Author"],
         "acquisitions": {
             "acq1": {
                 "fields": [
-                    {"field": "TestField", "value": [1, 2], "tolerance": 5, "contains": "abc"}
+                    {
+                        "field": "TestField",
+                        "value": [1, 2],
+                        "tolerance": 5,
+                        "contains": "abc"
+                    }
                 ],
                 "series": [
-                    {"name": "series1", "fields": [{"field": "SeriesField", "value": "x"}]}
+                    {
+                        "name": "series1",
+                        "fields": [
+                            {
+                                "field": "SeriesField",
+                                "value": "x"
+                            }
+                        ]
+                    }
                 ]
             }
         }
@@ -424,6 +442,196 @@ def test_assign_acquisition_and_run_numbers_custom_fields():
     assert any("scan1" in acq.lower() for acq in unique_acquisitions)
     assert any("scan2" in acq.lower() for acq in unique_acquisitions)
 
+
+# ---------- Tests for Series Grouping Functionality ----------
+
+def test_assign_acquisition_and_run_numbers_series_multiecho():
+    """Test series grouping for multi-echo sequences with varying EchoTime."""
+    data = {
+        "ProtocolName": ["T2star_multiecho", "T2star_multiecho", "T2star_multiecho", "T2star_multiecho"],
+        "SeriesDescription": ["MultiEcho", "MultiEcho", "MultiEcho", "MultiEcho"],
+        "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
+        "SeriesTime": ["120000", "120000", "120000", "120000"],
+        "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
+        "PatientID": ["ID1", "ID1", "ID1", "ID1"],
+        "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
+        "EchoTime": [5.0, 10.0, 15.0, 20.0],  # 4 different echo times
+    }
+    df = pd.DataFrame(data)
+    
+    df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
+    
+    # Should have 1 acquisition but 4 series (one per echo time)
+    unique_acquisitions = df_out["Acquisition"].unique()
+    unique_series = df_out["Series"].unique()
+    
+    assert len(unique_acquisitions) == 1
+    assert len(unique_series) == 4
+    
+    # Check series naming convention
+    for series in unique_series:
+        assert "acq-t2starmultiecho_Series_" in series
+        assert series.endswith(("001", "002", "003", "004"))
+    
+    # Verify each echo time gets its own series
+    for echo_time in [5.0, 10.0, 15.0, 20.0]:
+        echo_rows = df_out[df_out["EchoTime"] == echo_time]
+        assert len(echo_rows["Series"].unique()) == 1  # Each echo time has exactly one series
+
+
+def test_assign_acquisition_and_run_numbers_series_dti():
+    """Test series grouping for DTI sequences with varying DiffusionBValue."""
+    data = {
+        "ProtocolName": ["DTI_30dir", "DTI_30dir", "DTI_30dir", "DTI_30dir"],
+        "SeriesDescription": ["DTI", "DTI", "DTI", "DTI"],
+        "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
+        "SeriesTime": ["120000", "120000", "120000", "120000"],
+        "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
+        "PatientID": ["ID1", "ID1", "ID1", "ID1"],
+        "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
+        "DiffusionBValue": [0, 0, 1000, 1000],  # b=0 and b=1000 values
+        "RepetitionTime": [5000, 5000, 5000, 5000],  # Same TR to avoid acquisition splitting
+    }
+    df = pd.DataFrame(data)
+    
+    # Use reference fields that exclude DiffusionBValue so it can be used for series grouping
+    df_out = dicompare.assign_acquisition_and_run_numbers(
+        df.copy(), 
+        reference_fields=["RepetitionTime", "EchoTime"]  # Exclude DiffusionBValue from acquisition grouping
+    )
+    
+    # Should have 1 acquisition but 2 series (b=0 and b=1000)
+    unique_acquisitions = df_out["Acquisition"].unique()
+    unique_series = df_out["Series"].unique()
+    
+    assert len(unique_acquisitions) == 1
+    assert len(unique_series) == 2
+    
+    # Check series naming
+    series_names = sorted(unique_series)
+    expected_pattern = "acq-dti30dir_Series_"
+    assert all(expected_pattern in name for name in series_names)
+    assert all(name.endswith(("001", "002")) for name in series_names)
+
+
+def test_assign_acquisition_and_run_numbers_series_single_sequence():
+    """Test series grouping for sequences with no varying parameters."""
+    data = {
+        "ProtocolName": ["T1_MPRAGE", "T1_MPRAGE", "T1_MPRAGE"],
+        "SeriesDescription": ["MPRAGE", "MPRAGE", "MPRAGE"],
+        "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
+        "SeriesTime": ["120000", "120000", "120000"],
+        "PatientName": ["Patient1", "Patient1", "Patient1"],
+        "PatientID": ["ID1", "ID1", "ID1"],
+        "StudyDate": ["20210101", "20210101", "20210101"],
+        "EchoTime": [5.0, 5.0, 5.0],  # Same echo time for all
+        "RepetitionTime": [2000, 2000, 2000],  # Same TR for all
+    }
+    df = pd.DataFrame(data)
+    
+    df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
+    
+    # Should have 1 acquisition and 1 series (no varying parameters)
+    unique_acquisitions = df_out["Acquisition"].unique()
+    unique_series = df_out["Series"].unique()
+    
+    assert len(unique_acquisitions) == 1
+    assert len(unique_series) == 1
+    assert "acq-t1mprage_Series_001" in unique_series
+
+
+def test_assign_acquisition_and_run_numbers_series_multiple_acquisitions():
+    """Test series grouping across multiple different acquisitions."""
+    data = {
+        "ProtocolName": ["T2star_multiecho", "T2star_multiecho", "DTI_30dir", "DTI_30dir", "T1_MPRAGE"],
+        "SeriesDescription": ["MultiEcho", "MultiEcho", "DTI", "DTI", "MPRAGE"],
+        "ImageType": [("ORIGINAL", "PRIMARY")] * 5,
+        "SeriesTime": ["120000"] * 5,
+        "PatientName": ["Patient1"] * 5,
+        "PatientID": ["ID1"] * 5,
+        "StudyDate": ["20210101"] * 5,
+        "EchoTime": [5.0, 10.0, None, None, 5.0],  # MultiEcho varies, others don't
+        "DiffusionBValue": [None, None, 0, 1000, None],  # DTI varies, others don't
+        "RepetitionTime": [2000] * 5,  # Same for all
+    }
+    df = pd.DataFrame(data)
+    
+    # Use reference fields that exclude series-grouping parameters
+    df_out = dicompare.assign_acquisition_and_run_numbers(
+        df.copy(),
+        reference_fields=["RepetitionTime"]  # Exclude EchoTime and DiffusionBValue
+    )
+    
+    # Should have 3 acquisitions (one for each protocol)
+    unique_acquisitions = df_out["Acquisition"].unique()
+    assert len(unique_acquisitions) == 3
+    
+    # Check series for T2star_multiecho (should have 2 series due to EchoTime variation)
+    t2star_rows = df_out[df_out["ProtocolName"] == "T2star_multiecho"]
+    t2star_series = t2star_rows["Series"].unique()
+    assert len(t2star_series) == 2
+    
+    # Check series for DTI_30dir (should have 2 series due to DiffusionBValue variation)
+    dti_rows = df_out[df_out["ProtocolName"] == "DTI_30dir"]
+    dti_series = dti_rows["Series"].unique()
+    assert len(dti_series) == 2
+    
+    # Check series for T1_MPRAGE (should have 1 series, no variation)
+    t1_rows = df_out[df_out["ProtocolName"] == "T1_MPRAGE"]
+    t1_series = t1_rows["Series"].unique()
+    assert len(t1_series) == 1
+
+
+def test_assign_acquisition_and_run_numbers_series_with_nans():
+    """Test series grouping handles NaN values correctly."""
+    data = {
+        "ProtocolName": ["fMRI", "fMRI", "fMRI", "fMRI"],
+        "SeriesDescription": ["BOLD", "BOLD", "BOLD", "BOLD"],
+        "ImageType": [("ORIGINAL", "PRIMARY")] * 4,
+        "SeriesTime": ["120000"] * 4,
+        "PatientName": ["Patient1"] * 4,
+        "PatientID": ["ID1"] * 4,
+        "StudyDate": ["20210101"] * 4,
+        "EchoTime": [30.0, 30.0, None, None],  # Some NaN values
+        "FlipAngle": [90, 45, 90, 45],  # This varies and should drive series creation
+    }
+    df = pd.DataFrame(data)
+    
+    df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
+    
+    # Should create series based on FlipAngle variation
+    unique_series = df_out["Series"].unique()
+    assert len(unique_series) == 2  # Two different flip angles
+
+
+def test_assign_acquisition_and_run_numbers_backward_compatibility():
+    """Test that adding Series column doesn't break existing functionality."""
+    data = {
+        "ProtocolName": ["fMRI", "fMRI", "T1", "T1"],
+        "SeriesDescription": ["BOLD", "BOLD", "MPRAGE", "MPRAGE"],
+        "ImageType": [("ORIGINAL", "PRIMARY")] * 4,
+        "SeriesTime": ["120000", "130000", "140000", "150000"],
+        "PatientName": ["Patient1"] * 4,
+        "PatientID": ["ID1"] * 4,
+        "StudyDate": ["20210101"] * 4,
+        "RunNumber": [1, 1, 1, 1],
+    }
+    df = pd.DataFrame(data)
+    
+    df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
+    
+    # Should still have Acquisition and Run columns as before
+    assert "Acquisition" in df_out.columns
+    assert "RunNumber" in df_out.columns  
+    
+    # Should now also have Series column
+    assert "Series" in df_out.columns
+    
+    # Basic acquisition grouping should still work
+    unique_acquisitions = df_out["Acquisition"].unique()
+    assert len(unique_acquisitions) == 2
+
+
 # ---------- Tests for load_json_schema ----------
 
 def test_load_json_schema(json_file):
@@ -433,14 +641,110 @@ def test_load_json_schema(json_file):
     assert "SeriesField" in fields
     # Check structure.
     assert "acquisitions" in ref_data
-    assert "acq1" in ref_data["acquisitions"]
+    assert "acq1" in ref_data["acquisitions"]  # protocolName becomes the key
     acq = ref_data["acquisitions"]["acq1"]
     assert "fields" in acq
     assert isinstance(acq["series"], list)
     assert acq["series"][0]["name"] == "series1"
+    
+    # Verify the field structure  
+    test_field = acq["fields"][0]
+    assert test_field["field"] == "TestField"
+    assert test_field["value"] == [1, 2]  # Value as-is from JSON
+    assert test_field["tolerance"] == 5
+    assert test_field["contains"] == "abc"
+    
+    # Verify series field structure conversion
+    series_field = acq["series"][0]["fields"][0]
+    assert series_field["field"] == "SeriesField"
+    assert series_field["value"] == "x"
 
 
 # ---------- Tests for load_python_schema ----------
+
+def test_load_hybrid_schema(tmp_path):
+    """Test loading a hybrid JSON schema with both fields and rules."""
+    # Create a hybrid schema with both fields and rules
+    hybrid_schema = {
+        "version": "1.0",
+        "acquisitions": {
+            "QSM": {
+                "fields": [
+                    {"field": "EchoTime", "value": 5, "tolerance": 1},
+                    {"field": "RepetitionTime", "value": 25}
+                ],
+                "rules": [
+                    {
+                        "id": "validate_echo_count",
+                        "name": "Multi-echo Validation",
+                        "description": "At least 3 echoes required for QSM",
+                        "fields": ["EchoTime"],
+                        "implementation": "echo_times = value['EchoTime'].dropna().unique()\nif len(echo_times) < 3:\n    raise ValidationError('Need at least 3 echoes')\nreturn value"
+                    },
+                    {
+                        "id": "validate_tr_range",
+                        "name": "TR Range Check",
+                        "fields": ["RepetitionTime"],
+                        "implementation": "tr = value['RepetitionTime'].iloc[0]\nif tr < 20 or tr > 30:\n    raise ValidationError('TR should be between 20-30ms')\nreturn value"
+                    }
+                ]
+            },
+            "T1w": {
+                "fields": [
+                    {"field": "SequenceName", "value": "MPRAGE"}
+                ]
+                # No rules for this acquisition
+            }
+        }
+    }
+    
+    # Write schema to file
+    schema_path = tmp_path / "hybrid_schema.json"
+    with open(schema_path, "w") as f:
+        json.dump(hybrid_schema, f)
+    
+    # Test loading the hybrid schema
+    fields, schema_data, validation_rules = dicompare.load_hybrid_schema(str(schema_path))
+    
+    # Check that all fields are extracted correctly
+    assert "EchoTime" in fields
+    assert "RepetitionTime" in fields
+    assert "SequenceName" in fields
+    assert len(fields) == 3  # All unique fields
+    
+    # Check schema data is loaded correctly
+    assert "acquisitions" in schema_data
+    assert "QSM" in schema_data["acquisitions"]
+    assert "T1w" in schema_data["acquisitions"]
+    
+    # Check validation rules are extracted correctly
+    assert "QSM" in validation_rules
+    assert "T1w" not in validation_rules  # T1w has no rules
+    
+    qsm_rules = validation_rules["QSM"]
+    assert len(qsm_rules) == 2
+    assert qsm_rules[0]["id"] == "validate_echo_count"
+    assert qsm_rules[0]["fields"] == ["EchoTime"]
+    assert "implementation" in qsm_rules[0]
+    assert qsm_rules[1]["id"] == "validate_tr_range"
+
+
+def test_load_hybrid_schema_backward_compatible(json_file):
+    """Test that hybrid loader works with old field-only schemas."""
+    # Use existing test JSON file which has no rules
+    fields, schema_data, validation_rules = dicompare.load_hybrid_schema(json_file)
+    
+    # Should work like the old loader
+    assert "TestField" in fields
+    assert "SeriesField" in fields
+    
+    # No validation rules in old schema
+    assert validation_rules == {}
+    
+    # Schema data should be unchanged
+    assert "acquisitions" in schema_data
+    assert "acq1" in schema_data["acquisitions"]
+
 
 def test_load_python_schema_valid(valid_python_module):
     models = dicompare.load_python_schema(valid_python_module)

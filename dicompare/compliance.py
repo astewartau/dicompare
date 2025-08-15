@@ -5,8 +5,8 @@ The module supports compliance checks for JSON-based schema sessions and Python 
 
 """
 
-from typing import List, Dict, Any
-from dicompare.validation import BaseValidationModel
+from typing import List, Dict, Any, Optional
+from dicompare.validation import BaseValidationModel, create_validation_models_from_rules
 from dicompare.validation_helpers import (
     validate_constraint, validate_field_values, create_compliance_record, format_constraint_description,
     ComplianceStatus
@@ -311,5 +311,236 @@ def check_session_compliance_with_python_module(
         if raise_errors and not success:
             raise ValueError(f"Validation failed for acquisition '{in_acq_name}'.")
 
+    return compliance_summary
+
+
+def check_session_compliance(
+    in_session: pd.DataFrame,
+    schema_data: Dict[str, Any],
+    session_map: Dict[str, str],
+    validation_rules: Optional[Dict[str, List[Dict[str, Any]]]] = None,
+    validation_models: Optional[Dict[str, BaseValidationModel]] = None,
+    raise_errors: bool = False
+) -> List[Dict[str, Any]]:
+    """
+    Unified compliance checking function that handles both field validation and rule validation.
+    
+    This function combines the functionality of check_session_compliance_with_json_schema and
+    check_session_compliance_with_python_module, supporting hybrid schemas with both field
+    constraints and embedded Python validation rules.
+    
+    Args:
+        in_session (pd.DataFrame): Input session DataFrame containing DICOM metadata.
+        schema_data (Dict[str, Any]): Schema data loaded from a JSON file.
+        session_map (Dict[str, str]): Mapping of schema acquisitions to input acquisitions.
+        validation_rules (Optional[Dict[str, List[Dict[str, Any]]]]): Dictionary mapping
+            acquisition names to their validation rules (from hybrid schemas).
+        validation_models (Optional[Dict[str, BaseValidationModel]]): Pre-created validation
+            models. If not provided but validation_rules are, models will be created dynamically.
+        raise_errors (bool): Whether to raise exceptions for validation failures. Defaults to False.
+        
+    Returns:
+        List[Dict[str, Any]]: A list of compliance issues and passes. Each record contains:
+            - schema acquisition: The reference acquisition name
+            - input acquisition: The actual acquisition name in the input
+            - field: The field(s) being validated
+            - value: The actual value(s) found
+            - expected: The expected value or constraint
+            - message: Error message (for failures) or "OK" (for passes)
+            - rule_name: The name of the validation rule (for rule-based validations)
+            - passed: Boolean indicating if the check passed
+            - status: The compliance status (OK, ERROR, NA, etc.)
+            
+    Raises:
+        ValueError: If `raise_errors` is True and validation fails for any acquisition.
+        
+    Example:
+        >>> # Load a hybrid schema
+        >>> fields, schema_data, rules = load_hybrid_schema("schema.json")
+        >>> 
+        >>> # Check compliance
+        >>> results = check_session_compliance(
+        ...     in_session=session_df,
+        ...     schema_data=schema_data,
+        ...     session_map={"QSM": "qsm_acq"},
+        ...     validation_rules=rules
+        ... )
+    """
+    compliance_summary = []
+    
+    # Create validation models from rules if needed
+    if validation_rules and not validation_models:
+        validation_models = create_validation_models_from_rules(validation_rules)
+    
+    # Helper function for field validation (adapted from check_session_compliance_with_json_schema)
+    def _check_field_compliance(
+        schema_acq_name: str,
+        in_acq_name: str,
+        schema_fields: List[Dict[str, Any]],
+        in_acq: pd.DataFrame,
+        series_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Check field-level compliance for an acquisition or series."""
+        field_results = []
+        
+        for fdef in schema_fields:
+            field = fdef["field"]
+            expected_value = fdef.get("value")
+            tolerance = fdef.get("tolerance")
+            contains = fdef.get("contains")
+            
+            if field not in in_acq.columns:
+                field_results.append(create_compliance_record(
+                    schema_acq_name, in_acq_name, series_name, field,
+                    expected_value, tolerance, contains, None,
+                    "Field not found in input session.", False,
+                    status=ComplianceStatus.NA
+                ))
+                continue
+            
+            actual_values = in_acq[field].unique().tolist()
+            
+            # Use validation helper to check field values
+            passed, invalid_values, message = validate_field_values(
+                field, actual_values, expected_value, tolerance, contains
+            )
+            
+            field_results.append(create_compliance_record(
+                schema_acq_name, in_acq_name, series_name, field,
+                expected_value, tolerance, contains, actual_values,
+                message, passed
+            ))
+        
+        return field_results
+    
+    # Process each mapped acquisition
+    for schema_acq_name, in_acq_name in session_map.items():
+        # Filter the input session for the current acquisition
+        in_acq = in_session[in_session["Acquisition"] == in_acq_name]
+        
+        if in_acq.empty:
+            compliance_summary.append({
+                "schema acquisition": schema_acq_name,
+                "input acquisition": in_acq_name,
+                "field": "Acquisition-Level Error",
+                "value": None,
+                "rule_name": "Acquisition presence",
+                "expected": "Specified input acquisition must be present.",
+                "message": f"Input acquisition '{in_acq_name}' not found in data.",
+                "passed": False,
+                "status": ComplianceStatus.NA.value
+            })
+            continue
+        
+        # Get acquisition schema
+        acquisitions_data = schema_data.get("acquisitions", {})
+        schema_acq = acquisitions_data.get(schema_acq_name, {})
+        
+        # 1. Check field-level compliance
+        schema_fields = schema_acq.get("fields", [])
+        if schema_fields:
+            field_results = _check_field_compliance(
+                schema_acq_name, in_acq_name, schema_fields, in_acq
+            )
+            compliance_summary.extend(field_results)
+        
+        # 2. Check series-level field compliance
+        schema_series = schema_acq.get("series", [])
+        for series_def in schema_series:
+            series_name = series_def.get("name", "<unnamed>")
+            series_fields = series_def.get("fields", [])
+            
+            if series_fields:
+                # Filter data for series matching
+                matching_df = in_acq
+                
+                # Apply series field filters
+                for fdef in series_fields:
+                    field = fdef["field"]
+                    expected = fdef.get("value")
+                    tolerance = fdef.get("tolerance")
+                    contains = fdef.get("contains")
+                    
+                    if field in matching_df.columns and expected is not None:
+                        # Filter rows that match this field's constraint
+                        mask = matching_df[field].apply(
+                            lambda x: validate_constraint(x, expected, tolerance, contains)
+                        )
+                        matching_df = matching_df[mask]
+                
+                # Check compliance for matching rows
+                if not matching_df.empty:
+                    series_results = _check_field_compliance(
+                        schema_acq_name, in_acq_name, series_fields, matching_df, series_name
+                    )
+                    compliance_summary.extend(series_results)
+                else:
+                    # No matching series found - create a single series-level error
+                    # Build a description of the series constraints
+                    constraints = []
+                    for fdef in series_fields:
+                        field = fdef["field"]
+                        if "value" in fdef:
+                            if "tolerance" in fdef:
+                                constraints.append(f"{field}={fdef['value']}±{fdef['tolerance']}")
+                            else:
+                                constraints.append(f"{field}={fdef['value']}")
+                        elif "contains" in fdef:
+                            constraints.append(f"{field} contains '{fdef['contains']}'")
+                    
+                    constraint_desc = " AND ".join(constraints) if constraints else "series constraints"
+                    field_list = ", ".join([fdef["field"] for fdef in series_fields])
+                    
+                    compliance_summary.append(create_compliance_record(
+                        schema_acq_name, in_acq_name, series_name, field_list,
+                        None, None, None,
+                        None, f"No matching series found for '{series_name}' ({constraint_desc}).", False,
+                        status=ComplianceStatus.NA
+                    ))
+        
+        # 3. Check rule-based compliance if models are available
+        if validation_models and schema_acq_name in validation_models:
+            model = validation_models[schema_acq_name]
+            
+            # Ensure the model is instantiated if it's a class
+            if isinstance(model, type):
+                model = model()
+            
+            # Validate using the model
+            success, errors, passes = model.validate(data=in_acq)
+            
+            # Record errors
+            for error in errors:
+                status = ComplianceStatus.NA if "not found" in error.get('message', '').lower() else ComplianceStatus.ERROR
+                compliance_summary.append({
+                    "schema acquisition": schema_acq_name,
+                    "input acquisition": in_acq_name,
+                    "field": error['field'],
+                    "value": error['value'],
+                    "expected": error.get('expected', error.get('rule_message', '')),
+                    "message": error['message'],
+                    "rule_name": error['rule_name'],
+                    "passed": False,
+                    "status": status.value
+                })
+            
+            # Record passes
+            for passed_test in passes:
+                compliance_summary.append({
+                    "schema acquisition": schema_acq_name,
+                    "input acquisition": in_acq_name,
+                    "field": passed_test['field'],
+                    "value": passed_test['value'],
+                    "expected": passed_test.get('expected', passed_test.get('rule_message', '')),
+                    "message": passed_test['message'],
+                    "rule_name": passed_test['rule_name'],
+                    "passed": True,
+                    "status": ComplianceStatus.OK.value
+                })
+            
+            # Raise an error if validation fails and `raise_errors` is True
+            if raise_errors and not success:
+                raise ValueError(f"Validation failed for acquisition '{in_acq_name}'.")
+    
     return compliance_summary
 
