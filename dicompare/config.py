@@ -10,12 +10,12 @@ DEFAULT_SETTINGS_FIELDS = [
     # Core acquisition parameters
     "ScanOptions",
     "MRAcquisitionType", 
-    "SequenceName",
+    # "SequenceName",  # Removed - varies per diffusion direction in multi-shell sequences
     "AngioFlag",
     "SliceThickness",
     "AcquisitionMatrix",
     "RepetitionTime",
-    "InversionTime",
+    # "InversionTime",  # Removed - varies between inversion points in MP2RAGE sequences
     "NumberOfAverages",
     "ImagingFrequency",
     "ImagedNucleus",
@@ -29,7 +29,7 @@ DEFAULT_SETTINGS_FIELDS = [
     # Coil and hardware parameters
     "ReceiveCoilName",
     "TransmitCoilName",
-    "FlipAngle",
+    # "FlipAngle",  # Removed - varies between inversion points in MP2RAGE sequences
     "ReconstructionDiameter",
     "InPlanePhaseEncodingDirection",
     "ParallelReductionFactorInPlane",
@@ -49,8 +49,8 @@ DEFAULT_SETTINGS_FIELDS = [
     # Advanced sequence parameters
     "GradientEchoTrainLength",
     "SpoilingRFPhaseAngle",
-    "DiffusionBValue",
-    "DiffusionGradientDirectionSequence",
+    # "DiffusionBValue",  # Removed - varies per b-shell in multi-shell sequences
+    # "DiffusionGradientDirectionSequence",  # Removed - varies per diffusion direction
     "PerfusionTechnique",
     "SpectrallySelectedExcitation",
     "SaturationRecovery",

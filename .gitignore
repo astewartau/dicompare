@@ -6,3 +6,4 @@ build/
 dist/
 compliance_report.json
 spec.json
+data/

@@ -12,8 +12,9 @@ This module is based on the parse_siemens_pro.py script and integrates
 """
 
 from pathlib import Path
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, List
 from twixtools.twixprot import parse_buffer
+import itertools
 
 def load_pro_file(pro_file_path: str) -> Dict[str, Any]:
     """
@@ -50,6 +51,282 @@ def load_pro_file(pro_file_path: str) -> Dict[str, Any]:
     dicom_fields["PRO_FileName"] = pro_path.name
     
     return dicom_fields
+
+
+def load_pro_file_schema_format(pro_file_path: str) -> Dict[str, Any]:
+    """
+    Load and parse a Siemens .pro protocol file into schema-compatible format.
+    
+    This function generates the series structure that would be created during
+    DICOM reconstruction, including all permutations of varying parameters
+    (echo times, image types, inversion times).
+    
+    Args:
+        pro_file_path: Path to the .pro protocol file
+        
+    Returns:
+        Dictionary in schema format:
+        {
+            "acquisition_info": {...},
+            "fields": [{"field": "...", "value": "..."}, ...],
+            "series": [
+                {
+                    "name": "Series 1",
+                    "fields": [{"field": "EchoTime", "value": 2.5}, ...]
+                },
+                ...
+            ]
+        }
+        
+    Raises:
+        FileNotFoundError: If the specified .pro file path does not exist
+        Exception: If the file cannot be parsed
+    """
+    pro_path = Path(pro_file_path)
+    if not pro_path.exists():
+        raise FileNotFoundError(f"Protocol file not found: {pro_file_path}")
+    
+    # Parse the protocol file using existing logic
+    with open(pro_path, 'r', encoding='latin1') as f:
+        content = f.read()
+    
+    try:
+        parsed_data = parse_buffer(content)
+    except Exception as e:
+        raise Exception(f"Failed to parse .pro file {pro_file_path}: {str(e)}")
+    
+    # Get flat DICOM-compatible data using existing function
+    flat_dicom_data = apply_pro_to_dicom_mapping(parsed_data)
+    calculate_other_dicom_fields(flat_dicom_data, parsed_data)
+    
+    # Generate schema-compatible format
+    schema_result = _convert_flat_to_schema_format(flat_dicom_data, parsed_data, pro_file_path)
+    
+    return schema_result
+
+
+def _convert_flat_to_schema_format(dicom_data: Dict[str, Any], raw_pro_data: Dict[str, Any], pro_file_path: str) -> Dict[str, Any]:
+    """
+    Convert flat DICOM data to schema-compatible format with series structure.
+    
+    Args:
+        dicom_data: Flat DICOM-compatible dictionary from apply_pro_to_dicom_mapping
+        raw_pro_data: Raw .pro data from twixtools
+        pro_file_path: Path to source .pro file
+        
+    Returns:
+        Schema-compatible dictionary with acquisition_info, fields, and series
+    """
+    # Extract series-determining parameters
+    series_params = _extract_series_parameters(dicom_data, raw_pro_data)
+    
+    # Generate series combinations
+    series_list = _generate_series_combinations(series_params)
+    
+    # Classify fields as acquisition-level or series-level
+    acquisition_fields, series_varying_fields = _classify_fields(dicom_data, series_params)
+    
+    # Build result structure
+    result = {
+        "acquisition_info": {
+            "protocol_name": dicom_data.get("ProtocolName", "Unknown"),
+            "source_type": "pro_file",
+            "pro_path": str(pro_file_path),
+            "pro_filename": Path(pro_file_path).name
+        },
+        "fields": acquisition_fields,
+        "series": series_list
+    }
+    
+    return result
+
+
+def _extract_series_parameters(dicom_data: Dict[str, Any], raw_pro_data: Dict[str, Any]) -> Dict[str, List]:
+    """
+    Extract parameters that create series variations.
+    
+    Returns dictionary with series-creating parameter arrays:
+    {
+        "EchoTime": [2.5, 5.0, 7.5, ...],
+        "ImageType": [["ORIGINAL", "PRIMARY", "M"], ...],
+        "InversionTime": [0.9, 2.75, ...]
+    }
+    """
+    series_params = {}
+    
+    # 1. Echo Times (primary series differentiator)
+    echo_times = dicom_data.get("EchoTime", [])
+    if isinstance(echo_times, list) and len(echo_times) > 1:
+        series_params["EchoTime"] = echo_times
+    elif isinstance(echo_times, (int, float)):
+        # Single echo time - only include if other parameters will create series
+        pass  # We'll add this back later if needed
+    
+    # 2. Image Types (based on reconstruction mode)
+    recon_mode = extract_nested_value(raw_pro_data, "ucReconstructionMode") or 1
+    image_types = _determine_image_types_for_series(recon_mode, dicom_data)
+    # Only include ImageType in series if there are multiple variants (i.e., mag+phase)
+    if len(image_types) > 1:
+        series_params["ImageType"] = image_types
+    # If only one image type, it will stay at acquisition level
+    
+    # 3. Inversion Times (for sequences like MP2RAGE)
+    inversion_times = dicom_data.get("InversionTime", [])
+    if isinstance(inversion_times, list) and len(inversion_times) > 1:
+        series_params["InversionTime"] = inversion_times
+    elif isinstance(inversion_times, (int, float)):
+        # Single inversion time - only include if other parameters will create series
+        pass  # We'll add this back later if needed
+    
+    # Now add back single values if we have series-creating parameters
+    if series_params:  # If we have any series-creating parameters
+        # Add single echo time back if present
+        if isinstance(echo_times, (int, float)):
+            series_params["EchoTime"] = [echo_times]
+        elif isinstance(echo_times, list) and len(echo_times) == 1:
+            series_params["EchoTime"] = echo_times
+            
+        # DON'T add single image types - they should stay at acquisition level
+        # Only add ImageType if there are multiple variants (already handled above)
+            
+        # DON'T add single inversion times - they should stay at acquisition level
+        # Only add inversion times if they vary (already handled above)
+    
+    return series_params
+
+
+def _determine_image_types_for_series(recon_mode: int, dicom_data: Dict[str, Any]) -> List[List[str]]:
+    """
+    Determine image type variations based on reconstruction mode.
+    
+    Args:
+        recon_mode: ucReconstructionMode from .pro file
+        dicom_data: DICOM-compatible data
+        
+    Returns:
+        List of ImageType arrays that will be created
+    """
+    base_image_type = dicom_data.get("ImageType", ["ORIGINAL", "PRIMARY", "M"])
+    
+    if recon_mode == 8:
+        # Magnitude + Phase reconstruction
+        mag_type = [item if item != "P" else "M" for item in base_image_type]
+        phase_type = [item if item != "M" else "P" for item in base_image_type]
+        if "M" not in mag_type:
+            mag_type.append("M")
+        if "P" not in phase_type:
+            phase_type.append("P")
+        return [mag_type, phase_type]
+    
+    elif recon_mode == 2:
+        # Phase only
+        phase_type = [item if item != "M" else "P" for item in base_image_type]
+        if "P" not in phase_type:
+            phase_type.append("P")
+        return [phase_type]
+    
+    else:
+        # Magnitude only (mode 1, 4, etc.)
+        mag_type = [item if item != "P" else "M" for item in base_image_type]
+        if "M" not in mag_type:
+            mag_type.append("M")
+        return [mag_type]
+
+
+def _generate_series_combinations(series_params: Dict[str, List]) -> List[Dict[str, Any]]:
+    """
+    Generate all series combinations using cartesian product of parameters.
+    
+    Args:
+        series_params: Dictionary of series-varying parameters
+        
+    Returns:
+        List of series dictionaries
+    """
+    if not series_params:
+        return []
+    
+    # Get parameter names and values in consistent order
+    param_names = []
+    param_values = []
+    
+    # Priority order: EchoTime, ImageType, InversionTime
+    for param_name in ["EchoTime", "ImageType", "InversionTime"]:
+        if param_name in series_params:
+            param_names.append(param_name)
+            param_values.append(series_params[param_name])
+    
+    # Add any other parameters
+    for param_name, values in series_params.items():
+        if param_name not in param_names:
+            param_names.append(param_name)
+            param_values.append(values)
+    
+    # Generate all combinations
+    if not param_values:
+        return []
+    
+    combinations = list(itertools.product(*param_values))
+    
+    # Convert to series format
+    series_list = []
+    for i, combination in enumerate(combinations, 1):
+        series = {
+            "name": f"Series {i}",
+            "fields": []
+        }
+        
+        for param_idx, value in enumerate(combination):
+            field_name = param_names[param_idx]
+            series["fields"].append({
+                "field": field_name,
+                "value": value
+            })
+        
+        series_list.append(series)
+    
+    return series_list
+
+
+def _classify_fields(dicom_data: Dict[str, Any], series_params: Dict[str, List]) -> tuple:
+    """
+    Classify fields as acquisition-level vs series-level.
+    
+    Args:
+        dicom_data: Flat DICOM-compatible data
+        series_params: Parameters that vary at series level
+        
+    Returns:
+        Tuple of (acquisition_fields, series_varying_fields)
+    """
+    acquisition_fields = []
+    series_varying_fields = set(series_params.keys())
+    
+    for field_name, value in dicom_data.items():
+        # Skip metadata fields
+        if field_name in ["PRO_Path", "PRO_FileName"]:
+            continue
+            
+        # Skip series-varying fields (they go in series)
+        if field_name in series_varying_fields:
+            continue
+        
+        # Skip empty string values (like empty SeriesDescription)
+        if value == "":
+            continue
+            
+        # Skip None values
+        if value is None:
+            continue
+        
+        # Add to acquisition level
+        acquisition_fields.append({
+            "field": field_name,
+            "value": value
+        })
+    
+    return acquisition_fields, series_varying_fields
+
 
 def _decode_siemens_version(ul_version: Union[int, str]) -> str:
     """
@@ -194,7 +471,7 @@ def _extract_unique_b_values(b_value_array: list) -> list:
     return sorted(list(unique_b_values))
 
 
-def _decode_sequence_type(pro_data: Dict[str, Any]) -> str:
+def _decode_sequence_type(pro_data: Dict[str, Any]) -> Union[str, List[str]]:
     """
     Decode Siemens sequence type using proper mapping with fallback.
     Based on XSL template from the provided code examples.
@@ -203,7 +480,7 @@ def _decode_sequence_type(pro_data: Dict[str, Any]) -> str:
         pro_data: Raw .pro data dictionary
         
     Returns:
-        DICOM-compatible sequence type string
+        DICOM-compatible sequence type string or list of strings for compound sequences
     """
     seq_type = extract_nested_value(pro_data, "ucSequenceType")
     protocol_name = extract_nested_value(pro_data, "tProtocolName") or ""
@@ -218,31 +495,39 @@ def _decode_sequence_type(pro_data: Dict[str, Any]) -> str:
         32: "GR"  # FID → Gradient Echo
     }
     
+    # Get base sequence type
+    base_sequence = None
+    
     # Try direct mapping first
     if seq_type and seq_type in seq_mapping:
-        return seq_mapping[seq_type]
+        base_sequence = seq_mapping[seq_type]
+    else:
+        # Fallback: analyze protocol and sequence names
+        protocol_lower = protocol_name.lower()
+        sequence_lower = sequence_filename.lower()
+        
+        # Echo Planar sequences
+        if any(term in protocol_lower or term in sequence_lower 
+               for term in ["epi", "ep2d", "ep3d", "bold", "diff"]):
+            base_sequence = "EP"
+        
+        # Spin Echo sequences (including TSE, HASTE)
+        elif any(term in protocol_lower or term in sequence_lower 
+               for term in ["tse", "haste", "space", "flair", "t2"]):
+            base_sequence = "SE"
+        
+        # Default to GR if unknown
+        else:
+            base_sequence = "GR"
     
-    # Fallback: analyze protocol and sequence names
-    protocol_lower = protocol_name.lower()
-    sequence_lower = sequence_filename.lower()
+    # Check for inversion recovery preparation
+    ucInversion = extract_nested_value(pro_data, "sPrepPulses.ucInversion")
     
-    # Echo Planar sequences
-    if any(term in protocol_lower or term in sequence_lower 
-           for term in ["epi", "ep2d", "ep3d", "bold", "diff"]):
-        return "EP"
-    
-    # Spin Echo sequences (including TSE, HASTE)
-    if any(term in protocol_lower or term in sequence_lower 
-           for term in ["tse", "haste", "space", "flair", "t2"]):
-        return "SE"
-    
-    # Inversion Recovery sequences
-    if any(term in protocol_lower or term in sequence_lower 
-           for term in ["ir", "flair", "mprage", "mp2rage", "tfl"]):
-        return "IR"
-    
-    # Unknown
-    return None
+    # If ucInversion == 2, this sequence uses inversion recovery
+    if ucInversion == 2:
+        return [base_sequence, "IR"]
+    else:
+        return base_sequence
 
 
 def _detect_scan_options(pro_data: Dict[str, Any]) -> list:
@@ -363,8 +648,13 @@ def _detect_image_type(pro_data: Dict[str, Any]) -> list:
     # Angiography characteristics
     tof_inflow = extract_nested_value(pro_data, "sAngio.ucTOFInflow") or 1
     pc_flow = extract_nested_value(pro_data, "sAngio.ucPCFlowMode") or 1
-    if tof_inflow > 1 or pc_flow > 1:
+    if tof_inflow > 4 or pc_flow > 2:
         image_type.append("ANGIO")
+    
+    # Distortion correction
+    distortion_corr = extract_nested_value(pro_data, "sDistortionCorrFilter.ucMode")
+    if distortion_corr and distortion_corr > 1:  # > 1 = enabled
+        image_type.append("DIS2D")
     
     return image_type
 
@@ -517,13 +807,12 @@ PRO_TO_DICOM_MAPPING = {
     "tSequenceFileName": "SequenceName", 
     "SeriesDescription": "SeriesDescription",
     
-    # Manufacturer info
-    "sProtConsistencyInfo.tSystemType": "ManufacturerModelName",
+    # Manufacturer info - ManufacturerModelName removed (only contains internal code "142")
     
     # Basic timing parameters (convert from microseconds)
-    "alTR": ("RepetitionTime", lambda x: [t/1000.0 for t in x] if isinstance(x, list) else x/1000.0),  # μs → ms
-    "alTI": ("InversionTime", lambda x: [t/1000000.0 for t in x] if isinstance(x, list) else x/1000000.0),  # μs → s  
-    "alTE": ("EchoTime", lambda x: [t/1000.0 for t in x] if isinstance(x, list) else x/1000.0),  # μs → ms
+    "alTR": ("RepetitionTime", lambda x: ([t/1000.0 for t in x] if len(x) > 1 else x[0]/1000.0) if isinstance(x, list) else x/1000.0),  # μs → ms
+    # alTI mapping removed - handled specially in calculate_other_dicom_fields to respect IR sequences only  
+    # alTE mapping removed - handled specially in calculate_other_dicom_fields to respect lContrasts
     
     # Averaging
     "lAverages": "NumberOfAverages",
@@ -542,12 +831,11 @@ PRO_TO_DICOM_MAPPING = {
     "sPat.ucPATMode": ("ParallelAcquisitionTechnique", lambda x: "GRAPPA" if x == 2 else "SENSE" if x == 1 else None),
     "sSliceAcceleration.lMultiBandFactor": "MultibandFactor",
     
-    # Bandwidth  
-    "sRXSPEC.alDwellTime.0": ("PixelBandwidth", lambda x: 1000000.0 / x if x > 0 else None),
+    # Bandwidth - PixelBandwidth calculated separately with proper formula
     # BandwidthPerPixelPhaseEncode calculated separately from dwell time and phase encoding steps
     
     # Phase encoding direction
-    "sKSpace.lPhaseEncodingType": ("InPlanePhaseEncodingDirection", lambda x: "ROW" if x == 1 else "COL"),
+    "sSpecPara.lPhaseEncodingType": ("InPlanePhaseEncodingDirection", lambda x: "ROW" if x == 1 else "COL"),
     
     # Scanner hardware - only real DICOM fields
     "sProtConsistencyInfo.flNominalB0": "MagneticFieldStrength",
@@ -567,7 +855,7 @@ PRO_TO_DICOM_MAPPING = {
     
     # Sequence options and flags
     "sAngio.ucTOFInflow": ("TimeOfFlightContrast", lambda x: "YES" if x > 1 else "NO"),
-    "sAngio.ucPCFlowMode": ("AngioFlag", lambda x: "Y" if x > 1 else "N"),
+    "sAngio.ucPCFlowMode": ("AngioFlag", lambda x: "Y" if x > 2 else "N"),
     
     # Triggering/Gating
     "sPhysioImaging.sPhysioECG.lTriggerPulses": ("TriggerSourceOrType", lambda x: "ECG" if x > 0 else None),
@@ -662,6 +950,27 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
     Add default values for DICOM fields that are expected but might not be mappable from .pro files.
     Calculate composite fields from .pro data where possible.
     """
+    # Handle EchoTime array with lContrasts limiting
+    echo_times_raw = extract_nested_value(pro_data, "alTE")
+    contrasts = extract_nested_value(pro_data, "lContrasts")
+    
+    if echo_times_raw is not None:
+        # Convert from microseconds to milliseconds
+        if isinstance(echo_times_raw, list):
+            echo_times_ms = [t/1000.0 for t in echo_times_raw]
+            # Limit to lContrasts if available
+            if contrasts is not None and contrasts > 0:
+                echo_times_ms = echo_times_ms[:contrasts]
+            # Return single value if only one, array if multiple
+            if len(echo_times_ms) == 1:
+                dicom_data["EchoTime"] = echo_times_ms[0]
+            else:
+                dicom_data["EchoTime"] = echo_times_ms
+        else:
+            # Single echo time
+            dicom_data["EchoTime"] = echo_times_raw / 1000.0
+    
+    
     # Default values for Siemens .pro files
     defaults = {
         "Manufacturer": "Siemens",
@@ -671,13 +980,8 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
         if field not in dicom_data:
             dicom_data[field] = default_value
     
-    # Calculate ImagePositionPatient from position components
-    pos_sag = extract_nested_value(pro_data, "sSliceArray.asSlice.0.sPosition.dSag")
-    pos_cor = extract_nested_value(pro_data, "sSliceArray.asSlice.0.sPosition.dCor") 
-    pos_tra = extract_nested_value(pro_data, "sSliceArray.asSlice.0.sPosition.dTra")
-    
-    if all(v is not None for v in [pos_sag, pos_cor, pos_tra]):
-        dicom_data["ImagePositionPatient"] = [pos_sag, pos_cor, pos_tra]
+    # ImagePositionPatient removed - represents actual patient positioning at scan time,
+    # not predictable from protocol file alone
     
     # Calculate ImageOrientationPatient from normal vector components
     # Note: DICOM ImageOrientationPatient needs 6 values (row direction + column direction)
@@ -712,14 +1016,31 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
             # 2D sequence - use slice array size
             dicom_data["Slices"] = slice_array_size
     
-    # NumberOfPhaseEncodingSteps typically equals Columns
+    # NumberOfPhaseEncodingSteps = Columns adjusted for partial Fourier
     if cols and "NumberOfPhaseEncodingSteps" not in dicom_data:
-        dicom_data["NumberOfPhaseEncodingSteps"] = cols
+        # Get partial Fourier factor for phase encoding direction
+        pf_phase_code = extract_nested_value(pro_data, "sKSpace.ucPhasePartialFourier") or 16
+        pf_phase_fraction = _decode_partial_fourier(pf_phase_code)
+        
+        # Calculate actual number of phase encoding steps acquired
+        # This is the k-space lines actually sampled (after partial Fourier, before parallel imaging)
+        # Use traditional rounding (0.5 rounds up) to match DICOM behavior
+        import math
+        actual_pe_steps = int(math.floor(cols * pf_phase_fraction + 0.5))
+        dicom_data["NumberOfPhaseEncodingSteps"] = actual_pe_steps
         
     # AcquisitionMatrix format: [freq_rows, freq_cols, phase_rows, phase_cols]
-    # For Siemens, typically frequency is in read direction, phase in phase-encode direction
+    # Construct based on actual phase encoding direction
     if rows and cols and "AcquisitionMatrix" not in dicom_data:
-        dicom_data["AcquisitionMatrix"] = [rows, 0, 0, cols]  # Standard format
+        # Get phase encoding direction to determine correct matrix format
+        phase_encoding_direction = dicom_data.get("InPlanePhaseEncodingDirection")
+        
+        if phase_encoding_direction == "ROW":
+            # Phase encoding in row direction, frequency in column direction
+            dicom_data["AcquisitionMatrix"] = [0, rows, cols, 0]
+        else:
+            # Phase encoding in column direction (or unknown), frequency in row direction  
+            dicom_data["AcquisitionMatrix"] = [rows, 0, 0, cols]
         
     # Calculate PixelSpacing if FOV data is available 
     fov_read = extract_nested_value(pro_data, "sSliceArray.asSlice.0.dReadoutFOV")
@@ -730,20 +1051,33 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
         pixel_spacing_phase = fov_phase / cols
         dicom_data["PixelSpacing"] = [pixel_spacing_read, pixel_spacing_phase]
         
-    # Calculate PercentPhaseFieldOfView with oversampling consideration
-    phase_res = extract_nested_value(pro_data, "sKSpace.dPhaseResolution")
-    remove_oversample = extract_nested_value(pro_data, "sSpecPara.ucRemoveOversampling")
-    readout_os = extract_nested_value(pro_data, "sSpecPara.dReadoutOS") or 1.0
-    
-    if phase_res and "PercentPhaseFieldOfView" not in dicom_data:
-        percent_phase_fov = phase_res * 100.0
-        # Adjust for oversampling if applicable
-        if remove_oversample and readout_os > 1.0:
-            percent_phase_fov = percent_phase_fov / readout_os
+    # Calculate PercentPhaseFieldOfView using correct FOV ratio formula
+    if fov_phase and fov_read and "PercentPhaseFieldOfView" not in dicom_data:
+        # PercentPhaseFieldOfView = (Phase FOV / Readout FOV) * 100
+        percent_phase_fov = (fov_phase / fov_read) * 100.0
         dicom_data["PercentPhaseFieldOfView"] = percent_phase_fov
         
-    # Calculate BandwidthPerPixelPhaseEncode from dwell time and phase encoding steps
+    # Calculate PixelBandwidth using correct formula: 1 / (dwell_time * N_FE_effective)
     dwell_time = extract_nested_value(pro_data, "sRXSPEC.alDwellTime.0")  # in nanoseconds
+    if dwell_time and "PixelBandwidth" not in dicom_data:
+        # Get frequency encoding matrix size (typically rows = base resolution)
+        frequency_encoding_pixels = rows or extract_nested_value(pro_data, "sKSpace.lBaseResolution")
+        
+        if frequency_encoding_pixels:
+            # Check for readout oversampling
+            remove_oversample = extract_nested_value(pro_data, "sSpecPara.ucRemoveOversampling")
+            oversampling_factor = 2.0 if remove_oversample else 1.0
+            
+            # Calculate effective frequency encoding pixels
+            effective_fe_pixels = frequency_encoding_pixels * oversampling_factor
+            
+            # Convert dwell time from nanoseconds to seconds
+            dwell_time_sec = dwell_time * 1e-9
+            
+            # Calculate pixel bandwidth: PixelBW = 1 / (dwell_time * N_FE_effective)
+            dicom_data["PixelBandwidth"] = 1.0 / (dwell_time_sec * effective_fe_pixels)
+    
+    # Calculate BandwidthPerPixelPhaseEncode from dwell time and phase encoding steps
     phase_steps = dicom_data.get("NumberOfPhaseEncodingSteps") or cols
     
     if dwell_time and phase_steps and "BandwidthPerPixelPhaseEncode" not in dicom_data:
@@ -824,40 +1158,34 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
         milliseconds = acq_time % 1000
         dicom_data["AcquisitionTime"] = f"{hours:02d}{minutes:02d}{seconds:02d}.{milliseconds:03d}000"
         
-    # Calculate PercentSampling as fraction of k-space lines acquired
+    # Calculate PercentSampling following Siemens DICOM convention
     if "PercentSampling" not in dicom_data:
-        # Get parallel imaging acceleration factor
-        accel_factor_pe = extract_nested_value(pro_data, "sPat.lAccelFactPE") or 1
-        accel_factor_3d = extract_nested_value(pro_data, "sPat.lAccelFact3D") or 1
+        # Siemens convention: PercentSampling = 100% for successful scan completion
+        # Acceleration factors are encoded in separate DICOM fields
+        dicom_data["PercentSampling"] = 100.0
         
-        # Get partial Fourier factor (already calculated by _decode_partial_fourier)
-        pf_phase_code = extract_nested_value(pro_data, "sKSpace.ucPhasePartialFourier") or 16
-        pf_readout_code = extract_nested_value(pro_data, "sKSpace.ucReadoutPartialFourier") or 16
-        
-        # Calculate partial Fourier fractions
-        pf_phase_fraction = _decode_partial_fourier(pf_phase_code)
-        pf_readout_fraction = _decode_partial_fourier(pf_readout_code)
-        
-        # Calculate percentage of k-space lines actually acquired
-        # Start with 100% and apply reduction factors
-        percent_sampling = 100.0
-        
-        # Apply parallel imaging reduction (PE direction)
-        if accel_factor_pe > 1:
-            percent_sampling = percent_sampling / accel_factor_pe
-            
-        # Apply 3D acceleration if present
-        if accel_factor_3d > 1:
-            percent_sampling = percent_sampling / accel_factor_3d
-            
-        # Apply partial Fourier reductions
-        if pf_phase_fraction < 1.0:
-            percent_sampling = percent_sampling * pf_phase_fraction
-            
-        if pf_readout_fraction < 1.0:
-            percent_sampling = percent_sampling * pf_readout_fraction
-            
-        dicom_data["PercentSampling"] = round(percent_sampling, 3)
+        # Alternative calculation (physical k-space coverage):
+        # This would give the actual fraction of full k-space sampled:
+        #
+        # accel_factor_pe = extract_nested_value(pro_data, "sPat.lAccelFactPE") or 1
+        # accel_factor_3d = extract_nested_value(pro_data, "sPat.lAccelFact3D") or 1
+        # pf_phase_code = extract_nested_value(pro_data, "sKSpace.ucPhasePartialFourier") or 16
+        # pf_readout_code = extract_nested_value(pro_data, "sKSpace.ucReadoutPartialFourier") or 16
+        # pf_phase_fraction = _decode_partial_fourier(pf_phase_code)
+        # pf_readout_fraction = _decode_partial_fourier(pf_readout_code)
+        #
+        # percent_sampling = 100.0
+        # if accel_factor_pe > 1:
+        #     percent_sampling = percent_sampling / accel_factor_pe
+        # if accel_factor_3d > 1:
+        #     percent_sampling = percent_sampling / accel_factor_3d
+        # if pf_phase_fraction < 1.0:
+        #     percent_sampling = percent_sampling * pf_phase_fraction
+        # if pf_readout_fraction < 1.0:
+        #     percent_sampling = percent_sampling * pf_readout_fraction
+        # dicom_data["PercentSampling"] = round(percent_sampling, 3)
+        #
+        # Example: GRAPPA R=2 + 6/8 PF would give 37.5% physical coverage
         
     # Calculate PartialFourier and PartialFourierDirection
     if "PartialFourier" not in dicom_data:
@@ -892,6 +1220,33 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
     if "ScanningSequence" not in dicom_data:
         scanning_sequence = _decode_sequence_type(pro_data)
         dicom_data["ScanningSequence"] = scanning_sequence
+        
+    # Handle InversionTime - only extract for sequences that use inversion recovery
+    # Check if ScanningSequence contains IR
+    if "InversionTime" not in dicom_data:
+        scanning_sequence = dicom_data.get("ScanningSequence")
+        uses_inversion = False
+        
+        if isinstance(scanning_sequence, list):
+            uses_inversion = "IR" in scanning_sequence
+        elif isinstance(scanning_sequence, str):
+            uses_inversion = scanning_sequence == "IR"
+        
+        if uses_inversion:
+            inversion_times_raw = extract_nested_value(pro_data, "alTI")
+            if inversion_times_raw is not None:
+                # Convert from microseconds to seconds
+                if isinstance(inversion_times_raw, list):
+                    inversion_times_s = [t/1000000.0 for t in inversion_times_raw if t != 0]
+                    # Return single value if only one, array if multiple
+                    if len(inversion_times_s) == 1:
+                        dicom_data["InversionTime"] = inversion_times_s[0]
+                    elif len(inversion_times_s) > 1:
+                        dicom_data["InversionTime"] = inversion_times_s
+                else:
+                    # Single inversion time, only if non-zero
+                    if inversion_times_raw != 0:
+                        dicom_data["InversionTime"] = inversion_times_raw / 1000000.0
         
     # Generate ImageType
     if "ImageType" not in dicom_data:
@@ -936,6 +1291,7 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
         segments = extract_nested_value(pro_data, "sFastImaging.lSegments") or 1
         sequence_type = extract_nested_value(pro_data, "ucSequenceType") or 1
         echo_times = extract_nested_value(pro_data, "alTE") or []
+        contrasts = extract_nested_value(pro_data, "lContrasts")
         
         if turbo_factor > 1:
             # TSE/FSE sequence - use turbo factor
@@ -944,8 +1300,11 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
         elif epi_factor > 1:
             # EPI sequence - use EPI factor
             echo_train_length = epi_factor
+        elif contrasts and contrasts > 1:
+            # Multi-echo sequence - use actual number of contrasts (preferred over alTE length)
+            echo_train_length = contrasts
         elif isinstance(echo_times, list) and len(echo_times) > 1:
-            # Multi-echo sequence (GRE, etc.) - number of echoes equals echo train length
+            # Multi-echo sequence (fallback) - use number of echo times defined
             echo_train_length = len(echo_times)
         else:
             # Standard single-echo sequences - 1 line per excitation
