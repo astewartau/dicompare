@@ -586,22 +586,22 @@ def test_assign_acquisition_and_run_numbers_series_with_nans():
     """Test series grouping handles NaN values correctly."""
     data = {
         "ProtocolName": ["fMRI", "fMRI", "fMRI", "fMRI"],
-        "SeriesDescription": ["BOLD", "BOLD", "BOLD", "BOLD"],
+        "SeriesDescription": ["BOLD_task1", "BOLD_task1", "BOLD_task2", "BOLD_task2"],
         "ImageType": [("ORIGINAL", "PRIMARY")] * 4,
         "SeriesTime": ["120000"] * 4,
         "PatientName": ["Patient1"] * 4,
         "PatientID": ["ID1"] * 4,
         "StudyDate": ["20210101"] * 4,
         "EchoTime": [30.0, 30.0, None, None],  # Some NaN values
-        "FlipAngle": [90, 45, 90, 45],  # This varies and should drive series creation
+        "FlipAngle": [90, 45, 90, 45],  # FlipAngle varies within acquisition (like MPRAGE)
     }
     df = pd.DataFrame(data)
     
     df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
     
-    # Should create series based on FlipAngle variation
+    # Should create separate series based on SeriesDescription differences
     unique_series = df_out["Series"].unique()
-    assert len(unique_series) == 2  # Two different flip angles
+    assert len(unique_series) == 2  # Two different SeriesDescription values
 
 
 def test_assign_acquisition_and_run_numbers_backward_compatibility():
