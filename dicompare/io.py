@@ -484,41 +484,71 @@ def load_nifti_session(
 
     for nifti_path in nifti_files:
         nifti_data = nib.load(nifti_path)
-        nifti_values = {
-            "NIfTI_Path": nifti_path,
-            "NIfTI_Shape": nifti_data.shape,
-            "NIfTI_Affine": nifti_data.affine,
-            "NIfTI_Header": nifti_data.header,
-        }
-        session_data.append(nifti_values)
+        shape = nifti_data.shape
+        
+        # Check if this is a 4D volume
+        is_4d = len(shape) == 4 and shape[3] > 1
+        num_volumes = shape[3] if is_4d else 1
+        
+        # Create a row for each 3D volume in the 4D data
+        for vol_idx in range(num_volumes):
+            nifti_values = {
+                "NIfTI_Path": nifti_path,
+                "NIfTI_Shape": shape,
+                "NIfTI_Affine": nifti_data.affine,
+                "NIfTI_Header": nifti_data.header,
+            }
+            
+            # Add volume index for 4D data
+            if is_4d:
+                nifti_values["Volume_Index"] = vol_idx
+                # Modify displayed path to show volume index
+                display_path = nifti_path + f"[{vol_idx}]"
+                nifti_values["NIfTI_Path_Display"] = display_path
+            else:
+                nifti_values["Volume_Index"] = None
+                nifti_values["NIfTI_Path_Display"] = nifti_path
 
-        # extract BIDS tags from filename
-        bids_tags = os.path.splitext(os.path.basename(nifti_path))[0].split("_")
-        for tag in bids_tags:
-            key_val = tag.split("-")
-            if len(key_val) == 2:
-                key, val = key_val
-                nifti_values[key] = val
+            # extract BIDS tags from filename
+            bids_tags = os.path.splitext(os.path.basename(nifti_path))[0].split("_")
+            for tag in bids_tags:
+                key_val = tag.split("-")
+                if len(key_val) == 2:
+                    key, val = key_val
+                    nifti_values[key] = val
 
-        # extract suffix
-        if len(bids_tags) > 1:
-            nifti_values["suffix"] = bids_tags[-1]
+            # extract suffix
+            if len(bids_tags) > 1:
+                nifti_values["suffix"] = bids_tags[-1]
 
-        # if corresponding json file exists
-        json_path = nifti_path.replace(".nii.gz", ".nii").replace(".nii", ".json")
-        if os.path.exists(json_path):
-            with open(json_path, "r") as f:
-                json_data = json.load(f)
-            nifti_values["JSON_Path"] = json_path
-            nifti_values.update(json_data)
+            # if corresponding json file exists
+            json_path = nifti_path.replace(".nii.gz", ".nii").replace(".nii", ".json")
+            if os.path.exists(json_path):
+                with open(json_path, "r") as f:
+                    json_data = json.load(f)
+                nifti_values["JSON_Path"] = json_path
+                nifti_values.update(json_data)
+                
+            session_data.append(nifti_values)
 
     session_df = pd.DataFrame(session_data)
     session_df = make_dataframe_hashable(session_df)
 
     if acquisition_fields:
-        session_df = session_df.groupby(acquisition_fields).apply(
-            lambda x: x.reset_index(drop=True)
-        )
+        # Filter acquisition_fields to only include columns that exist in the DataFrame
+        available_fields = [field for field in acquisition_fields if field in session_df.columns]
+        
+        # If none of the specified fields exist, try fallback fields
+        if not available_fields:
+            # Try 'acq' as a fallback if it exists
+            if 'acq' in session_df.columns:
+                available_fields = ['acq']
+        
+        # Only group if we have fields to group by
+        if available_fields:
+            session_df = session_df.groupby(available_fields).apply(
+                lambda x: x.reset_index(drop=True)
+            )
 
     return session_df
 
