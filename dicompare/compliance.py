@@ -46,12 +46,14 @@ def check_session_compliance_with_json_schema(
             expected_value = fdef.get("value")
             tolerance = fdef.get("tolerance")
             contains = fdef.get("contains")
+            contains_any = fdef.get("contains_any")
+            contains_all = fdef.get("contains_all")
 
             if field not in in_acq.columns:
                 print(f"DEBUG compliance.py: Field '{field}' not found, creating NA record")
                 compliance_summary.append(create_compliance_record(
                     schema_acq_name, in_acq_name, None, field,
-                    expected_value, tolerance, contains, None,
+                    expected_value, tolerance, contains, contains_any, contains_all, None,
                     "Field not found in input session.", False,
                     status=ComplianceStatus.NA
                 ))
@@ -61,12 +63,12 @@ def check_session_compliance_with_json_schema(
             
             # Use validation helper to check field values
             passed, invalid_values, message = validate_field_values(
-                field, actual_values, expected_value, tolerance, contains
+                field, actual_values, expected_value, tolerance, contains, contains_any, contains_all
             )
             
             compliance_summary.append(create_compliance_record(
                 schema_acq_name, in_acq_name, None, field,
-                expected_value, tolerance, contains, actual_values,
+                expected_value, tolerance, contains, contains_any, contains_all, actual_values,
                 message, passed
             ))
 
@@ -92,6 +94,8 @@ def check_session_compliance_with_json_schema(
             e_val = fdef.get("value")
             tol = fdef.get("tolerance")
             ctn = fdef.get("contains")
+            ctn_any = fdef.get("contains_any")
+            ctn_all = fdef.get("contains_all")
 
             print(f"      Processing field '{field}' with expected value: {e_val}")
 
@@ -99,7 +103,7 @@ def check_session_compliance_with_json_schema(
                 print(f"      ERROR: Field '{field}' not found in columns")
                 compliance_summary.append(create_compliance_record(
                     schema_acq_name, in_acq_name, schema_series_name, field,
-                    e_val, tol, ctn, None,
+                    e_val, tol, ctn, ctn_any, ctn_all, None,
                     f"Field '{field}' not found in input for series '{schema_series_name}'.", False,
                     status=ComplianceStatus.NA
                 ))
@@ -110,7 +114,7 @@ def check_session_compliance_with_json_schema(
             print(f"      Rows before filtering: {len(matching_df)}")
             
             # Filter rows that match this constraint
-            matches = matching_df[field].apply(lambda x: validate_constraint(x, e_val, tol, ctn))
+            matches = matching_df[field].apply(lambda x: validate_constraint(x, e_val, tol, ctn, ctn_any, ctn_all))
             print(f"      Matching constraint validation: {matches.sum()} of {len(matches)} rows match")
             
             matching_df = matching_df[matches]
@@ -144,16 +148,18 @@ def check_session_compliance_with_json_schema(
             e_val = fdef.get("value")
             tol = fdef.get("tolerance")
             ctn = fdef.get("contains")
+            ctn_any = fdef.get("contains_any")
+            ctn_all = fdef.get("contains_all")
 
             values = matching_df[field].unique().tolist()
             actual_values_agg[field] = values
 
             # Format constraint description
-            constraints_agg[field] = format_constraint_description(e_val, tol, ctn)
+            constraints_agg[field] = format_constraint_description(e_val, tol, ctn, ctn_any, ctn_all)
 
             # Validate field values
             passed, invalid_values, message = validate_field_values(
-                field, values, e_val, tol, ctn
+                field, values, e_val, tol, ctn, ctn_any, ctn_all
             )
             
             if not passed:
@@ -388,11 +394,13 @@ def check_session_compliance(
             expected_value = fdef.get("value")
             tolerance = fdef.get("tolerance")
             contains = fdef.get("contains")
+            contains_any = fdef.get("contains_any")
+            contains_all = fdef.get("contains_all")
             
             if field not in in_acq.columns:
                 field_results.append(create_compliance_record(
                     schema_acq_name, in_acq_name, series_name, field,
-                    expected_value, tolerance, contains, None,
+                    expected_value, tolerance, contains, contains_any, contains_all, None,
                     "Field not found in input session.", False,
                     status=ComplianceStatus.NA
                 ))
@@ -402,12 +410,12 @@ def check_session_compliance(
             
             # Use validation helper to check field values
             passed, invalid_values, message = validate_field_values(
-                field, actual_values, expected_value, tolerance, contains
+                field, actual_values, expected_value, tolerance, contains, contains_any, contains_all
             )
             
             field_results.append(create_compliance_record(
                 schema_acq_name, in_acq_name, series_name, field,
-                expected_value, tolerance, contains, actual_values,
+                expected_value, tolerance, contains, contains_any, contains_all, actual_values,
                 message, passed
             ))
         
@@ -460,11 +468,14 @@ def check_session_compliance(
                     expected = fdef.get("value")
                     tolerance = fdef.get("tolerance")
                     contains = fdef.get("contains")
+                    contains_any = fdef.get("contains_any")
+                    contains_all = fdef.get("contains_all")
                     
-                    if field in matching_df.columns and expected is not None:
+                    if field in matching_df.columns and (expected is not None or contains is not None or 
+                                                        contains_any is not None or contains_all is not None):
                         # Filter rows that match this field's constraint
                         mask = matching_df[field].apply(
-                            lambda x: validate_constraint(x, expected, tolerance, contains)
+                            lambda x: validate_constraint(x, expected, tolerance, contains, contains_any, contains_all)
                         )
                         matching_df = matching_df[mask]
                 
@@ -493,9 +504,9 @@ def check_session_compliance(
                     
                     compliance_summary.append(create_compliance_record(
                         schema_acq_name, in_acq_name, series_name, field_list,
-                        None, None, None,
-                        None, f"No matching series found for '{series_name}' ({constraint_desc}).", False,
-                        status=ComplianceStatus.NA
+                        None, None, None, None, None, None,
+                        f"No matching series found for '{series_name}' ({constraint_desc}).", False,
+                        status=ComplianceStatus.ERROR
                     ))
         
         # 3. Check rule-based compliance if models are available

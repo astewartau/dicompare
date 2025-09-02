@@ -133,11 +133,59 @@ def check_contains(actual: Any, substring: str) -> bool:
     return False
 
 
+def check_contains_any(actual: Any, constraint_list: List[str]) -> bool:
+    """
+    Check if actual contains any of the specified substrings (for strings) or elements (for lists).
+    
+    For string fields: Case-insensitive substring matching
+    For list fields: Exact element matching
+    
+    Args:
+        actual: Value to search in (string or list)
+        constraint_list: List of substrings/elements to search for
+        
+    Returns:
+        True if any constraint is satisfied, False otherwise
+    """
+    if isinstance(actual, (list, tuple)):
+        # For lists: check if any constraint element is present in the actual list
+        actual_normalized = [normalize_value(x) for x in actual]
+        constraint_normalized = [normalize_value(x) for x in constraint_list]
+        return any(constraint_item in actual_normalized for constraint_item in constraint_normalized)
+    elif isinstance(actual, str) or (hasattr(actual, "strip") and callable(actual.strip)):
+        # For strings: check if any constraint substring is contained in the actual string
+        actual_norm = normalize_value(actual)
+        return any(normalize_value(substring) in actual_norm for substring in constraint_list)
+    return False
+
+
+def check_contains_all(actual: Any, constraint_list: List[str]) -> bool:
+    """
+    Check if actual contains all of the specified elements (for lists only).
+    
+    Args:
+        actual: List value to search in
+        constraint_list: List of elements that must all be present
+        
+    Returns:
+        True if all constraints are satisfied, False otherwise
+    """
+    if isinstance(actual, (list, tuple)):
+        # For lists: check if all constraint elements are present in the actual list
+        actual_normalized = [normalize_value(x) for x in actual]
+        constraint_normalized = [normalize_value(x) for x in constraint_list]
+        return all(constraint_item in actual_normalized for constraint_item in constraint_normalized)
+    # contains_all is only valid for list data
+    return False
+
+
 def validate_constraint(
     actual_value: Any,
     expected_value: Any = None,
     tolerance: float = None,
-    contains: str = None
+    contains: str = None,
+    contains_any: List[str] = None,
+    contains_all: List[str] = None
 ) -> bool:
     """
     Core constraint validation function.
@@ -147,11 +195,18 @@ def validate_constraint(
         expected_value: Expected value (if any)
         tolerance: Numeric tolerance (if any)
         contains: Substring that must be contained (if any)
+        contains_any: List of substrings/elements where at least one must match (if any)
+        contains_all: List of elements that must all be present in lists (if any)
         
     Returns:
         True if constraint passes, False otherwise
     """
-    if contains is not None:
+    # Priority order: contains_any, contains_all, contains, tolerance, value
+    if contains_any is not None:
+        return check_contains_any(actual_value, contains_any)
+    elif contains_all is not None:
+        return check_contains_all(actual_value, contains_all)
+    elif contains is not None:
         return check_contains(actual_value, contains)
     elif tolerance is not None:
         if not isinstance(actual_value, (int, float)):
@@ -174,7 +229,9 @@ def validate_field_values(
     actual_values: List[Any],
     expected_value: Any = None,
     tolerance: float = None,
-    contains: str = None
+    contains: str = None,
+    contains_any: List[str] = None,
+    contains_all: List[str] = None
 ) -> Tuple[bool, List[Any], str]:
     """
     Validate all values for a field against constraints.
@@ -185,13 +242,30 @@ def validate_field_values(
         expected_value: Expected value constraint
         tolerance: Numeric tolerance constraint
         contains: Substring constraint
+        contains_any: List of substrings/elements where at least one must match
+        contains_all: List of elements that must all be present in lists
         
     Returns:
         Tuple of (all_passed, invalid_values, error_message)
     """
     invalid_values = []
     
-    if contains is not None:
+    # Priority order: contains_any, contains_all, contains, tolerance, value
+    if contains_any is not None:
+        for val in actual_values:
+            if not check_contains_any(val, contains_any):
+                invalid_values.append(val)
+        if invalid_values:
+            return False, invalid_values, f"Expected to contain any of {contains_any}, but got {invalid_values}"
+    
+    elif contains_all is not None:
+        for val in actual_values:
+            if not check_contains_all(val, contains_all):
+                invalid_values.append(val)
+        if invalid_values:
+            return False, invalid_values, f"Expected to contain all of {contains_all}, but got {invalid_values}"
+    
+    elif contains is not None:
         for val in actual_values:
             if not check_contains(val, contains):
                 invalid_values.append(val)
@@ -212,11 +286,15 @@ def validate_field_values(
             return False, invalid_values, f"Expected {expected_value} ±{tolerance}, but got {invalid_values}"
     
     elif isinstance(expected_value, list):
-        for val in actual_values:
-            if not validate_constraint(val, expected_value):
-                invalid_values.append(val)
-        if invalid_values:
-            return False, invalid_values, f"Expected list-based match, got {invalid_values}"
+        # Handle special case where actual_values contains a single list/tuple (from make_hashable)
+        # that should be compared directly against expected_value
+        if len(actual_values) == 1 and isinstance(actual_values[0], (list, tuple)):
+            if not validate_constraint(actual_values[0], expected_value):
+                return False, actual_values, f"Expected {expected_value}, got {actual_values}"
+        else:
+            # Compare the entire actual_values list against expected_value list
+            if not validate_constraint(actual_values, expected_value):
+                return False, actual_values, f"Expected {expected_value}, got {actual_values}"
     
     elif expected_value is not None:
         for val in actual_values:
@@ -232,7 +310,13 @@ def validate_field_values(
     return True, [], "Passed."
 
 
-def format_constraint_description(expected_value: Any = None, tolerance: float = None, contains: str = None) -> str:
+def format_constraint_description(
+    expected_value: Any = None, 
+    tolerance: float = None, 
+    contains: str = None,
+    contains_any: List[str] = None,
+    contains_all: List[str] = None
+) -> str:
     """
     Format a human-readable description of constraints.
     
@@ -240,11 +324,18 @@ def format_constraint_description(expected_value: Any = None, tolerance: float =
         expected_value: Expected value constraint
         tolerance: Numeric tolerance constraint  
         contains: Substring constraint
+        contains_any: List of substrings/elements where at least one must match
+        contains_all: List of elements that must all be present in lists
         
     Returns:
         Formatted constraint description
     """
-    if contains is not None:
+    # Priority order: contains_any, contains_all, contains, tolerance, value
+    if contains_any is not None:
+        return f"contains_any={contains_any}"
+    elif contains_all is not None:
+        return f"contains_all={contains_all}"
+    elif contains is not None:
         return f"contains='{contains}'"
     elif tolerance is not None:
         return f"value={expected_value} ± {tolerance}"
@@ -264,6 +355,8 @@ def create_compliance_record(
     expected_value: Any = None,
     tolerance: float = None,
     contains: str = None,
+    contains_any: List[str] = None,
+    contains_all: List[str] = None,
     actual_values: List[Any] = None,
     message: str = "",
     passed: bool = True,
@@ -280,6 +373,8 @@ def create_compliance_record(
         expected_value: Expected value constraint
         tolerance: Numeric tolerance constraint
         contains: Substring constraint
+        contains_any: List of substrings/elements where at least one must match
+        contains_all: List of elements that must all be present in lists
         actual_values: List of actual values found
         message: Validation message
         passed: Whether validation passed
@@ -288,10 +383,11 @@ def create_compliance_record(
     Returns:
         Compliance record dictionary
     """
-    if expected_value is not None or tolerance is not None or contains is not None:
-        expected_desc = format_constraint_description(expected_value, tolerance, contains)
+    if (expected_value is not None or tolerance is not None or contains is not None or 
+        contains_any is not None or contains_all is not None):
+        expected_desc = format_constraint_description(expected_value, tolerance, contains, contains_any, contains_all)
     else:
-        expected_desc = f"(value={expected_value}, tolerance={tolerance}, contains={contains})"
+        expected_desc = f"(value={expected_value}, tolerance={tolerance}, contains={contains}, contains_any={contains_any}, contains_all={contains_all})"
     
     # Determine status if not explicitly provided
     if status is None:

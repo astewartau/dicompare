@@ -616,3 +616,322 @@ def test_json_compliance_empty_input_session():
     # Should handle empty session gracefully and report field not found
     assert isinstance(compliance, list)
     assert any("Field not found in input session" in r.get("message", "") for r in compliance)
+
+
+# -------------------- New Enhanced Constraint Tests --------------------
+
+def test_json_compliance_contains_any_string():
+    """Test contains_any constraint for string fields."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1", "acq1"],
+        "ProtocolName": ["3D_T1_MPRAGE_sequence", "T1w_anatomical", "MPRAGE_sagittal"],  # All contain T1 or MPRAGE
+        "SeriesDescription": ["func_task_bold", "task_rest_bold", "func_working_memory"]  # All contain func or task
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ProtocolName", "contains_any": ["T1", "MPRAGE"]},
+                    {"field": "SeriesDescription", "contains_any": ["func", "task"]}
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    
+    # Both constraints should pass (all values contain at least one required substring)
+    protocol_result = [r for r in compliance if r["field"] == "ProtocolName"][0]
+    series_result = [r for r in compliance if r["field"] == "SeriesDescription"][0]
+    
+    assert protocol_result["passed"], f"ProtocolName should pass: {protocol_result['message']}"
+    assert series_result["passed"], f"SeriesDescription should pass: {series_result['message']}"
+
+
+def test_json_compliance_contains_any_string_failure():
+    """Test contains_any constraint failure for string fields."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1"],
+        "ProtocolName": ["DWI_b1000_64dir"]  # Contains none of the required substrings
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ProtocolName", "contains_any": ["T1", "T2", "BOLD"]}
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    
+    protocol_result = [r for r in compliance if r["field"] == "ProtocolName"][0]
+    assert not protocol_result["passed"]
+    assert "contain any of" in protocol_result["message"]
+
+
+def test_json_compliance_contains_any_list():
+    """Test contains_any constraint for list fields."""
+    from dicompare.utils import make_hashable
+    
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1"],
+        "ImageType": [["ORIGINAL", "PRIMARY", "M"], ["ORIGINAL", "SECONDARY", "CSA"]]  # Both contain ORIGINAL
+    })
+    
+    # Apply make_hashable to simulate real processing
+    for col in in_session.columns:
+        in_session[col] = in_session[col].apply(make_hashable)
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ImageType", "contains_any": ["ORIGINAL", "PRIMARY"]}
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    
+    # Should pass because both rows contain ORIGINAL
+    image_type_result = [r for r in compliance if r["field"] == "ImageType"][0]
+    assert image_type_result["passed"], f"ImageType should pass: {image_type_result['message']}"
+
+
+def test_json_compliance_contains_any_list_failure():
+    """Test contains_any constraint failure for list fields."""
+    from dicompare.utils import make_hashable
+    
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1"],
+        "ImageType": [["DERIVED", "SECONDARY", "CSA"]]  # Contains neither required element
+    })
+    
+    # Apply make_hashable to simulate real processing
+    for col in in_session.columns:
+        in_session[col] = in_session[col].apply(make_hashable)
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ImageType", "contains_any": ["ORIGINAL", "PRIMARY"]}
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    
+    image_type_result = [r for r in compliance if r["field"] == "ImageType"][0]
+    assert not image_type_result["passed"]
+    assert "contain any of" in image_type_result["message"]
+
+
+def test_json_compliance_contains_all_list():
+    """Test contains_all constraint for list fields."""
+    from dicompare.utils import make_hashable
+    
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1"],
+        "ImageType": [["ORIGINAL", "PRIMARY", "M", "ND"], ["ORIGINAL", "PRIMARY", "SECONDARY"]]  # Both contain required elements
+    })
+    
+    # Apply make_hashable to simulate real processing
+    for col in in_session.columns:
+        in_session[col] = in_session[col].apply(make_hashable)
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ImageType", "contains_all": ["ORIGINAL", "PRIMARY"]}
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    
+    # Should pass because both rows contain both ORIGINAL and PRIMARY
+    image_type_result = [r for r in compliance if r["field"] == "ImageType"][0]
+    assert image_type_result["passed"], f"ImageType should pass: {image_type_result['message']}"
+
+
+def test_json_compliance_contains_all_list_failure():
+    """Test contains_all constraint failure for list fields."""
+    from dicompare.utils import make_hashable
+    
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1"],
+        "ImageType": [["ORIGINAL", "SECONDARY"], ["PRIMARY", "DERIVED"]]
+    })
+    
+    # Apply make_hashable to simulate real processing
+    for col in in_session.columns:
+        in_session[col] = in_session[col].apply(make_hashable)
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ImageType", "contains_all": ["ORIGINAL", "PRIMARY"]}
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    
+    # Should fail because no single row contains both ORIGINAL and PRIMARY
+    image_type_result = [r for r in compliance if r["field"] == "ImageType"][0]
+    assert not image_type_result["passed"]
+    assert "contain all of" in image_type_result["message"]
+
+
+def test_json_compliance_contains_all_string_invalid():
+    """Test contains_all constraint applied to string fields (should fail gracefully)."""
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1"],
+        "ProtocolName": ["T1_MPRAGE_sequence"]
+    })
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "ProtocolName", "contains_all": ["T1", "MPRAGE"]}
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    
+    # contains_all on strings should fail validation
+    protocol_result = [r for r in compliance if r["field"] == "ProtocolName"][0]
+    assert not protocol_result["passed"]
+
+
+def test_json_compliance_series_contains_any():
+    """Test contains_any constraint in series-level validation."""
+    from dicompare.utils import make_hashable
+    
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1", "acq1"],
+        "ImageType": [["ORIGINAL", "PRIMARY", "M"], ["DERIVED", "SECONDARY"], ["ORIGINAL", "SECONDARY", "ND"]],
+        "SeriesDescription": ["T1w_MPR_original", "T1w_MPR_derived", "T1w_MPR_norm"]
+    })
+    
+    # Apply make_hashable to simulate real processing
+    for col in in_session.columns:
+        in_session[col] = in_session[col].apply(make_hashable)
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "series": [
+                    {
+                        "name": "Original_Images", 
+                        "fields": [
+                            {"field": "ImageType", "contains_any": ["ORIGINAL"]},
+                            {"field": "SeriesDescription", "contains_any": ["original", "norm"]}
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    
+    # Should find matching series and pass validation
+    series_results = [r for r in compliance if r["series"] == "Original_Images"]
+    assert len(series_results) > 0
+    assert all(r["passed"] for r in series_results)
+
+
+def test_constraint_precedence():
+    """Test that constraint precedence works correctly (contains_any > contains_all > contains > tolerance > value)."""
+    from dicompare.utils import make_hashable
+    
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1"],
+        "TestField": [["A", "B", "C"]]
+    })
+    
+    # Apply make_hashable to simulate real processing
+    for col in in_session.columns:
+        in_session[col] = in_session[col].apply(make_hashable)
+    
+    # Test contains_any takes precedence over contains_all
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {
+                        "field": "TestField", 
+                        "contains_any": ["A"], 
+                        "contains_all": ["A", "Z"]  # This would fail, but contains_any should take precedence
+                    }
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    
+    # Should pass because contains_any is checked first and passes
+    test_result = [r for r in compliance if r["field"] == "TestField"][0]
+    assert test_result["passed"]
+    assert "contains_any" in test_result["expected"]
+
+
+def test_backward_compatibility_existing_constraints():
+    """Test that existing constraint types still work unchanged."""
+    from dicompare.utils import make_hashable
+    
+    in_session = pd.DataFrame({
+        "Acquisition": ["acq1", "acq1"],
+        "RepetitionTime": [2000, 2010],
+        "SequenceName": ["*tfl3d1_16ns", "*tfl3d1_16ns"],
+        "ProtocolName": ["T1w_MPRAGE_sag", "T1w_MPRAGE_sag"],
+        "ImageType": [["ORIGINAL", "PRIMARY"], ["ORIGINAL", "PRIMARY"]]
+    })
+    
+    # Apply make_hashable to simulate real processing
+    for col in in_session.columns:
+        in_session[col] = in_session[col].apply(make_hashable)
+    
+    ref_session = {
+        "acquisitions": {
+            "ref1": {
+                "fields": [
+                    {"field": "RepetitionTime", "value": 2000, "tolerance": 20},
+                    {"field": "SequenceName", "value": "*tfl3d1_16ns"},
+                    {"field": "ProtocolName", "contains": "MPRAGE"},
+                    {"field": "ImageType", "value": ["ORIGINAL", "PRIMARY"]}
+                ]
+            }
+        }
+    }
+    
+    session_map = {"ref1": "acq1"}
+    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    
+    # All existing constraint types should pass
+    assert all(r["passed"] for r in compliance), f"Some constraints failed: {[r for r in compliance if not r['passed']]}"
