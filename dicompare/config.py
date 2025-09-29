@@ -70,7 +70,7 @@ DEFAULT_SERIES_FIELDS = [
     "ImageType",
     "EchoTime",
     "DiffusionBValue",
-    "DiffusionGradientDirectionSequence",
+    #"DiffusionGradientDirectionSequence", # Too many unique values - should be handled by validation rules
     "InversionTime"
 ]
 
@@ -137,7 +137,7 @@ DEFAULT_DICOM_FIELDS = [
 
     # Diffusion-specific
     'DiffusionBValue', # MISSING
-    'DiffusionGradientDirectionSequence', # MISSING
+    #'DiffusionGradientDirectionSequence', # MISSING - too many unique values, should be handled by validation rules
 
     # Parallel Imaging / Multiband
     'ParallelAcquisitionTechnique',

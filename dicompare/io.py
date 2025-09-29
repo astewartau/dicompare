@@ -24,7 +24,11 @@ from .validation import BaseValidationModel
 from .config import NONZERO_FIELDS
 from .parallel_utils import process_items_parallel, process_items_sequential
 from .data_utils import make_dataframe_hashable, _process_dicom_metadata, prepare_session_dataframe, _convert_to_plain_python_types
-from .pro_parser import load_pro_file
+try:
+    from .pro_parser import load_pro_file
+except ImportError:
+    def load_pro_file(*args, **kwargs):
+        raise ImportError("twixtools is required for PRO file parsing. Install with: pip install twixtools")
 
 # --- IMPORT FOR CSA header parsing ---
 from nibabel.nicom.csareader import get_csa_header

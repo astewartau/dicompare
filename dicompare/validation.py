@@ -9,6 +9,7 @@ import pandas as pd
 from itertools import chain
 import math
 from .utils import make_hashable
+from .validation_helpers import ComplianceStatus
     
 def get_unique_combinations(data: pd.DataFrame, fields: List[str]) -> pd.DataFrame:
     """
@@ -59,6 +60,25 @@ class ValidationError(Exception):
 
     Attributes:
         message (str): The error message.
+    """
+
+    def __init__(self, message: str=None):
+        self.message = message
+        super().__init__(message)
+
+
+class ValidationWarning(Exception):
+    """
+    Custom exception raised for validation warnings.
+
+    Unlike ValidationError, ValidationWarning indicates issues that should be flagged
+    but don't prevent validation from continuing.
+
+    Args:
+        message (str, optional): The warning message describing the validation issue.
+
+    Attributes:
+        message (str): The warning message.
     """
 
     def __init__(self, message: str=None):
@@ -143,7 +163,7 @@ class BaseValidationModel:
     def validate(
         self,
         data: pd.DataFrame
-    ) -> Tuple[bool, List[Dict[str, Any]], List[Dict[str, Any]]]:
+    ) -> Tuple[bool, List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         Validate the input DataFrame against the registered rules.
 
@@ -156,8 +176,8 @@ class BaseValidationModel:
             data (pd.DataFrame): The input DataFrame containing DICOM session data.
 
         Returns:
-            Tuple[bool, List[Dict[str, Any]], List[Dict[str, Any]]]:
-                - Overall success (True if all validations passed).
+            Tuple[bool, List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+                - Overall success (True if all validations passed without errors).
                 - List of failed tests with details:
                     - acquisition: The acquisition being validated.
                     - field: The field(s) involved in the validation.
@@ -165,6 +185,15 @@ class BaseValidationModel:
                     - value: The actual value being validated.
                     - message: The error message (if validation failed).
                     - passed: False (indicating failure).
+                    - status: "error" (indicating error level).
+                - List of warnings with details:
+                    - acquisition: The acquisition being validated.
+                    - field: The field(s) involved in the validation.
+                    - rule_name: The validation rule description.
+                    - value: The actual value being validated.
+                    - message: The warning message.
+                    - passed: True (indicating validation continued).
+                    - status: "warning" (indicating warning level).
                 - List of passed tests with details:
                     - acquisition: The acquisition being validated.
                     - field: The field(s) involved in the validation.
@@ -172,8 +201,10 @@ class BaseValidationModel:
                     - value: The actual value being validated.
                     - message: None (indicating success).
                     - passed: True (indicating success).
+                    - status: "ok" (indicating success).
         """
         errors: List[Dict[str, Any]] = []
+        warnings: List[Dict[str, Any]] = []
         passes: List[Dict[str, Any]] = []
 
         # Field‑level validation
@@ -211,9 +242,21 @@ class BaseValidationModel:
                             "field": ", ".join(field_names),
                             "rule_name": validator_func._rule_name,
                             "expected": validator_func._rule_message,
-                            "value": grouped.to_dict(orient="list"),
+                            "value": str(grouped.to_dict(orient="list")),
                             "message": "OK",
                             "passed": True,
+                            "status": ComplianceStatus.OK.value,
+                        })
+                    except ValidationWarning as w:
+                        warnings.append({
+                            "acquisition": acquisition,
+                            "field": ", ".join(field_names),
+                            "rule_name": validator_func._rule_name,
+                            "expected": validator_func._rule_message,
+                            "value": str(grouped.to_dict(orient="list")),
+                            "message": str(w),
+                            "passed": True,  # Validation continues despite warning
+                            "status": ComplianceStatus.WARNING.value,
                         })
                     except ValidationError as e:
                         errors.append({
@@ -221,13 +264,14 @@ class BaseValidationModel:
                             "field": ", ".join(field_names),
                             "rule_name": validator_func._rule_name,
                             "expected": validator_func._rule_message,
-                            "value": grouped.to_dict(orient="list"),
+                            "value": str(grouped.to_dict(orient="list")),
                             "message": str(e),
                             "passed": False,
+                            "status": ComplianceStatus.ERROR.value,
                         })
 
         overall_success = len(errors) == 0
-        return overall_success, errors, passes
+        return overall_success, errors, warnings, passes
 
 
 def safe_exec_rule(code: str, context: Dict[str, Any]) -> Any:
@@ -248,10 +292,27 @@ def safe_exec_rule(code: str, context: Dict[str, Any]) -> Any:
         ValidationError: If the code raises a validation error.
         Exception: If the code raises any other exception.
     """
+    # Import builtins for safe but complete execution environment
+    import builtins
+
     # Define allowed globals for safe execution
+    # Note: We provide a reasonably complete builtins environment to avoid scoping issues
+    # with generator expressions and f-strings, while still restricting dangerous functions
+    safe_builtins = {
+        name: getattr(builtins, name)
+        for name in dir(builtins)
+        if not name.startswith('_') and name not in {
+            'exec', 'eval', 'compile', 'open', 'input', 'print',  # I/O and execution
+            'exit', 'quit', 'help', 'license', 'copyright', 'credits',  # Interactive
+            '__import__', 'globals', 'locals', 'vars', 'dir',  # Introspection that could be dangerous
+            'delattr', 'setattr', 'getattr', 'hasattr',  # Attribute manipulation
+        }
+    }
+
     allowed_globals = {
-        '__builtins__': {},
+        '__builtins__': safe_builtins,
         'ValidationError': ValidationError,
+        'ValidationWarning': ValidationWarning,
         'pd': pd,
         'math': math,
         'abs': abs,
@@ -275,12 +336,18 @@ def safe_exec_rule(code: str, context: Dict[str, Any]) -> Any:
         'zip': zip,
         'sorted': sorted,
     }
-    
-    # Execute the code in the restricted environment
-    exec(code, allowed_globals, context)
-    
-    # Return the 'value' from context if it was modified
-    return context.get('value')
+
+    # Merge context into globals to avoid scoping issues with generator expressions
+    # This ensures all variables are accessible in nested scopes
+    execution_globals = {**allowed_globals}
+    execution_globals.update(context)
+
+    # Execute the code using only the global namespace (no separate locals)
+    # This avoids Python's scoping issues with generator expressions in exec()
+    exec(code, execution_globals)
+
+    # Return the 'value' from globals if it was modified
+    return execution_globals.get('value')
 
 
 def create_validation_model_from_rules(acquisition_name: str, rules: List[Dict[str, Any]]) -> BaseValidationModel:
@@ -339,6 +406,9 @@ def create_validation_model_from_rules(acquisition_name: str, rules: List[Dict[s
                     return result if result is not None else value
                 except ValidationError:
                     # Re-raise validation errors as-is
+                    raise
+                except ValidationWarning:
+                    # Re-raise validation warnings as-is
                     raise
                 except Exception as e:
                     # Wrap other exceptions as validation errors

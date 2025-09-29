@@ -78,71 +78,35 @@ def check_session_compliance_with_json_schema(
         schema_series_schema: Dict[str, Any],
         in_acq: pd.DataFrame
     ) -> None:
-        
+
         schema_series_name = schema_series_schema.get("name", "<unnamed>")
         schema_series_fields = schema_series_schema.get("fields", [])
-        
+
         print(f"    DEBUG _check_series_fields: series '{schema_series_name}'")
         print(f"      Schema fields: {[(f['field'], f.get('value')) for f in schema_series_fields]}")
         print(f"      Input data shape: {in_acq.shape}")
-        
-        matching_df = in_acq
 
-        # First pass: check for missing fields and filter matching rows
+        field_names = [f["field"] for f in schema_series_fields]
+
+        # Check for missing fields first
+        missing_fields = []
         for fdef in schema_series_fields:
             field = fdef["field"]
-            e_val = fdef.get("value")
-            tol = fdef.get("tolerance")
-            ctn = fdef.get("contains")
-            ctn_any = fdef.get("contains_any")
-            ctn_all = fdef.get("contains_all")
+            if field not in in_acq.columns:
+                missing_fields.append(field)
 
-            print(f"      Processing field '{field}' with expected value: {e_val}")
-
-            if field not in matching_df.columns:
-                print(f"      ERROR: Field '{field}' not found in columns")
-                compliance_summary.append(create_compliance_record(
-                    schema_acq_name, in_acq_name, schema_series_name, field,
-                    e_val, tol, ctn, ctn_any, ctn_all, None,
-                    f"Field '{field}' not found in input for series '{schema_series_name}'.", False,
-                    status=ComplianceStatus.NA
-                ))
-                return
-
-            # Check current values before filtering
-            print(f"      Current '{field}' values: {matching_df[field].unique()}")
-            print(f"      Rows before filtering: {len(matching_df)}")
-            
-            # Filter rows that match this constraint
-            matches = matching_df[field].apply(lambda x: validate_constraint(x, e_val, tol, ctn, ctn_any, ctn_all))
-            print(f"      Matching constraint validation: {matches.sum()} of {len(matches)} rows match")
-            
-            matching_df = matching_df[matches]
-            print(f"      Rows after filtering: {len(matching_df)}")
-            
-            if matching_df.empty:
-                print(f"      No matching rows found, breaking")
-                break
-
-        # If no matching series found, report failure
-        if matching_df.empty:
-            print(f"      RESULT: No matching series found - creating failure record")
-            field_names = [f["field"] for f in schema_series_fields]
+        if missing_fields:
+            print(f"      RESULT: Missing fields {missing_fields} - creating NA record for series")
             compliance_summary.append(create_compliance_record(
-                schema_acq_name, in_acq_name, schema_series_name, ", ".join(field_names),
-                schema_series_schema['fields'], None, None, None,
-                f"Series '{schema_series_name}' not found with the specified constraints.", False
+                schema_acq_name, in_acq_name, schema_series_name, schema_series_name,
+                None, None, None, None, None, None,
+                f"Series '{schema_series_name}' missing required fields: {', '.join(missing_fields)}", False,
+                status=ComplianceStatus.NA
             ))
             return
-        else:
-            print(f"      RESULT: Found matching series with {len(matching_df)} rows - proceeding to validation")
 
-        # Second pass: validate all field values in matching series
-        actual_values_agg = {}
-        constraints_agg = {}
-        fail_messages = []
-        any_fail = False
-
+        # Find rows that match ALL constraints simultaneously
+        matching_df = in_acq.copy()
         for fdef in schema_series_fields:
             field = fdef["field"]
             e_val = fdef.get("value")
@@ -151,40 +115,30 @@ def check_session_compliance_with_json_schema(
             ctn_any = fdef.get("contains_any")
             ctn_all = fdef.get("contains_all")
 
-            values = matching_df[field].unique().tolist()
-            actual_values_agg[field] = values
+            # Apply constraint to this field
+            matches = matching_df[field].apply(lambda x: validate_constraint(x, e_val, tol, ctn, ctn_any, ctn_all))
+            matching_df = matching_df[matches]
 
-            # Format constraint description
-            constraints_agg[field] = format_constraint_description(e_val, tol, ctn, ctn_any, ctn_all)
+            if matching_df.empty:
+                break
 
-            # Validate field values
-            passed, invalid_values, message = validate_field_values(
-                field, values, e_val, tol, ctn, ctn_any, ctn_all
-            )
-            
-            if not passed:
-                any_fail = True
-                fail_messages.append(f"Field '{field}': {message}")
-
-        # Create final compliance record
-        field_names = [f["field"] for f in schema_series_fields]
-        final_message = "; ".join(fail_messages) if any_fail else "Passed"
-        
-        print(f"      FINAL: Creating series compliance record - passed: {not any_fail}")
-        print(f"      Field: {', '.join(field_names)}, Series: {schema_series_name}")
-        
-        compliance_summary.append({
-            "schema acquisition": schema_acq_name,
-            "input acquisition": in_acq_name,
-            "series": schema_series_name,
-            "field": ", ".join(field_names),
-            "expected": constraints_agg,
-            "value": actual_values_agg,
-            "message": final_message,
-            "passed": not any_fail
-        })
-        
-        print(f"      ADDED to compliance_summary. Total records now: {len(compliance_summary)}")
+        # Create single series result
+        if matching_df.empty:
+            print(f"      RESULT: No rows match all constraints - creating ERROR record for series")
+            compliance_summary.append(create_compliance_record(
+                schema_acq_name, in_acq_name, schema_series_name, schema_series_name,
+                None, None, None, None, None, None,
+                f"Series '{schema_series_name}' not found with the specified constraints.", False,
+                status=ComplianceStatus.ERROR
+            ))
+        else:
+            print(f"      RESULT: Found {len(matching_df)} matching rows - series PASSED")
+            compliance_summary.append(create_compliance_record(
+                schema_acq_name, in_acq_name, schema_series_name, schema_series_name,
+                None, None, None, None, None, None,
+                "Passed.", True,
+                status=ComplianceStatus.OK
+            ))
 
     # 1) Check for unmapped reference acquisitions.
     for schema_acq_name in schema_session["acquisitions"]:
@@ -281,7 +235,7 @@ def check_session_compliance_with_python_module(
         acquisition_df = in_acq.copy()
 
         # Validate using the reference model
-        success, errors, passes = schema_model.validate(data=acquisition_df)
+        success, errors, warnings, passes = schema_model.validate(data=acquisition_df)
 
         # Record errors
         for error in errors:
@@ -297,6 +251,20 @@ def check_session_compliance_with_python_module(
                 "rule_name": error['rule_name'],
                 "passed": False,
                 "status": status.value
+            })
+
+        # Record warnings
+        for warning in warnings:
+            compliance_summary.append({
+                "schema acquisition": schema_acq_name,
+                "input acquisition": in_acq_name,
+                "field": warning['field'],
+                "value": warning['value'],
+                "expected": warning['expected'],
+                "message": warning['message'],
+                "rule_name": warning['rule_name'],
+                "passed": True,  # Warnings don't fail validation
+                "status": ComplianceStatus.WARNING.value
             })
 
         # Record passes
@@ -457,12 +425,27 @@ def check_session_compliance(
         for series_def in schema_series:
             series_name = series_def.get("name", "<unnamed>")
             series_fields = series_def.get("fields", [])
-            
+
             if series_fields:
-                # Filter data for series matching
-                matching_df = in_acq
-                
-                # Apply series field filters
+                # Check for missing fields first
+                missing_fields = []
+                for fdef in series_fields:
+                    field = fdef["field"]
+                    if field not in in_acq.columns:
+                        missing_fields.append(field)
+
+                if missing_fields:
+                    # Missing fields = NA for whole series
+                    compliance_summary.append(create_compliance_record(
+                        schema_acq_name, in_acq_name, series_name, series_name,
+                        None, None, None, None, None, None,
+                        f"Series '{series_name}' missing required fields: {', '.join(missing_fields)}", False,
+                        status=ComplianceStatus.NA
+                    ))
+                    continue
+
+                # Find rows that match ALL constraints simultaneously
+                matching_df = in_acq.copy()
                 for fdef in series_fields:
                     field = fdef["field"]
                     expected = fdef.get("value")
@@ -470,43 +453,30 @@ def check_session_compliance(
                     contains = fdef.get("contains")
                     contains_any = fdef.get("contains_any")
                     contains_all = fdef.get("contains_all")
-                    
-                    if field in matching_df.columns and (expected is not None or contains is not None or 
-                                                        contains_any is not None or contains_all is not None):
-                        # Filter rows that match this field's constraint
-                        mask = matching_df[field].apply(
-                            lambda x: validate_constraint(x, expected, tolerance, contains, contains_any, contains_all)
-                        )
-                        matching_df = matching_df[mask]
-                
-                # Check compliance for matching rows
-                if not matching_df.empty:
-                    series_results = _check_field_compliance(
-                        schema_acq_name, in_acq_name, series_fields, matching_df, series_name
+
+                    # Apply constraint to this field
+                    mask = matching_df[field].apply(
+                        lambda x: validate_constraint(x, expected, tolerance, contains, contains_any, contains_all)
                     )
-                    compliance_summary.extend(series_results)
-                else:
-                    # No matching series found - create a single series-level error
-                    # Build a description of the series constraints
-                    constraints = []
-                    for fdef in series_fields:
-                        field = fdef["field"]
-                        if "value" in fdef:
-                            if "tolerance" in fdef:
-                                constraints.append(f"{field}={fdef['value']}±{fdef['tolerance']}")
-                            else:
-                                constraints.append(f"{field}={fdef['value']}")
-                        elif "contains" in fdef:
-                            constraints.append(f"{field} contains '{fdef['contains']}'")
-                    
-                    constraint_desc = " AND ".join(constraints) if constraints else "series constraints"
-                    field_list = ", ".join([fdef["field"] for fdef in series_fields])
-                    
+                    matching_df = matching_df[mask]
+
+                    if matching_df.empty:
+                        break
+
+                # Create single series result
+                if matching_df.empty:
                     compliance_summary.append(create_compliance_record(
-                        schema_acq_name, in_acq_name, series_name, field_list,
+                        schema_acq_name, in_acq_name, series_name, series_name,
                         None, None, None, None, None, None,
-                        f"No matching series found for '{series_name}' ({constraint_desc}).", False,
+                        f"Series '{series_name}' not found with the specified constraints.", False,
                         status=ComplianceStatus.ERROR
+                    ))
+                else:
+                    compliance_summary.append(create_compliance_record(
+                        schema_acq_name, in_acq_name, series_name, series_name,
+                        None, None, None, None, None, None,
+                        "Passed.", True,
+                        status=ComplianceStatus.OK
                     ))
         
         # 3. Check rule-based compliance if models are available
@@ -518,7 +488,7 @@ def check_session_compliance(
                 model = model()
             
             # Validate using the model
-            success, errors, passes = model.validate(data=in_acq)
+            success, errors, warnings, passes = model.validate(data=in_acq)
             
             # Record errors
             for error in errors:
@@ -534,7 +504,21 @@ def check_session_compliance(
                     "passed": False,
                     "status": status.value
                 })
-            
+
+            # Record warnings
+            for warning in warnings:
+                compliance_summary.append({
+                    "schema acquisition": schema_acq_name,
+                    "input acquisition": in_acq_name,
+                    "field": warning['field'],
+                    "value": warning['value'],
+                    "expected": warning.get('expected', warning.get('rule_message', '')),
+                    "message": warning['message'],
+                    "rule_name": warning['rule_name'],
+                    "passed": True,  # Warnings don't fail validation
+                    "status": ComplianceStatus.WARNING.value
+                })
+
             # Record passes
             for passed_test in passes:
                 compliance_summary.append({

@@ -3,7 +3,7 @@
 import pytest
 import pandas as pd
 import dicompare
-from dicompare import ValidationError, create_validation_model_from_rules, safe_exec_rule, create_validation_models_from_rules
+from dicompare import ValidationError, ValidationWarning, create_validation_model_from_rules, safe_exec_rule, create_validation_models_from_rules
 
 
 def test_safe_exec_rule_basic():
@@ -94,8 +94,8 @@ if echo_count < 3:
         'Acquisition': ['TestAcq'] * 3,
         'EchoTime': [5, 10, 15]
     })
-    
-    success, errors, passes = model.validate(valid_data)
+
+    success, errors, warnings, passes = model.validate(valid_data)
     assert success == True
     assert len(errors) == 0
     assert len(passes) == 1
@@ -105,8 +105,8 @@ if echo_count < 3:
         'Acquisition': ['TestAcq'] * 2,
         'EchoTime': [5, 10]
     })
-    
-    success, errors, passes = model.validate(invalid_data)
+
+    success, errors, warnings, passes = model.validate(invalid_data)
     assert success == False
     assert len(errors) == 1
     assert 'Only 2 echoes found' in errors[0]['message']
@@ -145,8 +145,8 @@ if te_values.min() < 2 or te_values.max() > 100:
         'RepetitionTime': [25, 25, 25],
         'EchoTime': [5, 10, 15]
     })
-    
-    success, errors, passes = model.validate(valid_data)
+
+    success, errors, warnings, passes = model.validate(valid_data)
     assert success == True
     assert len(passes) == 2  # Both rules pass
     
@@ -156,8 +156,8 @@ if te_values.min() < 2 or te_values.max() > 100:
         'RepetitionTime': [35, 35, 35],  # Too high
         'EchoTime': [5, 10, 15]
     })
-    
-    success, errors, passes = model.validate(invalid_tr_data)
+
+    success, errors, warnings, passes = model.validate(invalid_tr_data)
     assert success == False
     assert len(errors) == 1
     assert 'TR must be between 20-30ms' in errors[0]['message']
@@ -197,7 +197,7 @@ def test_create_validation_models_from_rules():
         'Acquisition': ['QSM'] * 4,
         'EchoTime': [5, 10, 15, 20]
     })
-    success, _, _ = models["QSM"].validate(qsm_data)
+    success, _, _, _ = models["QSM"].validate(qsm_data)
     assert success == True
     
     # Test T1w model
@@ -205,7 +205,7 @@ def test_create_validation_models_from_rules():
         'Acquisition': ['T1w'],
         'SequenceName': ['MPRAGE']
     })
-    success, _, _ = models["T1w"].validate(t1w_data)
+    success, _, _, _ = models["T1w"].validate(t1w_data)
     assert success == True
 
 
@@ -235,8 +235,8 @@ if mean_fa < 5 or mean_fa > 90:
         'Acquisition': ['Stats'] * 5,
         'FlipAngle': [30, 31, 29, 30, 30]  # Low std
     })
-    
-    success, errors, passes = model.validate(good_data)
+
+    success, errors, warnings, passes = model.validate(good_data)
     assert success == True
     
     # Test with high variability (bad)
@@ -244,8 +244,8 @@ if mean_fa < 5 or mean_fa > 90:
         'Acquisition': ['Stats'] * 5,
         'FlipAngle': [20, 40, 25, 45, 30]  # High std
     })
-    
-    success, errors, passes = model.validate(bad_data)
+
+    success, errors, warnings, passes = model.validate(bad_data)
     assert success == False
     assert 'too variable' in errors[0]['message']
 

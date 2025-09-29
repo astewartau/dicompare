@@ -150,12 +150,25 @@ def check_contains_any(actual: Any, constraint_list: List[str]) -> bool:
     if isinstance(actual, (list, tuple)):
         # For lists: check if any constraint element is present in the actual list
         actual_normalized = [normalize_value(x) for x in actual]
-        constraint_normalized = [normalize_value(x) for x in constraint_list]
+        constraint_normalized = []
+        for item in constraint_list:
+            # Handle case where constraint_list contains tuples/lists that were incorrectly included
+            if isinstance(item, (list, tuple)):
+                # Flatten the nested list/tuple
+                constraint_normalized.extend([normalize_value(x) for x in item])
+            else:
+                constraint_normalized.append(normalize_value(item))
         return any(constraint_item in actual_normalized for constraint_item in constraint_normalized)
     elif isinstance(actual, str) or (hasattr(actual, "strip") and callable(actual.strip)):
         # For strings: check if any constraint substring is contained in the actual string
         actual_norm = normalize_value(actual)
-        return any(normalize_value(substring) in actual_norm for substring in constraint_list)
+        # Handle each constraint item, skipping non-strings
+        for substring in constraint_list:
+            norm_sub = normalize_value(substring)
+            # Skip if the normalized value is not a string (e.g., it's a list from a tuple)
+            if isinstance(norm_sub, str) and norm_sub in actual_norm:
+                return True
+        return False
     return False
 
 
@@ -273,15 +286,36 @@ def validate_field_values(
             return False, invalid_values, f"Expected to contain '{contains}', but got {invalid_values}"
     
     elif tolerance is not None:
+        # Handle tuples by unpacking them into individual values (for multi-value fields like PixelSpacing)
+        values_to_check = []
+        for val in actual_values:
+            if isinstance(val, (list, tuple)):
+                values_to_check.extend(val)
+            else:
+                values_to_check.append(val)
+
         # Check for non-numeric values first
-        non_numeric = [val for val in actual_values if not isinstance(val, (int, float))]
+        non_numeric = [val for val in values_to_check if not isinstance(val, (int, float))]
         if non_numeric:
             return False, non_numeric, f"Field must be numeric; found {non_numeric}"
-        
-        # Check tolerance
-        for val in actual_values:
-            if not (expected_value - tolerance <= val <= expected_value + tolerance):
-                invalid_values.append(val)
+
+        # Check tolerance for each individual value
+        # Handle both single expected values and multi-value expected values
+        if isinstance(expected_value, (list, tuple)):
+            # Multi-value field: compare each actual value against corresponding expected value
+            if len(values_to_check) != len(expected_value):
+                return False, values_to_check, f"Expected {len(expected_value)} values, got {len(values_to_check)}"
+
+            for i, val in enumerate(values_to_check):
+                expected_val = expected_value[i]
+                if not (expected_val - tolerance <= val <= expected_val + tolerance):
+                    invalid_values.append(val)
+        else:
+            # Single expected value: compare all actual values against it
+            for val in values_to_check:
+                if not (expected_value - tolerance <= val <= expected_value + tolerance):
+                    invalid_values.append(val)
+
         if invalid_values:
             return False, invalid_values, f"Expected {expected_value} ±{tolerance}, but got {invalid_values}"
     
