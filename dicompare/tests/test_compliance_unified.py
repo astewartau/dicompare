@@ -136,9 +136,9 @@ def test_unified_compliance_series_fields(tmp_path):
         session_map={"fMRI": "fMRI"}
     )
     
-    # Should have 3 passes: 1 acquisition field + 2 series fields
+    # Should have 2 passes: 1 acquisition field + 1 series result (not individual fields)
     passed_results = [r for r in results if r['passed']]
-    assert len(passed_results) == 3
+    assert len(passed_results) == 2
 
 
 def test_unified_compliance_missing_acquisition(tmp_path):

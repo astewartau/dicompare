@@ -125,8 +125,10 @@ def check_session_compliance_with_json_schema(
         # Create single series result
         if matching_df.empty:
             print(f"      RESULT: No rows match all constraints - creating ERROR record for series")
+            field_names = [f["field"] for f in schema_series_fields]
+            field_list = ", ".join(field_names)
             compliance_summary.append(create_compliance_record(
-                schema_acq_name, in_acq_name, schema_series_name, schema_series_name,
+                schema_acq_name, in_acq_name, schema_series_name, field_list,
                 None, None, None, None, None, None,
                 f"Series '{schema_series_name}' not found with the specified constraints.", False,
                 status=ComplianceStatus.ERROR
@@ -145,8 +147,9 @@ def check_session_compliance_with_json_schema(
         if schema_acq_name not in session_map:
             compliance_summary.append(create_compliance_record(
                 schema_acq_name, None, None, None,
-                "(mapped acquisition required)", None, None, None,
-                f"Schema acquisition '{schema_acq_name}' not mapped.", False
+                None, None, None, None, None, None,
+                f"Schema acquisition '{schema_acq_name}' not mapped.", False,
+                ComplianceStatus.ERROR
             ))
 
     # 2) Process each mapped acquisition.
@@ -436,12 +439,15 @@ def check_session_compliance(
 
                 if missing_fields:
                     # Missing fields = NA for whole series
-                    compliance_summary.append(create_compliance_record(
-                        schema_acq_name, in_acq_name, series_name, series_name,
+                    field_list = ", ".join([f["field"] for f in series_fields])
+                    record = create_compliance_record(
+                        schema_acq_name, in_acq_name, series_name, field_list,
                         None, None, None, None, None, None,
                         f"Series '{series_name}' missing required fields: {', '.join(missing_fields)}", False,
                         status=ComplianceStatus.NA
-                    ))
+                    )
+                    record["series"] = series_name
+                    compliance_summary.append(record)
                     continue
 
                 # Find rows that match ALL constraints simultaneously
@@ -465,19 +471,54 @@ def check_session_compliance(
 
                 # Create single series result
                 if matching_df.empty:
-                    compliance_summary.append(create_compliance_record(
-                        schema_acq_name, in_acq_name, series_name, series_name,
+                    # Concatenate field names for the field attribute
+                    field_list = ", ".join([f["field"] for f in series_fields])
+
+                    # Create detailed constraint description
+                    constraint_descriptions = []
+                    for fdef in series_fields:
+                        field = fdef["field"]
+                        expected = fdef.get("value")
+                        tolerance = fdef.get("tolerance")
+                        contains = fdef.get("contains")
+                        contains_any = fdef.get("contains_any")
+                        contains_all = fdef.get("contains_all")
+
+                        if expected is not None:
+                            if tolerance is not None:
+                                constraint_descriptions.append(f"{field}={expected}±{tolerance}")
+                            else:
+                                constraint_descriptions.append(f"{field}={expected}")
+                        elif contains is not None:
+                            constraint_descriptions.append(f"{field} contains '{contains}'")
+                        elif contains_any is not None:
+                            constraint_descriptions.append(f"{field} contains any of {contains_any}")
+                        elif contains_all is not None:
+                            constraint_descriptions.append(f"{field} contains all of {contains_all}")
+                        else:
+                            constraint_descriptions.append(f"{field}")
+
+                    message = f"Series '{series_name}' not found with constraints: {' AND '.join(constraint_descriptions)}"
+
+                    record = create_compliance_record(
+                        schema_acq_name, in_acq_name, series_name, field_list,
                         None, None, None, None, None, None,
-                        f"Series '{series_name}' not found with the specified constraints.", False,
-                        status=ComplianceStatus.ERROR
-                    ))
+                        message, False,
+                        status=ComplianceStatus.NA
+                    )
+                    # Add series information to the record
+                    record["series"] = series_name
+                    compliance_summary.append(record)
                 else:
-                    compliance_summary.append(create_compliance_record(
-                        schema_acq_name, in_acq_name, series_name, series_name,
+                    field_list = ", ".join([f["field"] for f in series_fields])
+                    record = create_compliance_record(
+                        schema_acq_name, in_acq_name, series_name, field_list,
                         None, None, None, None, None, None,
                         "Passed.", True,
                         status=ComplianceStatus.OK
-                    ))
+                    )
+                    record["series"] = series_name
+                    compliance_summary.append(record)
         
         # 3. Check rule-based compliance if models are available
         if validation_models and schema_acq_name in validation_models:

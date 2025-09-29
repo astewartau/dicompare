@@ -19,10 +19,12 @@ class DummyValidationModel(BaseValidationModel):
             return (
                 False,
                 [{'field': 'fail', 'value': data['fail'].iloc[0], 'expected': False, 'message': 'should be False', 'rule_name': 'dummy_rule'}],
+                [],
                 []
             )
         return (
             True,
+            [],
             [],
             [{'field': 'dummy', 'value': 'ok', 'expected': 'ok', 'message': 'passed', 'rule_name': 'dummy_rule'}]
         )
@@ -576,7 +578,7 @@ def test_json_compliance_missing_series_field():
     # Should fail - EchoTime field is missing
     assert any(not rec["passed"] for rec in compliance)
     failed_records = [r for r in compliance if not r["passed"]]
-    assert any("not found in input for series" in r["message"] for r in failed_records)
+    assert any("missing required fields" in r["message"] for r in failed_records)
 
 
 def test_python_module_compliance_no_model():

@@ -271,7 +271,7 @@ def test_backward_compatibility_with_existing_schemas():
     
     # All field checks should pass
     assert len(failed_results) == 0
-    assert len(passed_results) >= 4  # Acquisition fields + series fields
+    assert len(passed_results) >= 3  # Acquisition fields + series result (not individual fields)
     
     # None should be rule-based
     rule_results = [r for r in results if 'rule_name' in r and r['rule_name'] not in ['Field validation', None]]
