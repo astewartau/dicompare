@@ -206,7 +206,7 @@ def _determine_image_types_for_series(recon_mode: int, dicom_data: Dict[str, Any
     Returns:
         List of ImageType arrays that will be created
     """
-    base_image_type = dicom_data.get("ImageType", ["ORIGINAL", "PRIMARY", "M"])
+    base_image_type = dicom_data.get("ImageType") or ["ORIGINAL", "PRIMARY", "M"]
     
     if recon_mode == 8:
         # Magnitude + Phase reconstruction
@@ -348,15 +348,9 @@ def _decode_siemens_version(ul_version: Union[int, str]) -> str:
         # Check if it's already hex
         if vers_str.startswith('0x'):
             vers_hex = vers_str.lower()
-            try:
-                vers_str = str(int(vers_str, 16))
-            except ValueError:
-                vers_str = vers_str
+            vers_str = str(int(vers_str, 16))  # Convert hex to decimal
         else:
-            try:
-                vers_hex = hex(int(vers_str))
-            except ValueError:
-                vers_hex = vers_str
+            vers_hex = hex(int(vers_str))  # Convert decimal to hex
     
     # Version mapping from hr_ideaversion.m
     version_mapping = {
@@ -387,25 +381,20 @@ def _decode_siemens_version(ul_version: Union[int, str]) -> str:
     elif vers_hex in version_mapping:
         return version_mapping[vers_hex]
     
-    # For unknown versions, try to infer based on numeric value
-    try:
-        version_num = int(vers_str)
-        if version_num >= 66000000:
-            return "VE12U+"  # Likely newer than VE12U
-        elif version_num >= 51280000:
-            return "VE12U"
-        elif version_num >= 51000000:
-            return "VE11x"   # VE11 series
-        elif version_num >= 40000000:
-            return "VDxx"    # VD series
-        elif version_num >= 20000000:
-            return "VBxx"    # VB series
-        else:
-            return "VAxx"    # VA series or older
-    except ValueError:
-        pass
-    
-    return f"UNKNOWN_{vers_str}"
+    # For unknown versions, infer based on numeric value
+    version_num = int(vers_str)
+    if version_num >= 66000000:
+        return "VE12U+"  # Likely newer than VE12U
+    elif version_num >= 51280000:
+        return "VE12U"
+    elif version_num >= 51000000:
+        return "VE11x"   # VE11 series
+    elif version_num >= 40000000:
+        return "VDxx"    # VD series
+    elif version_num >= 20000000:
+        return "VBxx"    # VB series
+    else:
+        return "VAxx"    # VA series or older
 
 
 def _decode_partial_fourier(mode: Union[int, str]) -> float:
@@ -926,18 +915,9 @@ def apply_pro_to_dicom_mapping(pro_data: Dict[str, Any]) -> Dict[str, Any]:
         if value is not None:
             # Apply converter function if provided
             if converter is not None:
-                try:
-                    value = converter(value)
-                except (TypeError, ValueError, ZeroDivisionError):
-                    value = None
-                    
-            if value is not None:
-                # Handle potential duplicate keys by preferring non-None values
-                if dicom_field in dicom_data:
-                    if dicom_data[dicom_field] is None and value is not None:
-                        dicom_data[dicom_field] = value
-                else:
-                    dicom_data[dicom_field] = value
+                value = converter(value)
+
+            dicom_data[dicom_field] = value
     
     # Add default or calculated DICOM fields that are not directly mappable
     calculate_other_dicom_fields(dicom_data, pro_data)
@@ -1145,7 +1125,7 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
                 7: "FFDR", # Feet First Decubitus Right
                 8: "FFDL"  # Feet First Decubitus Left
             }
-            dicom_data["PatientPosition"] = position_mapping.get(patient_position, "UNKNOWN")
+            dicom_data["PatientPosition"] = position_mapping.get(patient_position, "Unknown")
             
     # Add AcquisitionTime if available (scan start time)
     acq_time = extract_nested_value(pro_data, "sMeasStartTime.lTime")
@@ -1321,5 +1301,130 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
             # Convert from microseconds to milliseconds for temporal resolution
             temporal_resolution = tr_values[0] / 1000.0
             dicom_data["TemporalResolution"] = temporal_resolution
+
+
+# --------------------------------------------------------------------------
+# Session loading functions for .pro files
+# --------------------------------------------------------------------------
+
+import os
+import glob
+import pandas as pd
+from typing import Optional, List, Callable
+from ..data_utils import make_dataframe_hashable
+
+
+def _load_one_pro_file(pro_path: str) -> Dict[str, Any]:
+    """
+    Helper function for loading a single .pro file.
+
+    Args:
+        pro_path: Path to the .pro file
+
+    Returns:
+        Dictionary with DICOM-compatible field names and values
+    """
+    pro_data = load_pro_file(pro_path)
+
+    # Use ProtocolName as the equivalent of "Acquisition"
+    protocol_name = pro_data.get("ProtocolName", "Unknown")
+    pro_data["Acquisition"] = protocol_name
+
+    return pro_data
+
+
+def load_pro_session_simple(
+    session_dir: Optional[str] = None,
+    pro_files: Optional[List[str]] = None,
+    pattern: str = "*.pro",
+    show_progress: bool = False,
+    progress_function: Optional[Callable[[int], None]] = None,
+) -> pd.DataFrame:
+    """
+    Load and process all .pro files in a session directory or from a list of file paths.
+
+    Args:
+        session_dir: Path to a directory containing .pro files
+        pro_files: List of specific .pro file paths to load
+        pattern: Glob pattern for finding .pro files (default: "*.pro")
+        show_progress: Whether to show a progress bar (ignored for simple loading)
+        progress_function: Optional callback function for progress updates
+
+    Returns:
+        pd.DataFrame: A DataFrame containing metadata for all .pro files in the session
+
+    Raises:
+        ValueError: If neither session_dir nor pro_files is provided, or if no .pro files are found
+    """
+    # Determine data source
+    if pro_files is not None:
+        pro_items = pro_files
+    elif session_dir is not None:
+        pro_items = glob.glob(os.path.join(session_dir, "**", pattern), recursive=True)
+    else:
+        raise ValueError("Either session_dir or pro_files must be provided.")
+
+    if not pro_items:
+        raise ValueError(f"No .pro files found in the specified location.")
+
+    # Process .pro files sequentially (simple approach)
+    session_data = []
+    total_files = len(pro_items)
+
+    for idx, pro_path in enumerate(pro_items):
+        try:
+            pro_data = _load_one_pro_file(pro_path)
+            session_data.append(pro_data)
+        except Exception as e:
+            print(f"Warning: Failed to load {pro_path}: {e}")
+            continue
+
+        # Update progress if callback provided
+        if progress_function:
+            progress = int((idx + 1) / total_files * 100)
+            progress_function(progress)
+
+    # Create DataFrame
+    if not session_data:
+        raise ValueError("No valid .pro files could be loaded.")
+
+    session_df = pd.DataFrame(session_data)
+
+    # Apply standard dataframe processing
+    session_df = make_dataframe_hashable(session_df)
+
+    return session_df
+
+
+def load_pro_session(
+    session_dir: Optional[str] = None,
+    pro_files: Optional[List[str]] = None,
+    pattern: str = "*.pro",
+    show_progress: bool = False,
+    progress_function: Optional[Callable[[int], None]] = None,
+) -> pd.DataFrame:
+    """
+    Load and process all .pro files in a session directory or from a list of file paths.
+
+    Args:
+        session_dir: Path to a directory containing .pro files
+        pro_files: List of specific .pro file paths to load
+        pattern: Glob pattern for finding .pro files (default: "*.pro")
+        show_progress: Whether to show a progress bar (ignored for simple loading)
+        progress_function: Optional callback function for progress updates
+
+    Returns:
+        pd.DataFrame: A DataFrame containing metadata for all .pro files in the session
+
+    Raises:
+        ValueError: If neither session_dir nor pro_files is provided, or if no .pro files are found
+    """
+    return load_pro_session_simple(
+        session_dir=session_dir,
+        pro_files=pro_files,
+        pattern=pattern,
+        show_progress=show_progress,
+        progress_function=progress_function,
+    )
 
 

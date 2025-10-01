@@ -8,8 +8,9 @@ from typing import Callable, List, Dict, Any, Tuple, Type
 import pandas as pd
 from itertools import chain
 import math
-from .utils import make_hashable
-from .validation_helpers import ComplianceStatus
+from ..utils import make_hashable
+from ..data_utils import make_dataframe_hashable
+from .helpers import ComplianceStatus
     
 def get_unique_combinations(data: pd.DataFrame, fields: List[str]) -> pd.DataFrame:
     """
@@ -33,8 +34,7 @@ def get_unique_combinations(data: pd.DataFrame, fields: List[str]) -> pd.DataFra
     fields = [str(field) for field in fields]
 
     # Flatten all values in the DataFrame to ensure they are hashable
-    for col in data.columns:
-        data[col] = data[col].apply(make_hashable)
+    data = make_dataframe_hashable(data)
 
     # Get unique combinations of specified fields
     unique_combinations = data.groupby(fields, dropna=False).first().reset_index()

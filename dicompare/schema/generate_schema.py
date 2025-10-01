@@ -7,8 +7,8 @@ that can be used for validation purposes.
 
 import pandas as pd
 from typing import List, Dict, Any, Tuple
-from .data_utils import standardize_session_dataframe
-from .utils import clean_string, filter_available_fields, detect_constant_fields
+from ..data_utils import standardize_session_dataframe
+from ..utils import clean_string, filter_available_fields, detect_constant_fields
 from .tags import get_tag_info
 
 

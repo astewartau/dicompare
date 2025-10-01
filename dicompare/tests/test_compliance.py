@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 import tempfile
 
-from dicompare.compliance import (
+from dicompare.validation import (
     check_session_compliance_with_json_schema,
     check_session_compliance_with_python_module
 )

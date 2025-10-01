@@ -10,8 +10,9 @@ import pandas as pd
 import logging
 from typing import List, Optional
 
-from .config import DEFAULT_SETTINGS_FIELDS, DEFAULT_ACQUISITION_FIELDS, DEFAULT_RUN_GROUP_FIELDS, DEFAULT_SERIES_FIELDS
-from .utils import clean_string, make_hashable
+from ..config import DEFAULT_SETTINGS_FIELDS, DEFAULT_ACQUISITION_FIELDS, DEFAULT_RUN_GROUP_FIELDS, DEFAULT_SERIES_FIELDS
+from ..utils import clean_string, make_hashable
+from ..data_utils import make_dataframe_hashable
 
 logger = logging.getLogger(__name__)
 
@@ -134,9 +135,8 @@ def build_acquisition_signatures(session_df, acquisition_fields, reference_field
         pd.DataFrame: Session DataFrame with 'AcquisitionSignature' column added
     """
     # Make all values hashable
-    for col in session_df.columns:
-        session_df[col] = session_df[col].apply(make_hashable)
-    
+    session_df = make_dataframe_hashable(session_df)
+
     # Create basic acquisition labels
     def clean_acquisition_values(row):
         return "-".join(str(val) if pd.notnull(val) else "NA" for val in row)

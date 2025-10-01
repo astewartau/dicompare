@@ -204,7 +204,7 @@ def standardize_session_dataframe(df: pd.DataFrame,
     Returns:
         Standardized DataFrame
     """
-    from .acquisition import assign_acquisition_and_run_numbers
+    from .session import assign_acquisition_and_run_numbers
     
     # Make all values hashable
     df = make_dataframe_hashable(df)

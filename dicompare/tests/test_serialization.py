@@ -8,7 +8,7 @@ import pandas as pd
 from unittest.mock import patch
 import json
 
-from dicompare.serialization import make_json_serializable
+from dicompare.io import make_json_serializable
 
 
 class TestSerialization(unittest.TestCase):
@@ -259,11 +259,11 @@ class TestSerialization(unittest.TestCase):
         class BadMockObject:
             def item(self):
                 raise ValueError("Cannot convert")
-        
+
         bad_mock = BadMockObject()
-        # Should return the object unchanged if item() fails
-        result = make_json_serializable(bad_mock)
-        self.assertIs(result, bad_mock)
+        # Should raise the exception (fail fast philosophy)
+        with self.assertRaises(ValueError):
+            make_json_serializable(bad_mock)
     
     def test_deeply_nested_structure(self):
         """Test with deeply nested structures."""

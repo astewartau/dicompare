@@ -10,7 +10,7 @@ import pandas as pd
 from typing import Any, Dict
 from tabulate import tabulate
 from scipy.optimize import linear_sum_assignment
-from .config import MAX_DIFF_SCORE
+from ..config import MAX_DIFF_SCORE
 
 try:
     import curses

@@ -4,7 +4,7 @@ Tests for generate_schema module.
 
 import pytest
 import pandas as pd
-from dicompare.generate_schema import create_json_schema
+from dicompare.schema import create_json_schema
 
 
 class TestCreateJsonSchema:

@@ -10,8 +10,8 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 from dicompare.io import load_json_schema, load_python_schema, load_dicom_session
-from dicompare.compliance import check_session_compliance_with_json_reference, check_session_compliance_with_python_module
-from dicompare.mapping import map_to_json_reference, interactive_mapping_to_json_reference, interactive_mapping_to_python_reference
+from dicompare.validation import check_session_compliance_with_json_schema, check_session_compliance_with_python_module
+from dicompare.session import map_to_json_reference, interactive_mapping_to_json_reference, interactive_mapping_to_python_reference
 from dicompare.data_utils import standardize_session_dataframe
 
 def main() -> None:
@@ -64,7 +64,7 @@ def main() -> None:
 
     # Perform compliance check
     if args.json_schema:
-        compliance_summary = check_session_compliance_with_json_reference(
+        compliance_summary = check_session_compliance_with_json_schema(
             in_session=in_session,
             ref_session=json_schema,
             session_map=session_map

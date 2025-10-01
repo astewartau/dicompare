@@ -6,7 +6,7 @@ import logging
 import pandas as pd
 from typing import List, Dict, Any
 from dicompare.io import load_dicom_session
-from dicompare.generate_schema import create_json_schema
+from dicompare.schema import create_json_schema
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')

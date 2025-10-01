@@ -1,7 +1,8 @@
 import pytest
 import pandas as pd
 from pydicom.multival import MultiValue
-from dicompare.tags import get_tag_info, get_all_tags_in_dataset, _infer_type_from_tag, determine_field_type_from_values, VR_TO_DATA_TYPE
+from dicompare.schema import get_tag_info, get_all_tags_in_dataset, VR_TO_DATA_TYPE
+from dicompare.schema.tags import _infer_type_from_tag, determine_field_type_from_values
 
 
 class TestTagInfo:

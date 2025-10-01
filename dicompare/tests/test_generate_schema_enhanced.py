@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from unittest.mock import patch, Mock
 
-from dicompare.generate_schema import detect_acquisition_variability, create_acquisition_summary
+from dicompare.schema import detect_acquisition_variability, create_acquisition_summary
 
 
 class TestGenerateSchemaEnhanced(unittest.TestCase):

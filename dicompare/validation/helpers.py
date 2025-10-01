@@ -6,6 +6,9 @@ This module provides common validation patterns used in compliance.py to reduce 
 
 from typing import Any, List, Dict, Tuple, Optional
 from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ComplianceStatus(Enum):
@@ -426,12 +429,12 @@ def create_compliance_record(
     # Determine status if not explicitly provided
     if status is None:
         if "Field not found in input" in message:
-            print(f"DEBUG: Setting status to NA for message: '{message}'")
+            logger.debug(f"Setting status to NA for message: '{message}'")
             status = ComplianceStatus.NA
         elif passed:
             status = ComplianceStatus.OK
         else:
-            print(f"DEBUG: Setting status to ERROR for message: '{message}', passed: {passed}")
+            logger.debug(f"Setting status to ERROR for message: '{message}', passed: {passed}")
             status = ComplianceStatus.ERROR
     
     result = {
@@ -446,8 +449,8 @@ def create_compliance_record(
         "status": status.value  # Store as string for JSON serialization
     }
     
-    # Debug: print records with "not found" message
+    # Debug: log records with "not found" message
     if "not found" in message.lower():
-        print(f"DEBUG create_compliance_record: Created record with status '{status.value}' for message: '{message}'")
-    
+        logger.debug(f"create_compliance_record: Created record with status '{status.value}' for message: '{message}'")
+
     return result

@@ -1,0 +1,65 @@
+"""
+Validation module for dicompare.
+
+This module provides validation framework, compliance checking, and helper utilities
+for DICOM session validation.
+"""
+
+from .core import (
+    BaseValidationModel,
+    ValidationError,
+    ValidationWarning,
+    validator,
+    safe_exec_rule,
+    create_validation_model_from_rules,
+    create_validation_models_from_rules,
+    get_unique_combinations
+)
+
+from .compliance import (
+    check_session_compliance_with_json_schema,
+    check_session_compliance_with_python_module,
+    check_session_compliance
+)
+
+from .helpers import (
+    ComplianceStatus,
+    validate_constraint,
+    validate_field_values,
+    create_compliance_record,
+    format_constraint_description,
+    normalize_value,
+    check_equality,
+    check_contains,
+    check_contains_any,
+    check_contains_all
+)
+
+__all__ = [
+    # Core validation framework
+    'BaseValidationModel',
+    'ValidationError',
+    'ValidationWarning',
+    'validator',
+    'safe_exec_rule',
+    'create_validation_model_from_rules',
+    'create_validation_models_from_rules',
+    'get_unique_combinations',
+
+    # Compliance checking
+    'check_session_compliance_with_json_schema',
+    'check_session_compliance_with_python_module',
+    'check_session_compliance',
+
+    # Helper utilities
+    'ComplianceStatus',
+    'validate_constraint',
+    'validate_field_values',
+    'create_compliance_record',
+    'format_constraint_description',
+    'normalize_value',
+    'check_equality',
+    'check_contains',
+    'check_contains_any',
+    'check_contains_all'
+]

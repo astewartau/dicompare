@@ -21,7 +21,6 @@ setup(
         "console_scripts": [
             "dcm-gen-session=dicompare.cli.gen_session:main",
             "dcm-check-session=dicompare.cli.check_session:main",
-            "dicompare=dicompare.cli.start_web:main",
         ]
     },
     install_requires=[
@@ -44,9 +43,6 @@ setup(
         "Operating System :: OS Independent",
     ],
     keywords="DICOM compliance validation medical imaging",
-    package_data={
-        "dicompare": ["docs/*.html"],
-    },
     include_package_data=True,
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
