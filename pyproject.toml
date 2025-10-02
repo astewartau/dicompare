@@ -1,0 +1,7 @@
+[tool.codespell]
+# Ref: https://github.com/codespell-project/codespell#using-a-config-file
+skip = '.git*,*.css,conftest.py'
+check-hidden = true
+# some special typo-close "words"
+ignore-regex = '\b(adRes)\b'
+ignore-words-list = 'nd,te'
