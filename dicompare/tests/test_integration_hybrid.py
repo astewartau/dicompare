@@ -6,6 +6,43 @@ import json
 import tempfile
 import os
 import dicompare
+from dicompare.validation import check_acquisition_compliance
+from dicompare.validation.helpers import ComplianceStatus
+
+def check_session_compliance(in_session, schema_data, session_map, validation_rules=None, validation_models=None, raise_errors=False):
+    """Helper wrapper to emulate check_session_compliance using new check_acquisition_compliance."""
+    all_results = []
+
+    for ref_acq_name, schema_acq in schema_data["acquisitions"].items():
+        if ref_acq_name not in session_map:
+            all_results.append({
+                "field": "Acquisition Mapping",
+                "value": None,
+                "expected": f"Acquisition '{ref_acq_name}' to be mapped",
+                "message": f"Reference acquisition '{ref_acq_name}' is not mapped to any input acquisition.",
+                "passed": False,
+                "status": ComplianceStatus.ERROR.value,
+                "series": None
+            })
+            continue
+
+        input_acq_name = session_map[ref_acq_name]
+
+        # Get validation rules/model for this acquisition
+        acq_rules = validation_rules.get(ref_acq_name) if validation_rules else None
+        acq_model = validation_models.get(ref_acq_name) if validation_models else None
+
+        results = check_acquisition_compliance(
+            in_session,
+            schema_acq,
+            acquisition_name=input_acq_name,
+            validation_rules=acq_rules,
+            validation_model=acq_model,
+            raise_errors=raise_errors
+        )
+        all_results.extend(results)
+
+    return all_results
 
 
 def test_end_to_end_hybrid_workflow():
@@ -135,7 +172,7 @@ if len(value['EchoTime']) > 0:
         
         # Check session compliance using unified function
         session_map = {"T1w": "T1w", "QSM": "QSM", "fMRI": "fMRI"}
-        results = dicompare.check_session_compliance(
+        results = check_session_compliance(
             in_session=session_df,
             schema_data=schema_data,
             session_map=session_map,
@@ -201,7 +238,7 @@ if val != 42:
     
     rules = {"Strict": schema["acquisitions"]["Strict"]["rules"]}
     
-    results = dicompare.check_session_compliance(
+    results = check_session_compliance(
         in_session=session_df,
         schema_data=schema,
         session_map={"Strict": "Strict"},
@@ -258,7 +295,7 @@ def test_backward_compatibility_with_existing_schemas():
     })
     
     # Test with no validation rules (traditional usage)
-    results = dicompare.check_session_compliance(
+    results = check_session_compliance(
         in_session=session_df,
         schema_data=old_schema,
         session_map={"Traditional": "Traditional"}

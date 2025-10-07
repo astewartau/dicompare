@@ -3,6 +3,24 @@
 import pytest
 import pandas as pd
 import dicompare
+from dicompare.validation import check_acquisition_compliance
+from dicompare.validation.helpers import ComplianceStatus
+
+def check_session_compliance(in_session, schema_data, session_map, validation_rules=None, validation_models=None, raise_errors=False):
+    """Helper for legacy test format - uses new API internally."""
+    for ref_acq_name, input_acq_name in session_map.items():
+        if ref_acq_name in schema_data["acquisitions"]:
+            acq_rules = validation_rules.get(ref_acq_name) if validation_rules else None
+            acq_model = validation_models.get(ref_acq_name) if validation_models else None
+            return check_acquisition_compliance(
+                in_session,
+                schema_data["acquisitions"][ref_acq_name],
+                acquisition_name=input_acq_name,
+                validation_rules=acq_rules,
+                validation_model=acq_model,
+                raise_errors=raise_errors
+            )
+    return []
 
 
 def test_series_validation_single_error():
@@ -33,7 +51,7 @@ def test_series_validation_single_error():
         'Field3': [50, 60, 70]  # None within 100±10
     })
     
-    results = dicompare.check_session_compliance(
+    results = check_session_compliance(
         in_session=session_df,
         schema_data=schema,
         session_map={"TestAcq": "TestAcq"}
@@ -49,7 +67,7 @@ def test_series_validation_single_error():
     error = series_errors[0]
     assert "Field1, Field2, Field3" in error['field']
     assert "NonMatchingSeries" in error['message']
-    assert error['status'] == 'na'
+    assert error['status'] == 'error'  # Series not found is now an error, not NA
 
 
 def test_series_validation_with_partial_match():
@@ -77,7 +95,7 @@ def test_series_validation_with_partial_match():
         'FieldB': [20, 30]   # Doesn't match constraint
     })
     
-    results = dicompare.check_session_compliance(
+    results = check_session_compliance(
         in_session=session_df,
         schema_data=schema,
         session_map={"TestAcq": "TestAcq"}
@@ -120,7 +138,7 @@ def test_series_validation_constraint_description():
         'F3': [200]  # Wrong value
     })
     
-    results = dicompare.check_session_compliance(
+    results = check_session_compliance(
         in_session=session_df,
         schema_data=schema,
         session_map={"TestAcq": "TestAcq"}

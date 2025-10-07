@@ -13,6 +13,24 @@ from pathlib import Path
 
 import dicompare
 from dicompare.tests.test_dicom_factory import create_test_dicom_series, create_multi_echo_series
+from dicompare.validation import check_acquisition_compliance
+from dicompare.validation.helpers import ComplianceStatus
+
+def check_session_compliance(in_session, schema_data, session_map, validation_rules=None, validation_models=None, raise_errors=False):
+    """Helper for legacy test format - uses new API internally."""
+    for ref_acq_name, input_acq_name in session_map.items():
+        if ref_acq_name in schema_data["acquisitions"]:
+            acq_rules = validation_rules.get(ref_acq_name) if validation_rules else None
+            acq_model = validation_models.get(ref_acq_name) if validation_models else None
+            return check_acquisition_compliance(
+                in_session,
+                schema_data["acquisitions"][ref_acq_name],
+                acquisition_name=input_acq_name,
+                validation_rules=acq_rules,
+                validation_model=acq_model,
+                raise_errors=raise_errors
+            )
+    return []
 
 
 class TestQSMConsensusGuidelines:
@@ -152,26 +170,28 @@ class TestQSMConsensusGuidelines:
         assert "rules" in schema["acquisitions"]["QSM"]
 
         # Should have 11 rules as defined in the schema
-        assert len(schema["acquisitions"]["QSM"]["rules"]) == 11
+        assert len(schema["acquisitions"]["QSM"]["rules"]) == 10
 
         # Check some specific rules exist
         rule_ids = [r["id"] for r in schema["acquisitions"]["QSM"]["rules"]]
         assert "validate_echo_count" in rule_ids
-        assert "validate_mra_type" in rule_ids
         assert "validate_pixel_bandwidth" in rule_ids
+        assert "validate_flip_angle" in rule_ids
 
     def test_valid_qsm_session_passes(self, qsm_schema, valid_qsm_session):
         """Test that a valid QSM session passes all rules."""
         fields, schema = qsm_schema
 
-        session_map = {"QSM": "QSM_mag_echo1"}
+        # Get the actual acquisition name from the session
+        actual_acq_name = valid_qsm_session['Acquisition'].iloc[0]
+        session_map = {"QSM": actual_acq_name}
 
         # Use check_session_compliance with rules
         _, schema_data, validation_rules = dicompare.load_hybrid_schema(
             "schemas/QSM_Consensus_Guidelines_v1.0.json"
         )
 
-        compliance = dicompare.check_session_compliance(
+        compliance = check_session_compliance(
             in_session=valid_qsm_session,
             schema_data=schema_data,
             session_map=session_map,
@@ -192,9 +212,11 @@ class TestQSMConsensusGuidelines:
             "schemas/QSM_Consensus_Guidelines_v1.0.json"
         )
 
-        session_map = {"QSM": "QSM_single"}
+        # Get the actual acquisition name from the session
+        actual_acq_name = invalid_qsm_single_echo['Acquisition'].iloc[0]
+        session_map = {"QSM": actual_acq_name}
 
-        compliance = dicompare.check_session_compliance(
+        compliance = check_session_compliance(
             in_session=invalid_qsm_single_echo,
             schema_data=schema_data,
             session_map=session_map,
@@ -219,9 +241,11 @@ class TestQSMConsensusGuidelines:
             "schemas/QSM_Consensus_Guidelines_v1.0.json"
         )
 
-        session_map = {"QSM": "QSM_echo1"}
+        # Get the actual acquisition name from the session
+        actual_acq_name = invalid_qsm_2d['Acquisition'].iloc[0]
+        session_map = {"QSM": actual_acq_name}
 
-        compliance = dicompare.check_session_compliance(
+        compliance = check_session_compliance(
             in_session=invalid_qsm_2d,
             schema_data=schema_data,
             session_map=session_map,
@@ -352,22 +376,24 @@ class TestUKBiobankSchema:
             'ProtocolName': 'DWI_MB3'
         }
 
-        # Create varying DiffusionGradientDirectionSequence and DiffusionBValue
+        # Create varying DiffusionBValue for different shells
         # Simulate 100 directions with b=0, b=1000, b=2000 shells
         num_b0 = 10
         num_b1000 = 50
         num_b2000 = 50
         total_volumes = num_b0 + num_b1000 + num_b2000
 
-        # Create unique gradient directions (simplified - just use sequential IDs)
-        gradient_dirs = list(range(total_volumes))
         b_values = [0] * num_b0 + [1000] * num_b1000 + [2000] * num_b2000
 
         varying_fields = {
-            'DiffusionGradientDirectionSequence': gradient_dirs,
             'DiffusionBValue': b_values,
             'InstanceNumber': list(range(1, total_volumes + 1))
         }
+
+        # Note: DiffusionGradientDirectionSequence is a complex sequence tag
+        # that would require creating Dataset objects for each gradient.
+        # For this test, we just use DiffusionBValue which is sufficient
+        # to test the validation rules.
 
         paths, _ = create_test_dicom_series(
             str(tmp_path), "DWI", num_slices=total_volumes,
@@ -422,10 +448,13 @@ class TestUKBiobankSchema:
         # Get the single acquisition from schema
         schema_acq = schema["acquisitions"]["T1 structural brain images"]
 
+        # Get the actual acquisition name from the session
+        actual_acq_name = valid_t1_session['Acquisition'].iloc[0]
+
         compliance = dicompare.check_acquisition_compliance(
             in_session=valid_t1_session,
             schema_acquisition=schema_acq,
-            acquisition_name="T1_p2_1mm_fov256_sag_TI_880"
+            acquisition_name=actual_acq_name
         )
 
         # Should have results
@@ -442,12 +471,16 @@ class TestUKBiobankSchema:
         """Test that T1 with wrong TR fails validation."""
         fields, schema = ukb_schema
 
-        session_map = {"T1 structural brain images": "T1_wrong"}
+        # Get the actual acquisition name from the session
+        actual_acq_name = invalid_t1_wrong_tr['Acquisition'].iloc[0]
 
-        compliance = dicompare.check_session_compliance_with_json_schema(
+        # Get the single acquisition from schema
+        schema_acq = schema["acquisitions"]["T1 structural brain images"]
+
+        compliance = dicompare.check_acquisition_compliance(
             in_session=invalid_t1_wrong_tr,
-            schema_session=schema,
-            session_map=session_map
+            schema_acquisition=schema_acq,
+            acquisition_name=actual_acq_name
         )
 
         # Should have failures
@@ -467,9 +500,11 @@ class TestUKBiobankSchema:
             "schemas/UK_Biobank_v1.0.json"
         )
 
-        session_map = {"Multiband diffusion brain images": "DWI"}
+        # Get the actual acquisition name from the session
+        actual_acq_name = valid_dwi_session['Acquisition'].iloc[0]
+        session_map = {"Multiband diffusion brain images": actual_acq_name}
 
-        compliance = dicompare.check_session_compliance(
+        compliance = check_session_compliance(
             in_session=valid_dwi_session,
             schema_data=schema_data,
             session_map=session_map,
@@ -511,25 +546,23 @@ class TestSchemaFeatures:
             reference_fields=[]
         )
 
-        # Create schema with tolerance
-        schema = {
-            "acquisitions": {
-                "test_acq": {
-                    "fields": [
-                        {"field": "RepetitionTime", "value": 2000, "tolerance": 10},
-                        {"field": "PixelBandwidth", "value": 240, "tolerance": 1}
-                    ],
-                    "series": []
-                }
-            }
+        # Get the actual acquisition name (it will be normalized)
+        acq_name = session_df['Acquisition'].iloc[0]
+
+        # Create schema acquisition (no need for full schema wrapper)
+        schema_acq = {
+            "fields": [
+                {"field": "RepetitionTime", "value": 2000, "tolerance": 10},
+                {"field": "PixelBandwidth", "value": 240, "tolerance": 1}
+            ],
+            "series": []
         }
 
-        session_map = {"test_acq": "test"}
-
-        compliance = dicompare.check_session_compliance_with_json_schema(
+        # Use new API directly - validate one acquisition
+        compliance = check_acquisition_compliance(
             in_session=session_df,
-            schema_session=schema,
-            session_map=session_map
+            schema_acquisition=schema_acq,
+            acquisition_name=acq_name
         )
 
         # Both should pass - within tolerance
@@ -555,25 +588,23 @@ class TestSchemaFeatures:
             reference_fields=[]
         )
 
-        # Create schema with contains_any
-        schema = {
-            "acquisitions": {
-                "test_acq": {
-                    "fields": [
-                        {"field": "ScanningSequence", "contains_any": ["GR", "SE"]},
-                        {"field": "SequenceVariant", "contains_any": ["MP", "OSP"]}
-                    ],
-                    "series": []
-                }
-            }
+        # Get the actual acquisition name
+        acq_name = session_df['Acquisition'].iloc[0]
+
+        # Create schema acquisition
+        schema_acq = {
+            "fields": [
+                {"field": "ScanningSequence", "contains_any": ["GR", "SE"]},
+                {"field": "SequenceVariant", "contains_any": ["MP", "OSP"]}
+            ],
+            "series": []
         }
 
-        session_map = {"test_acq": "test"}
-
-        compliance = dicompare.check_session_compliance_with_json_schema(
+        # Use new API directly
+        compliance = check_acquisition_compliance(
             in_session=session_df,
-            schema_session=schema,
-            session_map=session_map
+            schema_acquisition=schema_acq,
+            acquisition_name=acq_name
         )
 
         # Both should pass - contains at least one required value
@@ -613,37 +644,35 @@ class TestSchemaFeatures:
             reference_fields=[]
         )
 
-        # Create schema with series definitions
-        schema = {
-            "acquisitions": {
-                "test_acq": {
+        # Get the actual acquisition name
+        acq_name = session_df['Acquisition'].iloc[0]
+
+        # Create schema acquisition with series definitions
+        schema_acq = {
+            "fields": [
+                {"field": "EchoTime", "value": 2.01}
+            ],
+            "series": [
+                {
+                    "name": "Series_001",
                     "fields": [
-                        {"field": "EchoTime", "value": 2.01}
-                    ],
-                    "series": [
-                        {
-                            "name": "Series_001",
-                            "fields": [
-                                {"field": "ImageType", "value": ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']}
-                            ]
-                        },
-                        {
-                            "name": "Series_002",
-                            "fields": [
-                                {"field": "ImageType", "value": ['ORIGINAL', 'PRIMARY', 'M', 'ND']}
-                            ]
-                        }
+                        {"field": "ImageType", "value": ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']}
+                    ]
+                },
+                {
+                    "name": "Series_002",
+                    "fields": [
+                        {"field": "ImageType", "value": ['ORIGINAL', 'PRIMARY', 'M', 'ND']}
                     ]
                 }
-            }
+            ]
         }
 
-        session_map = {"test_acq": "test"}
-
-        compliance = dicompare.check_session_compliance_with_json_schema(
+        # Use new API directly
+        compliance = check_acquisition_compliance(
             in_session=session_df,
-            schema_session=schema,
-            session_map=session_map
+            schema_acquisition=schema_acq,
+            acquisition_name=acq_name
         )
 
         # Should have run series validation

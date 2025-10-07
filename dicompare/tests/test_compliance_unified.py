@@ -4,7 +4,44 @@ import pytest
 import pandas as pd
 import json
 import dicompare
-from dicompare import check_session_compliance, ValidationError
+from dicompare import ValidationError
+from dicompare.validation import check_acquisition_compliance
+from dicompare.validation.helpers import ComplianceStatus
+
+def check_session_compliance(in_session, schema_data, session_map, validation_rules=None, validation_models=None, raise_errors=False):
+    """Helper wrapper to emulate check_session_compliance using new check_acquisition_compliance."""
+    all_results = []
+
+    for ref_acq_name, schema_acq in schema_data["acquisitions"].items():
+        if ref_acq_name not in session_map:
+            all_results.append({
+                "field": "Acquisition Mapping",
+                "value": None,
+                "expected": f"Acquisition '{ref_acq_name}' to be mapped",
+                "message": f"Reference acquisition '{ref_acq_name}' is not mapped to any input acquisition.",
+                "passed": False,
+                "status": ComplianceStatus.ERROR.value,
+                "series": None
+            })
+            continue
+
+        input_acq_name = session_map[ref_acq_name]
+
+        # Get validation rules/model for this acquisition
+        acq_rules = validation_rules.get(ref_acq_name) if validation_rules else None
+        acq_model = validation_models.get(ref_acq_name) if validation_models else None
+
+        results = check_acquisition_compliance(
+            in_session,
+            schema_acq,
+            acquisition_name=input_acq_name,
+            validation_rules=acq_rules,
+            validation_model=acq_model,
+            raise_errors=raise_errors
+        )
+        all_results.extend(results)
+
+    return all_results
 
 
 def test_unified_compliance_field_only(tmp_path):
@@ -168,8 +205,8 @@ def test_unified_compliance_missing_acquisition(tmp_path):
     # Should have one error for missing acquisition
     assert len(results) == 1
     assert results[0]['passed'] == False
-    assert 'not found in data' in results[0]['message']
-    assert results[0]['field'] == 'Acquisition-Level Error'
+    assert 'not found in session data' in results[0]['message']
+    assert results[0]['field'] == 'Acquisition'
 
 
 def test_unified_compliance_mixed_passes_and_failures():

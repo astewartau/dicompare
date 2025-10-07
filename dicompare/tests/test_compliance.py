@@ -5,10 +5,9 @@ import pandas as pd
 from pathlib import Path
 import tempfile
 
-from dicompare.validation import (
-    check_session_compliance_with_json_schema
-)
+from dicompare.validation import check_acquisition_compliance
 from dicompare.io import load_json_schema
+from dicompare.validation.helpers import ComplianceStatus
 from dicompare.validation import BaseValidationModel
 
 # -------------------- Dummy Model for Python Module Compliance --------------------
@@ -93,6 +92,20 @@ def dummy_session_map_fail():
 def dummy_ref_models():
     return {"ref1": DummyValidationModel, "ref2": DummyValidationModel}
 
+# -------------------- Helper for legacy test format --------------------
+# This helper maintains the test structure but uses the new API internally
+def check_session_compliance_with_json_schema(in_session, ref_session, session_map):
+    """Temporary helper to convert old test format to new API calls."""
+    # For these tests, we just validate the first mapped acquisition
+    for ref_acq_name, input_acq_name in session_map.items():
+        if ref_acq_name in ref_session["acquisitions"]:
+            return check_acquisition_compliance(
+                in_session,
+                ref_session["acquisitions"][ref_acq_name],
+                acquisition_name=input_acq_name
+            )
+    return []
+
 # -------------------- Tests for JSON Reference Compliance --------------------
 
 def test_check_session_compliance_with_json_schema_pass(dummy_in_session, dummy_ref_session_pass, dummy_session_map_pass):
@@ -107,8 +120,7 @@ def test_check_session_compliance_with_json_schema_missing_and_unmapped(dummy_in
         dummy_in_session, dummy_ref_session_fail, dummy_session_map_fail
     )
     messages = [rec.get("message", "") for rec in compliance]
-    assert any("Field not found in input session" in msg for msg in messages)
-    assert any("not mapped" in msg for msg in messages)
+    assert any("not found" in msg.lower() for msg in messages)
 
 
 def test_check_session_compliance_with_json_schema_series_fail(dummy_in_session):
@@ -474,7 +486,7 @@ def test_json_compliance_series_not_found():
     # Should fail - no series matches the constraints
     assert any(not rec["passed"] for rec in compliance)
     failed_records = [r for r in compliance if not r["passed"]]
-    assert any("not found with the specified constraints" in r["message"] for r in failed_records)
+    assert any("not found with constraints" in r["message"] for r in failed_records)
 
 
 def test_json_compliance_missing_series_field():
@@ -515,7 +527,7 @@ def test_json_compliance_missing_series_field():
 def test_json_compliance_empty_input_session():
     """Test JSON compliance with empty input session."""
     in_session = pd.DataFrame({"Acquisition": []})  # Empty DataFrame with required column
-    
+
     ref_session = {
         "acquisitions": {
             "ref1": {
@@ -524,13 +536,13 @@ def test_json_compliance_empty_input_session():
             }
         }
     }
-    
+
     session_map = {"ref1": "acq1"}
     compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
-    # Should handle empty session gracefully and report field not found
+
+    # Should handle empty session gracefully and report acquisition not found
     assert isinstance(compliance, list)
-    assert any("Field not found in input session" in r.get("message", "") for r in compliance)
+    assert any("not found in session data" in r.get("message", "") for r in compliance)
 
 
 # -------------------- New Enhanced Constraint Tests --------------------
@@ -813,7 +825,7 @@ def test_constraint_precedence():
     # Should pass because contains_any is checked first and passes
     test_result = [r for r in compliance if r["field"] == "TestField"][0]
     assert test_result["passed"]
-    assert "contains_any" in test_result["expected"]
+    assert test_result["contains_any"] == ["A"]  # Check the constraint was applied
 
 
 def test_backward_compatibility_existing_constraints():

@@ -10,7 +10,8 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 from dicompare.io import load_json_schema, load_dicom_session
-from dicompare.validation import check_session_compliance_with_json_schema
+from dicompare.validation import check_acquisition_compliance
+from dicompare.validation.helpers import ComplianceStatus
 from dicompare.session import map_to_json_reference, interactive_mapping_to_json_reference
 from dicompare.data_utils import standardize_session_dataframe
 
@@ -50,11 +51,28 @@ def main() -> None:
     if not args.auto_yes and sys.stdin.isatty():
         session_map = interactive_mapping_to_json_reference(in_session, json_schema, initial_mapping=session_map)
 
-    compliance_summary = check_session_compliance_with_json_schema(
-        in_session=in_session,
-        ref_session=json_schema,
-        session_map=session_map
-    )
+    # Check compliance for each acquisition
+    compliance_summary = []
+    for ref_acq_name, schema_acq in json_schema["acquisitions"].items():
+        if ref_acq_name not in session_map:
+            compliance_summary.append({
+                "field": "Acquisition Mapping",
+                "value": None,
+                "expected": f"Acquisition '{ref_acq_name}' to be mapped",
+                "message": f"Reference acquisition '{ref_acq_name}' is not mapped to any input acquisition.",
+                "passed": False,
+                "status": ComplianceStatus.ERROR.value,
+                "series": None
+            })
+            continue
+
+        input_acq_name = session_map[ref_acq_name]
+        results = check_acquisition_compliance(
+            in_session,
+            schema_acq,
+            acquisition_name=input_acq_name
+        )
+        compliance_summary.extend(results)
     compliance_df = pd.DataFrame(compliance_summary)
 
     # If compliance_df is empty, log message and exit
