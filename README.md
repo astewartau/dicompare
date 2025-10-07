@@ -38,21 +38,10 @@ This creates a JSON schema describing the session based on the specified referen
 
 ### 2. Validate a DICOM session
 
-**Against a JSON schema:**
-
 ```bash
 dcm-check-session \
     --in_session /path/to/dicom/session \
     --json_schema schema.json \
-    --out_json compliance_report.json
-```
-
-**Against a Python module with validation rules:**
-
-```bash
-dcm-check-session \
-    --in_session /path/to/dicom/session \
-    --python_schema validation_rules.py \
     --out_json compliance_report.json
 ```
 
@@ -153,54 +142,6 @@ compliance_summary = check_session_compliance_with_json_schema(
 # Display results
 for entry in compliance_summary:
     print(entry)
-```
-
-### Create and use Python validation models
-
-**Define custom validation rules:**
-
-```python
-from dicompare import BaseValidationModel, validator, ValidationError
-
-class MyProtocolValidation(BaseValidationModel):
-    acquisition_name = "T1w_MPRAGE"
-
-    @validator(["RepetitionTime"], "TR check", "TR must be around 2500ms")
-    def validate_tr(self, row):
-        if not (2400 <= row["RepetitionTime"] <= 2600):
-            raise ValidationError("TR outside acceptable range")
-
-    @validator(["EchoTime"], "TE check", "TE must be less than 5ms")
-    def validate_te(self, row):
-        if row["EchoTime"] >= 5:
-            raise ValidationError("TE too high")
-```
-
-**Validate against Python models:**
-
-```python
-from dicompare import (
-    load_python_schema,
-    load_dicom_session,
-    check_session_compliance_with_python_module,
-    interactive_mapping_to_python_reference
-)
-
-# Load Python validation module
-py_schema = load_python_schema(module_path="validation_rules.py")
-
-# Load input session
-in_session = load_dicom_session(session_dir="/path/to/dicom/session")
-
-# Map acquisitions interactively
-session_map = interactive_mapping_to_python_reference(in_session, py_schema)
-
-# Check compliance
-compliance_summary = check_session_compliance_with_python_module(
-    in_session=in_session,
-    ref_models=py_schema,
-    session_map=session_map
-)
 ```
 
 ### Additional utilities

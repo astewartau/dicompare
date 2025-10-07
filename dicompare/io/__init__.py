@@ -4,7 +4,7 @@ I/O operations for dicompare package.
 This module contains functions for loading and processing various data formats:
 - DICOM files and sessions
 - Siemens .pro protocol files
-- JSON and Python schema files
+- JSON schema files
 - NIfTI files
 - Data serialization utilities
 """
@@ -25,8 +25,21 @@ from .dicom import (
 from .json import (
     load_json_schema,
     load_hybrid_schema,
-    load_python_schema,
     make_json_serializable,
+)
+
+# DICOM generation
+from .dicom_generator import (
+    generate_test_dicoms_from_schema,
+    generate_test_dicoms_from_schema_json,
+)
+
+# Special field handling
+from .special_fields import (
+    categorize_field,
+    categorize_fields,
+    get_unhandled_field_warnings,
+    get_field_categorization_summary,
 )
 
 # Siemens .pro file parsing
@@ -61,10 +74,17 @@ __all__ = [
     "async_load_dicom_session",
     "load_nifti_session",
     "assign_acquisition_and_run_numbers",
+    # DICOM generation
+    "generate_test_dicoms_from_schema",
+    "generate_test_dicoms_from_schema_json",
+    # Special field handling
+    "categorize_field",
+    "categorize_fields",
+    "get_unhandled_field_warnings",
+    "get_field_categorization_summary",
     # JSON/Schema I/O
     "load_json_schema",
     "load_hybrid_schema",
-    "load_python_schema",
     "make_json_serializable",
     # PRO file support
     "load_pro_file",

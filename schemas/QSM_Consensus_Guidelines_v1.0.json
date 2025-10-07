@@ -1,0 +1,622 @@
+{
+  "name": "QSM Consensus Guidelines",
+  "description": "QSM consensus guidelines as reported in https://doi.org/10.1002/mrm.30006.\n\nQSM Consensus Organization Committee, Bilgic, B., Costagli, M., Chan, K. S., Duyn, J., Langkammer, C., ... & ISMRM Electro‐Magnetic Tissue Properties Study Group. (2024). Recommended implementation of quantitative susceptibility mapping for clinical research in the brain: a consensus of the ISMRM electro‐magnetic tissue properties study group. Magnetic resonance in medicine, 91(5), 1834-1862.",
+  "version": "1.0",
+  "authors": [
+    "QSM Consensus Organization Committee",
+    "Ashley Stewart"
+  ],
+  "acquisitions": {
+    "QSM": {
+      "description": "Imported from QSM_Consensus_Guidelines_v1.0",
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_echo_count",
+          "name": "Multi-echo Validation",
+          "description": "While QSM can be achieved with one echo, two is the minimum number of echoes needed to separate the intrinsic transmit RF phase from the magnetic field-induced phase.",
+          "implementation": "echo_times = value[\"EchoTime\"].dropna().unique()\nif len(echo_times) == 1:\n    raise ValidationError(\"Found single-echo acquisition.\")\nelif len(echo_times) < 3:\n    raise ValidationWarning(f\"Found {len(echo_times)} echoes, but at least 3 are recommended.\")",
+          "fields": [
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_1758692922475",
+              "name": "New Test Case",
+              "data": {
+                "EchoTime": [
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_1758692923339",
+              "name": "New Test Case",
+              "data": {
+                "EchoTime": [
+                  1,
+                  2
+                ]
+              },
+              "expectedResult": "warning",
+              "description": ""
+            },
+            {
+              "id": "test_1758692923515",
+              "name": "New Test Case",
+              "data": {
+                "EchoTime": [
+                  1
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "uniform_echo_spacing",
+          "name": "Uniform Echo Spacing",
+          "description": "The spacing between echoes (ΔTE) should be uniform.",
+          "implementation": "echo_times = value[\"EchoTime\"].dropna().sort_values()\nspacings = echo_times.diff().iloc[1:]\nif not all(abs(spacings.iloc[0] - s) < 0.01 for s in spacings):\n    raise ValidationError(f\"Echo spacing is not uniform. Found spacings: {spacings}.\")",
+          "fields": [
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_1758693136492",
+              "name": "Pass",
+              "data": {
+                "EchoTime": [
+                  3,
+                  5,
+                  7
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_1758693157693",
+              "name": "Fail",
+              "data": {
+                "EchoTime": [
+                  3,
+                  4,
+                  6
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_first_echo",
+          "name": "Short First Echo",
+          "description": "The first TE (TE1) should be as short as possible.",
+          "implementation": "first_echo_time = value[\"EchoTime\"].min()\nif first_echo_time > 10:\n    raise ValidationError(f\"The first TE is overly long. Found {first_echo_time} ms.\")\nif first_echo_time > 5:\n    raise ValidationWarning(f\"The first TE could possibly be shorter. Found {first_echo_time} ms.\")",
+          "fields": [
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_1758693218348",
+              "name": "Pass",
+              "data": {
+                "EchoTime": [
+                  3,
+                  4,
+                  5
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_1758693220789",
+              "name": "Warning",
+              "data": {
+                "EchoTime": [
+                  6,
+                  7
+                ]
+              },
+              "expectedResult": "warning",
+              "description": ""
+            },
+            {
+              "id": "test_1758693221421",
+              "name": "Fail",
+              "data": {
+                "EchoTime": [
+                  12,
+                  13
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_echo_times",
+          "name": "TE Close to T2*",
+          "description": "The longest TE (the TE of the last echo) should be equal to at least the T2* value of the tissue of interest.",
+          "implementation": "echo_times = value[\"EchoTime\"].dropna().sort_values()\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\n# literature values\ntissue_values = {\n    1.5: {\"grey\": 84.0, \"white\": 66.2, \"caudate\": 58.8, \"putamen\": 55.5},\n    3.0: {\"grey\": 66.0, \"white\": 53.2, \"caudate\": 41.3, \"putamen\": 31.5},\n    7.0: {\"grey\": 33.2, \"white\": 26.8, \"caudate\": 19.9, \"putamen\": 16.1},\n}\n\nmax_tissue = max(tissue_values[field_strength].values())\nmin_tissue = min(tissue_values[field_strength].values())\n\nif echo_times.iloc[-1] > 1.25 * max_tissue:\n    raise ValidationError(f\"The longest TE should be ≤1.25x the highest tissue T2* ({max_tissue} ms).\")\nif echo_times.iloc[-1] < 0.75 * min_tissue:\n    raise ValidationError(f\"The longest TE should be ≥0.75x the lowest tissue T2* ({min_tissue} ms).\")",
+          "fields": [
+            "EchoTime",
+            "MagneticFieldStrength"
+          ],
+          "testCases": [
+            {
+              "id": "test_1758693309045",
+              "name": "Pass",
+              "data": {
+                "EchoTime": [
+                  15,
+                  30
+                ],
+                "MagneticFieldStrength": [
+                  3,
+                  3
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_1758693311119",
+              "name": "Fail",
+              "data": {
+                "EchoTime": [
+                  5,
+                  10,
+                  15
+                ],
+                "MagneticFieldStrength": [
+                  3,
+                  3,
+                  3
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_image_type",
+          "name": "Valid Magnitude/Phase Pairs",
+          "description": "Each EchoTime must have at least one magnitude and phase image.",
+          "implementation": "magnitude_counts = []\nphase_counts = []\n\nfor echo_time, group in value.groupby(\"EchoTime\"):\n    image_types = group[\"ImageType\"]\n    \n    # Count occurrences of 'M' and 'P' in ImageType tuples\n    magnitude_counts.append(sum('M' in image for image in image_types))\n    phase_counts.append(sum('P' in image for image in image_types))\n\nif not all(m >= 1 for m in magnitude_counts):\n    raise ValidationError(f\"Each EchoTime must have at least one magnitude image. Found {magnitude_counts}.\")\nif not all(p >= 1 for p in phase_counts):\n    raise ValidationError(f\"Each EchoTime must have at least one phase image. Found {phase_counts}.\")\n",
+          "fields": [
+            "ImageType",
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_1758693385030",
+              "name": "Pass",
+              "data": {
+                "ImageType": [
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "M"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "P"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "M"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "P"
+                  ]
+                ],
+                "EchoTime": [
+                  5,
+                  5,
+                  10,
+                  10
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_1758693442494",
+              "name": "Fail",
+              "data": {
+                "ImageType": [
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "M"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "P"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "M"
+                  ]
+                ],
+                "EchoTime": [
+                  5,
+                  5,
+                  10
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_image_slices",
+          "name": "Matching Magnitude/Phase Slices",
+          "description": "Each magnitude and phase image should have the same number of slices.",
+          "implementation": "num_slices = value['Count']\nif not all(num_slices == num_slices.iloc[0]):\n    raise ValidationError(f\"Magnitude and phase images do not have the same number of slices. Found {list(num_slices)}.\")",
+          "fields": [
+            "ImageType",
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_1758693497870",
+              "name": "Pass",
+              "data": {
+                "ImageType": [
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "M"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "P"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "M"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "P"
+                  ]
+                ],
+                "EchoTime": [
+                  5,
+                  5,
+                  10,
+                  10
+                ],
+                "Count": [
+                  100,
+                  100,
+                  100,
+                  100
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_1758693499448",
+              "name": "Fail",
+              "data": {
+                "ImageType": [
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "M"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "P"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "M"
+                  ],
+                  [
+                    "ORIGINAL",
+                    "PRIMARY",
+                    "P"
+                  ]
+                ],
+                "EchoTime": [
+                  5,
+                  5,
+                  10,
+                  10
+                ],
+                "Count": [
+                  100,
+                  100,
+                  99,
+                  100
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_pixel_bandwidth",
+          "name": "Readout Bandwidth",
+          "description": "Use the minimum readout bandwidth which generates acceptable distortions.",
+          "implementation": "pixel_bandwidth = value[\"PixelBandwidth\"].iloc[0]\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength == 3.0 and pixel_bandwidth > 220:\n    raise ValidationError(f\"PixelBandwidth should be ≤220 Hz/pixel at 3T. Found {pixel_bandwidth} Hz/pixel.\")\nelif field_strength != 3.0:\n    raise ValidationWarning(\"PixelBandwidth recommendations are not available for this field strength.\")",
+          "fields": [
+            "PixelBandwidth",
+            "MagneticFieldStrength"
+          ],
+          "testCases": [
+            {
+              "id": "test_1758693660550",
+              "name": "Pass",
+              "data": {
+                "PixelBandwidth": [
+                  220
+                ],
+                "MagneticFieldStrength": [
+                  3
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_1758693660710",
+              "name": "Fail",
+              "data": {
+                "PixelBandwidth": [
+                  300
+                ],
+                "MagneticFieldStrength": [
+                  3
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_1758693662119",
+              "name": "Warning",
+              "data": {
+                "PixelBandwidth": [
+                  200
+                ],
+                "MagneticFieldStrength": [
+                  7
+                ]
+              },
+              "expectedResult": "warning",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_flip_angle",
+          "name": "Ernst Flip Angle",
+          "description": "FlipAngle should be close to the Ernst angle.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0]\nflip_angle = value[\"FlipAngle\"].iloc[0]\n\nT1_MIN_MAX = {\n    1.5: {\"min\": 600, \"max\": 1200},\n    3.0: {\"min\": 900, \"max\": 1650},\n    7.0: {\"min\": 1100, \"max\": 1900},\n}\n\nif field_strength not in T1_MIN_MAX:\n    raise ValidationWarning(f\"Unsupported MagneticFieldStrength {field_strength}T for Ernst angle validation.\")\n\nt1_min, t1_max = T1_MIN_MAX[field_strength][\"min\"], T1_MIN_MAX[field_strength][\"max\"]\nernst_min = math.acos(math.exp(-tr / t1_max)) * (180 / math.pi)\nernst_max = math.acos(math.exp(-tr / t1_min)) * (180 / math.pi)\n\ntolerance = 0.1\n\nif flip_angle < ernst_min - tolerance or flip_angle > ernst_max + tolerance:\n    raise ValidationError(f\"FlipAngle should be between {ernst_min:.2f}° and {ernst_max:.2f}° at {field_strength}T with TR={tr} ms. Found {flip_angle:.2f}°.\")",
+          "fields": [
+            "FlipAngle",
+            "RepetitionTime",
+            "MagneticFieldStrength"
+          ],
+          "testCases": [
+            {
+              "id": "test_1758693733055",
+              "name": "Pass",
+              "data": {
+                "FlipAngle": [
+                  35
+                ],
+                "RepetitionTime": [
+                  300
+                ],
+                "MagneticFieldStrength": [
+                  3
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_1758693733200",
+              "name": "Fail",
+              "data": {
+                "FlipAngle": [
+                  50
+                ],
+                "RepetitionTime": [
+                  300
+                ],
+                "MagneticFieldStrength": [
+                  3
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_1758693733343",
+              "name": "Warning",
+              "data": {
+                "FlipAngle": [
+                  50
+                ],
+                "RepetitionTime": [
+                  300
+                ],
+                "MagneticFieldStrength": [
+                  16
+                ]
+              },
+              "expectedResult": "warning",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_voxel_shape",
+          "name": "Isotropic Voxels",
+          "description": "Use isotropic voxels.",
+          "implementation": "pixel_spacing = value[\"PixelSpacing\"].iloc[0]\nslice_thickness = value[\"SliceThickness\"].iloc[0]\n\ntolerance = 0.1\nif not all(abs(p - pixel_spacing[0]) < tolerance for p in pixel_spacing) or abs(pixel_spacing[0] - slice_thickness) > tolerance:\n    raise ValidationError(f\"Voxel shape is not isotropic. Found PixelSpacing: {pixel_spacing}, SliceThickness: {slice_thickness}.\")\n",
+          "fields": [
+            "PixelSpacing",
+            "SliceThickness"
+          ],
+          "testCases": [
+            {
+              "id": "test_1758693830487",
+              "name": "Pass",
+              "data": {
+                "PixelSpacing": [
+                  [
+                    1,
+                    1
+                  ]
+                ],
+                "SliceThickness": [
+                  1
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_1758693830760",
+              "name": "Fail",
+              "data": {
+                "PixelSpacing": [
+                  [
+                    1,
+                    2
+                  ]
+                ],
+                "SliceThickness": [
+                  1
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_1758693849032",
+              "name": "Fail 2",
+              "data": {
+                "PixelSpacing": [
+                  [
+                    1,
+                    1
+                  ]
+                ],
+                "SliceThickness": [
+                  2
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_pixel_spacing",
+          "name": "Voxel Size Limit",
+          "description": "Use a combined voxel size of at most 1 mm³ to reduce partial volume-related estimation errors.",
+          "implementation": "pixel_spacing = value[\"PixelSpacing\"].iloc[0]\nslice_thickness = value[\"SliceThickness\"].iloc[0]\nvoxel_size_mm3 = math.prod(list(pixel_spacing) + [slice_thickness])\n\nif voxel_size_mm3 > 1:\n    raise ValidationError(f\"Voxel size should be ≤1 mm³. Got {voxel_size_mm3:.2f} mm³.\")\n",
+          "fields": [
+            "PixelSpacing",
+            "SliceThickness"
+          ],
+          "testCases": [
+            {
+              "id": "test_1758693867592",
+              "name": "Pass",
+              "data": {
+                "PixelSpacing": [
+                  [
+                    1,
+                    1
+                  ]
+                ],
+                "SliceThickness": [
+                  1
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_1758693867752",
+              "name": "Fail",
+              "data": {
+                "PixelSpacing": [
+                  [
+                    1,
+                    2
+                  ]
+                ],
+                "SliceThickness": [
+                  1
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_1758693867904",
+              "name": "Fail 2",
+              "data": {
+                "PixelSpacing": [
+                  [
+                    1,
+                    1
+                  ]
+                ],
+                "SliceThickness": [
+                  1.5
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

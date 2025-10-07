@@ -3,19 +3,16 @@ JSON and schema loading/serialization utilities for dicompare.
 
 This module contains functions for:
 - Loading and parsing JSON schema files
-- Loading Python validation modules
 - Hybrid schema support (JSON + Python rules)
 - JSON serialization utilities for numpy/pandas types
 """
 
 import json
-import importlib.util
 import numpy as np
 import pandas as pd
 from typing import Any, List, Dict, Tuple
 
 from ..utils import normalize_numeric_values
-from ..validation import BaseValidationModel
 
 
 def load_json_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any]]:
@@ -112,38 +109,6 @@ def load_hybrid_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any]
                         reference_fields.add(field)
 
     return sorted(reference_fields), schema_data, validation_rules
-
-
-def load_python_schema(module_path: str) -> Dict[str, BaseValidationModel]:
-    """
-    Load validation models from a Python schema module for DICOM compliance checks.
-
-    Notes:
-        - The module must define `ACQUISITION_MODELS` as a dictionary mapping acquisition names to validation models.
-        - Validation models must inherit from `BaseValidationModel`.
-
-    Args:
-        module_path (str): Path to the Python module containing validation models.
-
-    Returns:
-        Dict[str, BaseValidationModel]: The acquisition validation models from the module.
-
-    Raises:
-        FileNotFoundError: If the specified Python module path does not exist.
-        ValueError: If the module does not define `ACQUISITION_MODELS` or its format is incorrect.
-    """
-    spec = importlib.util.spec_from_file_location("validation_module", module_path)
-    validation_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(validation_module)
-
-    if not hasattr(validation_module, "ACQUISITION_MODELS"):
-        raise ValueError(f"The module {module_path} does not define 'ACQUISITION_MODELS'.")
-
-    acquisition_models = getattr(validation_module, "ACQUISITION_MODELS")
-    if not isinstance(acquisition_models, dict):
-        raise ValueError("'ACQUISITION_MODELS' must be a dictionary.")
-
-    return acquisition_models
 
 
 def make_json_serializable(data: Any) -> Any:

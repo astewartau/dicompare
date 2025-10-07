@@ -45,8 +45,18 @@ def extract_inferred_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
     """
     inferred_metadata = {}
 
-    # Try to infer multiband factor from protocol name if standard fields are missing
-    if hasattr(ds, "ProtocolName"):
+    # Try to infer multiband factor from ImageComments field (CMRR multiband convention)
+    # Format: "Unaliased MB3/PE3 SENSE1" or "Unaliased MB4/PE3/LB"
+    if hasattr(ds, "ImageComments"):
+        mb_match = re.search(r"\bMB(\d+)", ds["ImageComments"].value, re.IGNORECASE)
+        if mb_match:
+            accel_factor = int(mb_match.group(1))
+            inferred_metadata["MultibandAccelerationFactor"] = accel_factor
+            inferred_metadata["MultibandFactor"] = accel_factor
+            inferred_metadata["ParallelReductionFactorOutOfPlane"] = accel_factor
+
+    # Try to infer multiband factor from protocol name if not found in ImageComments
+    if "MultibandFactor" not in inferred_metadata and hasattr(ds, "ProtocolName"):
         mb_match = re.search(r"mb(\d+)", ds["ProtocolName"].value, re.IGNORECASE)
         if mb_match:
             accel_factor = int(mb_match.group(1))
@@ -125,7 +135,7 @@ def extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
 
     # Acquisition-level CSA fields
     csa_metadata["DiffusionBValue"] = get_csa_value("B_value")
-    csa_metadata["DiffusionGradientDirectionSequence"] = get_csa_value(
+    csa_metadata["DiffusionGradientOrientation"] = get_csa_value(
         "DiffusionGradientDirection", scalar=False
     )
     csa_metadata["SliceMeasurementDuration"] = get_csa_value("SliceMeasurementDuration")

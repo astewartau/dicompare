@@ -11,8 +11,7 @@ from .acquisition import (
 
 from .mapping import (
     map_to_json_reference,
-    interactive_mapping_to_json_reference,
-    interactive_mapping_to_python_reference
+    interactive_mapping_to_json_reference
 )
 
 __all__ = [
@@ -21,6 +20,5 @@ __all__ = [
 
     # Session mapping
     'map_to_json_reference',
-    'interactive_mapping_to_json_reference',
-    'interactive_mapping_to_python_reference'
+    'interactive_mapping_to_json_reference'
 ]

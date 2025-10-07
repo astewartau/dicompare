@@ -6,10 +6,9 @@ from pathlib import Path
 import tempfile
 
 from dicompare.validation import (
-    check_session_compliance_with_json_schema,
-    check_session_compliance_with_python_module
+    check_session_compliance_with_json_schema
 )
-from dicompare.io import load_json_schema, load_python_schema
+from dicompare.io import load_json_schema
 from dicompare.validation import BaseValidationModel
 
 # -------------------- Dummy Model for Python Module Compliance --------------------
@@ -126,40 +125,7 @@ def test_check_session_compliance_with_json_schema_series_fail(dummy_in_session)
     compliance = check_session_compliance_with_json_schema(dummy_in_session, ref_session, session_map)
     assert any(rec.get("series") is not None and "not found" in rec.get("message", "") for rec in compliance)
 
-# -------------------- Tests for Python Module Compliance --------------------
-
-def test_check_session_compliance_with_python_module_pass(dummy_in_session, dummy_ref_models):
-    session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_python_module(
-        dummy_in_session, dummy_ref_models, session_map, raise_errors=False
-    )
-    assert any(r["passed"] for r in compliance)
-
-
-def test_check_session_compliance_with_python_module_fail(dummy_in_session, dummy_ref_models):
-    df = dummy_in_session.copy()
-    df.loc[df["Acquisition"] == "acq1", "fail"] = True
-    session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_python_module(df, dummy_ref_models, session_map, raise_errors=False)
-    assert any(not r["passed"] for r in compliance)
-
-
-def test_check_session_compliance_with_python_module_empty_acquisition(dummy_in_session, dummy_ref_models):
-    session_map = {"ref1": "nonexistent"}
-    compliance = check_session_compliance_with_python_module(
-        dummy_in_session, dummy_ref_models, session_map, raise_errors=False
-    )
-    assert any("Acquisition-Level Error" in str(r.get("field", "")) for r in compliance)
-
-
-def test_check_session_compliance_with_python_module_raise_error(dummy_in_session, dummy_ref_models):
-    df = dummy_in_session.copy()
-    df.loc[df["Acquisition"] == "acq1", "fail"] = True
-    session_map = {"ref1": "acq1"}
-    with pytest.raises(ValueError, match="Validation failed for acquisition 'acq1'"):
-        check_session_compliance_with_python_module(df, dummy_ref_models, session_map, raise_errors=True)
-
-# -------------------- Tests for JSON and Python Session Loaders --------------------
+# -------------------- Tests for JSON Session Loaders --------------------
 
 def test_load_json_schema_and_fields(tmp_path):
     ref = {
@@ -189,12 +155,6 @@ def test_load_json_schema_and_fields(tmp_path):
     assert "test_acq" in data["acquisitions"]
 
 
-def test_load_python_schema_qsm_fixture():
-    fixture_path = Path(__file__).parent / "fixtures" / "ref_qsm.py"
-    models = load_python_schema(str(fixture_path))
-    assert "QSM" in models
-    assert issubclass(models["QSM"], BaseValidationModel)
-
 # -------------------- Tests for QSM Compliance --------------------
 
 def create_base_qsm_df_over_echos(echos, count=5, mra_type="3D", tr=700, b0=3.0, flip=55, pix_sp=(0.5,0.5), slice_th=0.5, bw=200):
@@ -217,35 +177,6 @@ def create_base_qsm_df_over_echos(echos, count=5, mra_type="3D", tr=700, b0=3.0,
     return pd.DataFrame(rows)
 
 
-def test_qsm_compliance_pass():
-    fixture_path = Path(__file__).parent / "fixtures" / "ref_qsm.py"
-    models = load_python_schema(str(fixture_path))
-    QSM_cls = models["QSM"]
-    df = create_base_qsm_df_over_echos([10, 20, 30])
-    compliance = check_session_compliance_with_python_module(
-        df, {"QSM": QSM_cls}, {"QSM": "acq1"}, raise_errors=False
-    )
-    # all validators should pass
-    assert all(rec["passed"] for rec in compliance)
-
-
-def test_qsm_compliance_failure_pixel_bandwidth():
-    fixture_path = Path(__file__).parent / "fixtures" / "ref_qsm.py"
-    models = load_python_schema(str(fixture_path))
-    QSM_cls = models["QSM"]
-    # set bandwidth above acceptable threshold for 3T
-    df = create_base_qsm_df_over_echos([10, 20, 30], bw=300)
-    compliance = check_session_compliance_with_python_module(
-        df, {"QSM": QSM_cls}, {"QSM": "acq1"}, raise_errors=False
-    )
-    # at least one validator should fail
-    assert any(not rec["passed"] for rec in compliance)
-    # confirm PixelBandwidth validator triggered via message content
-    assert any(
-        "PixelBandwidth" in str(rec.get("message", ""))
-        or (isinstance(rec.get("expected"), str) and "PixelBandwidth" in rec.get("expected"))
-        for rec in compliance
-    )
 
 
 # -------------------- Additional Tests for Missing Coverage --------------------
@@ -579,24 +510,6 @@ def test_json_compliance_missing_series_field():
     assert any(not rec["passed"] for rec in compliance)
     failed_records = [r for r in compliance if not r["passed"]]
     assert any("missing required fields" in r["message"] for r in failed_records)
-
-
-def test_python_module_compliance_no_model():
-    """Test Python module compliance when no model is found for acquisition."""
-    in_session = pd.DataFrame({
-        "Acquisition": ["acq1"],
-        "ProtocolName": ["T1w_MPR"]
-    })
-    
-    ref_models = {}  # No models available
-    session_map = {"ref1": "acq1"}
-    
-    compliance = check_session_compliance_with_python_module(in_session, ref_models, session_map)
-    
-    # Should fail - no model found
-    assert any(not rec["passed"] for rec in compliance)
-    failed_records = [r for r in compliance if not r["passed"]]
-    assert any("No model found for reference acquisition" in r["message"] for r in failed_records)
 
 
 def test_json_compliance_empty_input_session():

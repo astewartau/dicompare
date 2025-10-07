@@ -17,9 +17,7 @@ from .core import (
 )
 
 from .compliance import (
-    check_session_compliance_with_json_schema,
-    check_session_compliance_with_python_module,
-    check_session_compliance
+    check_acquisition_compliance
 )
 
 from .helpers import (
@@ -47,9 +45,7 @@ __all__ = [
     'get_unique_combinations',
 
     # Compliance checking
-    'check_session_compliance_with_json_schema',
-    'check_session_compliance_with_python_module',
-    'check_session_compliance',
+    'check_acquisition_compliance',
 
     # Helper utilities
     'ComplianceStatus',

@@ -745,17 +745,3 @@ def test_load_hybrid_schema_backward_compatible(json_file):
     assert "acquisitions" in schema_data
     assert "acq1" in schema_data["acquisitions"]
 
-
-def test_load_python_schema_valid(valid_python_module):
-    models = dicompare.load_python_schema(valid_python_module)
-    assert isinstance(models, dict)
-    assert "dummy" in models
-
-def test_load_python_schema_no_models(no_models_python_module):
-    with pytest.raises(ValueError, match="does not define 'ACQUISITION_MODELS'"):
-        dicompare.load_python_schema(no_models_python_module)
-
-def test_load_python_schema_invalid(invalid_models_python_module):
-    with pytest.raises(ValueError, match="'ACQUISITION_MODELS' must be a dictionary"):
-        dicompare.load_python_schema(invalid_models_python_module)
-
