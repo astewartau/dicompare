@@ -70,12 +70,16 @@ VR_TO_DATA_TYPE = {
 def get_tag_info(field_or_tag: str) -> Dict[str, Any]:
     """
     Get tag information for a field name or tag.
-    
+
     Args:
         field_or_tag: Either a field name (e.g., "PatientName") or tag (e.g., "(0010,0010)")
-        
+
     Returns:
-        Dictionary with 'tag', 'name', and 'type' keys
+        Dictionary with 'tag', 'name', 'type', and 'fieldType' keys:
+        - tag: DICOM tag (e.g., "(0018,1030)") or None for derived fields
+        - name: Field name
+        - type: Data type (string, number, list_string, list_number, etc.)
+        - fieldType: Either "standard" (has DICOM tag) or "derived" (calculated/metadata)
     """
     # Check if it's already a tag format
     if field_or_tag.startswith("(") and "," in field_or_tag:
@@ -87,7 +91,8 @@ def get_tag_info(field_or_tag: str) -> Dict[str, Any]:
             return {
                 "tag": tag_str,
                 "name": PRIVATE_TAGS[tag_str]["name"],
-                "type": PRIVATE_TAGS[tag_str]["type"]
+                "type": PRIVATE_TAGS[tag_str]["type"],
+                "fieldType": "standard"
             }
         
         # Try to get name from pydicom
@@ -99,18 +104,20 @@ def get_tag_info(field_or_tag: str) -> Dict[str, Any]:
             
             # Determine type based on VR
             tag_type = _infer_type_from_tag(tag_tuple)
-            
+
             return {
                 "tag": tag_str,
                 "name": description or tag_str,  # Use tag as name if no description
-                "type": tag_type
+                "type": tag_type,
+                "fieldType": "standard"
             }
         except:
             # Unknown tag - use the tag itself as the name
             return {
                 "tag": tag_str,
                 "name": tag_str,
-                "type": "string"  # Default to string for unknown
+                "type": "string",  # Default to string for unknown
+                "fieldType": "standard"
             }
     
     else:
@@ -123,7 +130,8 @@ def get_tag_info(field_or_tag: str) -> Dict[str, Any]:
                 return {
                     "tag": None,
                     "name": field_or_tag,
-                    "type": "string"
+                    "type": "string",
+                    "fieldType": "derived"
                 }
         else:
             keyword = field_or_tag
@@ -138,11 +146,12 @@ def get_tag_info(field_or_tag: str) -> Dict[str, Any]:
                 
                 # Get type
                 tag_type = _infer_type_from_tag(tag_tuple)
-                
+
                 return {
                     "tag": tag_str,
                     "name": field_or_tag,
-                    "type": tag_type
+                    "type": tag_type,
+                    "fieldType": "standard"
                 }
         except:
             pass
@@ -155,11 +164,12 @@ def get_tag_info(field_or_tag: str) -> Dict[str, Any]:
                 tag_tuple = (tag >> 16, tag & 0xFFFF)
                 tag_str = f"({tag_tuple[0]:04X},{tag_tuple[1]:04X})"
                 tag_type = _infer_type_from_tag(tag_tuple)
-                
+
                 return {
                     "tag": tag_str,
                     "name": field_or_tag,
-                    "type": tag_type
+                    "type": tag_type,
+                    "fieldType": "standard"
                 }
         except:
             pass
@@ -168,7 +178,8 @@ def get_tag_info(field_or_tag: str) -> Dict[str, Any]:
         return {
             "tag": None,
             "name": field_or_tag,
-            "type": "string"
+            "type": "string",
+            "fieldType": "derived"
         }
 
 def _infer_type_from_tag(tag_tuple: tuple) -> str:

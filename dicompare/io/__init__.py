@@ -43,26 +43,11 @@ from .special_fields import (
 )
 
 # Siemens .pro file parsing
-try:
-    from .pro import (
-        load_pro_file,
-        load_pro_file_schema_format,
-        load_pro_session,
-        async_load_pro_session,
-        parse_protocol_parameters,
-        extract_from_xprotocol,
-    )
-except ImportError:
-    def load_pro_file(*args, **kwargs):
-        raise ImportError("twixtools is required for PRO file parsing. Install with: pip install twixtools")
-    def load_pro_file_schema_format(*args, **kwargs):
-        raise ImportError("twixtools is required for PRO file parsing. Install with: pip install twixtools")
-    def load_pro_session(*args, **kwargs):
-        raise ImportError("twixtools is required for PRO file parsing. Install with: pip install twixtools")
-    def async_load_pro_session(*args, **kwargs):
-        raise ImportError("twixtools is required for PRO file parsing. Install with: pip install twixtools")
-    parse_protocol_parameters = None
-    extract_from_xprotocol = None
+from .pro import (
+    load_pro_file,
+    load_pro_file_schema_format,
+    load_pro_session,
+)
 
 __all__ = [
     # DICOM I/O
@@ -90,7 +75,4 @@ __all__ = [
     "load_pro_file",
     "load_pro_file_schema_format",
     "load_pro_session",
-    "async_load_pro_session",
-    "parse_protocol_parameters",
-    "extract_from_xprotocol",
 ]
