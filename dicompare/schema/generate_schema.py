@@ -48,9 +48,10 @@ def create_json_schema(session_df: pd.DataFrame, reference_fields: List[str]) ->
             if len(unique_values) == 1:
                 # Constant field: Add to acquisition-level fields
                 acquisition_entry["fields"].append({"field": field, "value": unique_values[0]})
-            else:
+            elif len(unique_values) > 1:
                 # Varying field: Track for series-level fields
                 varying_fields.append(field)
+            # Skip fields with no values (all None/missing)
 
         # Group by series based on varying fields
         if varying_fields:
