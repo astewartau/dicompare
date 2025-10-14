@@ -321,54 +321,167 @@ def assign_temporal_runs(session_df, run_group_fields):
     return session_df
 
 
+def apply_manufacturer_specific_corrections(session_df):
+    """
+    Apply manufacturer-specific corrections to session metadata.
+
+    This function handles cases where manufacturers don't follow standard DICOM conventions
+    and corrections require analyzing multiple files across the session.
+
+    Currently handles:
+    - Bruker: Adds 'M' (magnitude) / 'P' (phase) to ImageType when multiple series
+      with consecutive SeriesNumbers exist within the same acquisition.
+
+    Args:
+        session_df (pd.DataFrame): Session DataFrame with Acquisition column
+
+    Returns:
+        pd.DataFrame: Session DataFrame with corrected metadata
+    """
+    logger.debug("Applying manufacturer-specific corrections...")
+
+    # Check if required columns exist
+    if "Manufacturer" not in session_df.columns:
+        logger.debug("No Manufacturer column found, skipping corrections")
+        return session_df
+
+    if "ImageType" not in session_df.columns:
+        logger.debug("No ImageType column found, skipping corrections")
+        return session_df
+
+    if "SeriesNumber" not in session_df.columns:
+        logger.debug("No SeriesNumber column found, skipping corrections")
+        return session_df
+
+    if "Acquisition" not in session_df.columns:
+        logger.debug("No Acquisition column found, skipping corrections")
+        return session_df
+
+    # Process each acquisition separately
+    for acquisition_name, acq_group in session_df.groupby("Acquisition"):
+        # Check if this is Bruker data
+        manufacturers = acq_group["Manufacturer"].dropna().unique()
+        if len(manufacturers) == 0:
+            continue
+
+        is_bruker = any("bruker" in str(mfr).lower() for mfr in manufacturers)
+        if not is_bruker:
+            continue
+
+        logger.debug(f"Processing Bruker acquisition '{acquisition_name}'")
+
+        # Check if ImageType needs correction (doesn't contain 'M' or 'P')
+        needs_correction = False
+        for idx, row in acq_group.iterrows():
+            image_type = row.get("ImageType")
+            if image_type is not None:
+                # Convert to list if it's a tuple
+                if isinstance(image_type, tuple):
+                    image_type = list(image_type)
+                elif not isinstance(image_type, list):
+                    image_type = [image_type]
+
+                # Check if 'M' or 'P' is not present
+                if 'M' not in image_type and 'P' not in image_type:
+                    needs_correction = True
+                    break
+
+        if not needs_correction:
+            logger.debug(f"  - ImageType already contains M/P, skipping")
+            continue
+
+        # Check if there are exactly 2 unique SeriesNumbers
+        unique_series_numbers = sorted(acq_group["SeriesNumber"].dropna().unique())
+
+        if len(unique_series_numbers) != 2:
+            logger.debug(f"  - Found {len(unique_series_numbers)} unique series numbers, expected 2, skipping")
+            continue
+
+        # Check if series numbers are consecutive (or at least in sequence)
+        series_num_1, series_num_2 = unique_series_numbers
+        logger.debug(f"  - Found two series: {series_num_1} and {series_num_2}")
+
+        # Assign 'M' to lower SeriesNumber (magnitude), 'P' to higher (phase)
+        for idx, row in acq_group.iterrows():
+            series_num = row["SeriesNumber"]
+            image_type = row.get("ImageType")
+
+            if pd.isna(series_num) or image_type is None:
+                continue
+
+            # Convert ImageType to list for manipulation
+            if isinstance(image_type, tuple):
+                image_type = list(image_type)
+            elif not isinstance(image_type, list):
+                image_type = [str(image_type)]
+            else:
+                image_type = list(image_type)
+
+            # Append 'M' or 'P' based on SeriesNumber
+            if series_num == series_num_1:
+                image_type.append('M')
+                logger.debug(f"  - Adding 'M' to SeriesNumber {series_num}")
+            elif series_num == series_num_2:
+                image_type.append('P')
+                logger.debug(f"  - Adding 'P' to SeriesNumber {series_num}")
+
+            # Update the DataFrame with tuple (to match dicompare convention)
+            session_df.at[idx, "ImageType"] = tuple(image_type)
+
+    return session_df
+
+
 def assign_acquisition_and_run_numbers(
-    session_df, 
-    reference_fields: Optional[List[str]] = None, 
-    acquisition_fields: Optional[List[str]] = None, 
+    session_df,
+    reference_fields: Optional[List[str]] = None,
+    acquisition_fields: Optional[List[str]] = None,
     run_group_fields: Optional[List[str]] = None
 ):
     """
     Assign acquisition, series, and run numbers in a single coherent pass.
-    
+
     This function builds complete acquisition signatures upfront, assigns series
     within each acquisition based on varying parameter values, and then assigns
     temporal runs, avoiding the need for iterative splitting and reassignment.
-    
+
     Args:
         session_df (pd.DataFrame): Input session DataFrame
         reference_fields (Optional[List[str]]): Fields for detecting acquisition settings
-        acquisition_fields (Optional[List[str]]): Fields for grouping acquisitions  
+        acquisition_fields (Optional[List[str]]): Fields for grouping acquisitions
         run_group_fields (Optional[List[str]]): Fields for identifying runs
-        
+
     Returns:
         pd.DataFrame: Session DataFrame with Acquisition, Series, and Run columns
     """
     logger.debug("Starting assign_acquisition_and_run_numbers (refactored)")
-    
+
     # 1. Validate inputs and set up fields
     reference_fields, acquisition_fields, run_group_fields = _validate_and_setup_fields(
         session_df, reference_fields, acquisition_fields, run_group_fields
     )
-    
+
     logger.debug(f"Using fields - acquisition: {acquisition_fields}, reference: {len(reference_fields)} fields, run_group: {run_group_fields}")
-    
+
     # 2. Build complete acquisition signatures
     session_df = build_acquisition_signatures(session_df, acquisition_fields, reference_fields)
-    
+
     # 3. Create final Acquisition labels from signatures
     session_df["Acquisition"] = session_df["AcquisitionSignature"].fillna("Unknown").astype(str)
-    
+
     # 4. Assign series within each acquisition based on varying parameters
     session_df = assign_series_within_acquisitions(session_df, reference_fields)
-    
+
     # 5. Assign temporal runs within each signature
     session_df = assign_temporal_runs(session_df, run_group_fields)
-    
+
     # 6. Clean up temporary columns
     session_df = session_df.drop(columns=["BaseAcquisition", "AcquisitionSignature"]).reset_index(drop=True)
-    
+
     logger.debug(f"Final result - {len(session_df['Acquisition'].unique())} unique acquisitions, {len(session_df['Series'].unique())} unique series")
     logger.debug(f"Acquisitions: {list(session_df['Acquisition'].unique())}")
     logger.debug(f"Series: {list(session_df['Series'].unique())}")
-    
+
+    # 7. Apply manufacturer-specific corrections
+    session_df = apply_manufacturer_specific_corrections(session_df)
+
     return session_df
