@@ -154,9 +154,34 @@ def _process_dicom_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
     plain_metadata = _reduce_flattened_keys(plain_metadata)
     
     # Step 4: Apply enhanced to regular mapping
+    # Only map if source has a non-empty value, or target doesn't exist/is empty
     for src, tgt in ENHANCED_TO_REGULAR_MAPPING.items():
         if src in plain_metadata:
-            plain_metadata[tgt] = plain_metadata.pop(src)
+            src_value = plain_metadata[src]
+            tgt_value = plain_metadata.get(tgt)
+
+            # Check if source value is non-empty
+            src_has_value = (
+                src_value is not None and
+                src_value != [] and
+                src_value != '' and
+                src_value != ()
+            )
+
+            # Check if target value is empty or missing
+            tgt_is_empty = (
+                tgt_value is None or
+                tgt_value == [] or
+                tgt_value == '' or
+                tgt_value == ()
+            )
+
+            # Only apply mapping if source has value, or target is empty
+            if src_has_value or tgt_is_empty:
+                plain_metadata[tgt] = plain_metadata.pop(src)
+            else:
+                # Source is empty and target has value - just remove empty source
+                plain_metadata.pop(src)
     
     return plain_metadata
 
