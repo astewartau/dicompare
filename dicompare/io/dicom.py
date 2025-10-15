@@ -448,6 +448,13 @@ def _load_one_dicom_path(path: str, skip_pixel_data: bool) -> Dict[str, Any]:
     """
     Helper for parallel loading of a single DICOM file from a path.
     """
+    # First, load the raw DICOM to check if it's a valid image
+    ds_raw = pydicom.dcmread(path, stop_before_pixels=skip_pixel_data, defer_size=True, force=True)
+
+    # Validate that this is a real DICOM image by checking for required Modality field
+    if not hasattr(ds_raw, 'Modality') or ds_raw.Modality is None:
+        raise ValueError(f"File lacks required Modality field - likely not a valid DICOM image: {path}")
+
     dicom_values = load_dicom(path, skip_pixel_data=skip_pixel_data)
     dicom_values["DICOM_Path"] = path
     # If you want 'InstanceNumber' for path-based
@@ -461,6 +468,18 @@ def _load_one_dicom_bytes(
     """
     Helper for parallel loading of a single DICOM file from bytes.
     """
+    # First, load the raw DICOM to check if it's a valid image
+    ds_raw = pydicom.dcmread(
+        BytesIO(content),
+        stop_before_pixels=skip_pixel_data,
+        defer_size=len(content),
+        force=True
+    )
+
+    # Validate that this is a real DICOM image by checking for required Modality field
+    if not hasattr(ds_raw, 'Modality') or ds_raw.Modality is None:
+        raise ValueError(f"File lacks required Modality field - likely not a valid DICOM image: {key}")
+
     dicom_values = load_dicom(content, skip_pixel_data=skip_pixel_data)
     dicom_values["DICOM_Path"] = key
     dicom_values["InstanceNumber"] = int(dicom_values["InstanceNumber"])
