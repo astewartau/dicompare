@@ -131,6 +131,7 @@ def generate_test_dicoms_from_schema(
             ds.StudyTime = datetime.now().strftime('%H%M%S')
             ds.AccessionNumber = f'TEST_ACC_{idx:03d}'
             ds.StudyDescription = 'Test Study from Schema'
+            ds.Modality = 'MR'  # Required field for DICOM image validation
             ds.SeriesDate = ds.StudyDate
             ds.SeriesTime = ds.StudyTime
             ds.SeriesDescription = acquisition_info.get('seriesDescription', 'Test Series')

@@ -92,8 +92,7 @@ class TestQSMConsensusGuidelines:
         session_df = dicompare.load_dicom_session(str(tmp_path), show_progress=False)
         session_df = dicompare.assign_acquisition_and_run_numbers(
             session_df,
-            acquisition_fields=["ProtocolName"],
-            reference_fields=[]
+            settings_fields=[]
         )
         return session_df
 
@@ -120,8 +119,7 @@ class TestQSMConsensusGuidelines:
         session_df = dicompare.load_dicom_session(str(tmp_path), show_progress=False)
         session_df = dicompare.assign_acquisition_and_run_numbers(
             session_df,
-            acquisition_fields=["ProtocolName"],
-            reference_fields=[]
+            settings_fields=[]
         )
         return session_df
 
@@ -156,8 +154,7 @@ class TestQSMConsensusGuidelines:
         session_df = dicompare.load_dicom_session(str(tmp_path), show_progress=False)
         session_df = dicompare.assign_acquisition_and_run_numbers(
             session_df,
-            acquisition_fields=["ProtocolName"],
-            reference_fields=[]
+            settings_fields=[]
         )
         return session_df
 
@@ -297,8 +294,7 @@ class TestUKBiobankSchema:
         session_df = dicompare.load_dicom_session(str(tmp_path), show_progress=False)
         session_df = dicompare.assign_acquisition_and_run_numbers(
             session_df,
-            acquisition_fields=["SeriesDescription"],
-            reference_fields=[]
+            settings_fields=[]
         )
         return session_df
 
@@ -336,8 +332,7 @@ class TestUKBiobankSchema:
         session_df = dicompare.load_dicom_session(str(tmp_path), show_progress=False)
         session_df = dicompare.assign_acquisition_and_run_numbers(
             session_df,
-            acquisition_fields=["ProtocolName"],
-            reference_fields=[]
+            settings_fields=[]
         )
         return session_df
 
@@ -405,8 +400,7 @@ class TestUKBiobankSchema:
         session_df = dicompare.load_dicom_session(str(tmp_path), show_progress=False)
         session_df = dicompare.assign_acquisition_and_run_numbers(
             session_df,
-            acquisition_fields=["ProtocolName"],
-            reference_fields=[]
+            settings_fields=[]
         )
         return session_df
 
@@ -542,8 +536,7 @@ class TestSchemaFeatures:
         session_df = dicompare.load_dicom_session(str(tmp_path), show_progress=False)
         session_df = dicompare.assign_acquisition_and_run_numbers(
             session_df,
-            acquisition_fields=["ProtocolName"],
-            reference_fields=[]
+            settings_fields=[]
         )
 
         # Get the actual acquisition name (it will be normalized)
@@ -584,8 +577,7 @@ class TestSchemaFeatures:
         session_df = dicompare.load_dicom_session(str(tmp_path), show_progress=False)
         session_df = dicompare.assign_acquisition_and_run_numbers(
             session_df,
-            acquisition_fields=["ProtocolName"],
-            reference_fields=[]
+            settings_fields=[]
         )
 
         # Get the actual acquisition name
@@ -640,8 +632,7 @@ class TestSchemaFeatures:
         session_df = dicompare.load_dicom_session(str(tmp_path), show_progress=False)
         session_df = dicompare.assign_acquisition_and_run_numbers(
             session_df,
-            acquisition_fields=["ProtocolName"],
-            reference_fields=[]
+            settings_fields=[]
         )
 
         # Get the actual acquisition name
