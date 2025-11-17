@@ -7,3 +7,4 @@ dist/
 compliance_report.json
 spec.json
 data/
+TEST_DATA/

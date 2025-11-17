@@ -1,0 +1,750 @@
+{
+  "name": "Generic Spine Protocol",
+  "description": "Standardized quantitative spinal cord imaging protocol for multi-vendor 3.0T MRI systems. This protocol is designed for cross-vendor compatibility (GE, Siemens, Philips) and enables reproducible quantitative spinal cord imaging across research sites.",
+  "version": "r20210521",
+  "authors": [
+    "Spine Generic Protocol Contributors",
+    "Ashley Stewart"
+  ],
+  "acquisitions": {
+    "T1w_3D": {
+      "description": "High-resolution 3D T1-weighted structural imaging of the spinal cord",
+      "detailed_description": "## 3D T1-Weighted Structural Imaging\n\n### Overview\nThe T1-weighted 3D acquisition provides high-resolution anatomical imaging of the spinal cord for morphometric analysis, tissue segmentation, and cross-sectional area measurements.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** BRAVO (Brain Volume)\n- **Siemens:** MPRAGE (Magnetization Prepared Rapid Gradient Echo)\n- **Philips:** T1TFE (T1 Turbo Field Echo)\n\n### Clinical Purpose\n- Spinal cord cross-sectional area quantification\n- Gray matter / white matter segmentation\n- Anatomical reference for registration\n- Structural lesion detection\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Target Resolution:** 1.0 mm isotropic\n- **Coverage:** Full cervical spine (C1-C7)\n- **Scan Duration:** ~5 minutes\n\n### Technical Notes\n- Parallel imaging (GRAPPA/SENSE/ARC) factor: 2\n- Inversion pulse preparation for enhanced GM/WM contrast\n- Sagittal orientation optimized for spinal cord imaging\n- Optional inversion time (TI) ~1000ms for optimal contrast",
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1.0,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 0.1
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [1.0, 1.0],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.1
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 2000,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 500
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 3.0,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 1.0
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 9,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 1
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 0.3
+        },
+        {
+          "field": "InversionTime",
+          "tag": "0018,0082",
+          "value": 1000,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 100
+        }
+      ],
+      "series": [
+        {
+          "name": "GE_BRAVO",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "GE MEDICAL SYSTEMS"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "BRAVO"
+            },
+            {
+              "field": "ScanningSequence",
+              "tag": "0018,0020",
+              "value": ["GR", "IR"]
+            }
+          ]
+        },
+        {
+          "name": "Siemens_MPRAGE",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "SIEMENS"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "*tfl3d1"
+            },
+            {
+              "field": "ScanningSequence",
+              "tag": "0018,0020",
+              "value": ["GR", "IR"]
+            }
+          ]
+        },
+        {
+          "name": "Philips_T1TFE",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "Philips"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "T1TFE"
+            },
+            {
+              "field": "ScanningSequence",
+              "tag": "0018,0020",
+              "value": ["GR", "IR"]
+            }
+          ]
+        }
+      ]
+    },
+    "T2w_3D": {
+      "description": "High-resolution 3D T2-weighted structural imaging with CSF suppression",
+      "detailed_description": "## 3D T2-Weighted Structural Imaging\n\n### Overview\nThe T2-weighted 3D acquisition provides high-resolution imaging with excellent gray matter/white matter contrast and CSF signal suppression, optimized for spinal cord tissue characterization.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** CUBE (Cuboid Volume Acquisition)\n- **Siemens:** SPACE (Sampling Perfection with Application optimized Contrasts using different flip angle Evolution)\n- **Philips:** VISTA (Volume ISotropic Turbo spin echo Acquisition)\n\n### Clinical Purpose\n- Enhanced gray/white matter differentiation\n- Lesion detection with T2 contrast\n- Tissue microstructure assessment\n- Complementary anatomical reference to T1w\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Target Resolution:** 0.8 mm isotropic\n- **Coverage:** Cervical spine region\n- **Scan Duration:** ~4-6 minutes\n- **Echo Train Length:** Variable (~80-140)\n\n### Technical Notes\n- Variable flip angle trains optimize signal across long echo trains\n- Flow compensation in frequency direction reduces CSF pulsation artifacts\n- Parallel imaging factor: 2-3 (vendor-dependent)\n- Sagittal acquisition with high in-plane resolution",
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 0.8,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 0.1
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [0.8, 0.8],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.1
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 1500,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 500
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 120,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 20
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 120,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 60
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 0.3
+        }
+      ],
+      "series": [
+        {
+          "name": "GE_CUBE",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "GE MEDICAL SYSTEMS"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "CUBE"
+            },
+            {
+              "field": "ScanningSequence",
+              "tag": "0018,0020",
+              "value": ["SE"]
+            }
+          ]
+        },
+        {
+          "name": "Siemens_SPACE",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "SIEMENS"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "*spc"
+            },
+            {
+              "field": "ScanningSequence",
+              "tag": "0018,0020",
+              "value": ["SE"]
+            }
+          ]
+        },
+        {
+          "name": "Philips_VISTA",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "Philips"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "VISTA"
+            },
+            {
+              "field": "ScanningSequence",
+              "tag": "0018,0020",
+              "value": ["SE"]
+            }
+          ]
+        }
+      ]
+    },
+    "DWI_2D": {
+      "description": "Cardiac-gated diffusion-weighted imaging for white matter microstructure assessment",
+      "detailed_description": "## 2D Diffusion-Weighted Imaging (DWI)\n\n### Overview\nCardiac-gated diffusion-weighted imaging optimized for spinal cord white matter tract characterization using diffusion tensor imaging (DTI) analysis.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SE-EPI (Spin Echo Echo-Planar Imaging)\n- **Siemens:** ep2d_diff (Echo-Planar 2D Diffusion)\n  - **With ZOOMit:** Reduced field-of-view imaging for improved spatial resolution and reduced distortion\n  - **Without ZOOMit:** Standard full FOV acquisition\n- **Philips:** Zoom Diffusion (reduced FOV diffusion imaging)\n\n### Clinical Purpose\n- White matter tract integrity assessment via DTI metrics (FA, MD, RD, AD)\n- Axonal damage quantification\n- Fiber orientation mapping\n- Microstructural tissue characterization\n\n### Key Parameters\n- **Acquisition Type:** 2D multi-slice\n- **Gating:** Cardiac triggered (5 RR intervals)\n- **Diffusion Scheme:** 30 directions + b=0 baseline\n- **b-values:** 0, 800 s/mm²\n- **Resolution:** 0.9×0.9×5.0 mm\n- **Coverage:** Axial slices covering cervical cord\n- **Scan Duration:** ~5-7 minutes (heart-rate dependent)\n\n### Technical Notes\n- **Cardiac Gating:** Critical for minimizing CSF pulsation artifacts\n  - Trigger delay: 5 RR intervals ensures consistent acquisition timing\n  - Auto-gating recommended for optimal trigger detection\n- **Reduced FOV Imaging:**\n  - **Siemens ZOOMit:** Inner-volume excitation reduces phase FOV\n  - **Philips Zoom Diffusion:** Similar reduced FOV technique\n  - Benefits: Reduced geometric distortion, improved SNR, shorter echo trains\n- **Fat Saturation:** Spectral fat suppression reduces artifacts from surrounding tissue\n- **Anterior/Posterior Saturation:** Reduces motion artifacts from swallowing and breathing\n\n### Diffusion Directions\nThe 30-direction scheme provides robust tensor estimation while maintaining reasonable scan time. Directions are optimally distributed on the unit sphere for isotropic angular sampling.",
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 5.0,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 0.5
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [0.9, 0.9],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.1
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 0.3
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": ["SE", "EP"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 800,
+          "vr": "FD",
+          "dataType": "number",
+          "tolerance": 50
+        }
+      ],
+      "series": [
+        {
+          "name": "GE_SEEPI",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "GE MEDICAL SYSTEMS"
+            },
+            {
+              "field": "SequenceVariant",
+              "tag": "0018,0021",
+              "value": ["SK"]
+            }
+          ]
+        },
+        {
+          "name": "Siemens_ep2d_diff_ZOOMit",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "SIEMENS"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "*ep_b"
+            },
+            {
+              "field": "ScanOptions",
+              "tag": "0018,0022",
+              "value": "IR"
+            }
+          ]
+        },
+        {
+          "name": "Siemens_ep2d_diff_NoZOOMit",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "SIEMENS"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "*ep_b"
+            }
+          ]
+        },
+        {
+          "name": "Philips_ZoomDiffusion",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "Philips"
+            },
+            {
+              "field": "SequenceVariant",
+              "tag": "0018,0021",
+              "value": ["SK"]
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "id": "validate_diffusion_directions",
+          "name": "Diffusion Direction Count",
+          "description": "The protocol requires exactly 30 diffusion directions for robust DTI tensor estimation.",
+          "implementation": "if 'NumberOfDiffusionDirections' in value:\n    num_directions = value['NumberOfDiffusionDirections'].iloc[0]\n    if num_directions != 30:\n        raise ValidationError(f\"Expected 30 diffusion directions, found {num_directions}.\")",
+          "fields": ["NumberOfDiffusionDirections"],
+          "testCases": [
+            {
+              "id": "test_dwi_directions_pass",
+              "name": "Correct 30 directions",
+              "data": {
+                "NumberOfDiffusionDirections": [30]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_dwi_directions_fail",
+              "name": "Incorrect direction count",
+              "data": {
+                "NumberOfDiffusionDirections": [25]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_cardiac_gating",
+          "name": "Cardiac Gating Validation",
+          "description": "Cardiac gating should be enabled with 5 RR intervals to minimize CSF pulsation artifacts.",
+          "implementation": "if 'CardiacSync' in value:\n    if value['CardiacSync'].iloc[0] != 'Yes':\n        raise ValidationWarning(\"Cardiac gating not enabled. This may reduce image quality due to CSF pulsation.\")",
+          "fields": ["CardiacSync"],
+          "testCases": [
+            {
+              "id": "test_cardiac_gating_pass",
+              "name": "Gating enabled",
+              "data": {
+                "CardiacSync": ["Yes"]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_cardiac_gating_warning",
+              "name": "Gating disabled",
+              "data": {
+                "CardiacSync": ["No"]
+              },
+              "expectedResult": "warning",
+              "description": ""
+            }
+          ]
+        }
+      ]
+    },
+    "ME_GRE_2D": {
+      "description": "Multi-echo gradient echo imaging for quantitative T2* relaxometry",
+      "detailed_description": "## 2D Multi-Echo Gradient Recalled Echo (ME-GRE)\n\n### Overview\nMulti-echo gradient echo sequence designed for quantitative T2* mapping and gray matter characterization in the spinal cord.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** MERGE (Multiple Echo Recombined Gradient Echo)\n- **Siemens:** medic (Multi-Echo Data Image Combination)\n- **Philips:** mFFE (multi Fast Field Echo)\n\n### Clinical Purpose\n- Quantitative T2* relaxometry\n- Gray matter/white matter contrast via T2* differences\n- Iron content assessment\n- Myelin quantification\n- Susceptibility-weighted imaging\n\n### Key Parameters\n- **Acquisition Type:** 2D multi-slice\n- **Number of Echoes:** 4\n- **Echo Times:** Typically 4, 8, 12, 16 ms (vendor-optimized)\n- **Resolution:** 0.9×0.9×5.0 mm\n- **Coverage:** Axial slices covering cervical cord\n- **Scan Duration:** ~3-4 minutes\n\n### Technical Notes\n- **Anterior Saturation Band:** Critical feature to suppress signal from anterior structures (esophagus, trachea) which can cause swallowing artifacts\n- **Flow Compensation:** May be applied to reduce vascular pulsation artifacts\n- **Multi-Echo Combination:** Some vendors automatically combine echoes for optimal SNR (e.g., MERGE reconstruction on GE)\n- **T2* Fitting:** Post-processing fits mono-exponential decay across echo times to generate quantitative T2* maps\n\n### Gray Matter Sensitivity\nT2* is particularly sensitive to gray matter due to higher iron content and different microstructural properties compared to white matter, making this sequence valuable for GM segmentation and pathology assessment.",
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 5.0,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 0.5
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [0.9, 0.9],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.1
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 600,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 100
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 30,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 5
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 0.3
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": ["GR"],
+          "vr": "CS",
+          "dataType": "list_string"
+        }
+      ],
+      "series": [
+        {
+          "name": "GE_MERGE",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "GE MEDICAL SYSTEMS"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "MERGE"
+            }
+          ]
+        },
+        {
+          "name": "Siemens_medic",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "SIEMENS"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "*me2d"
+            }
+          ]
+        },
+        {
+          "name": "Philips_mFFE",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "Philips"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "mFFE"
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "id": "validate_echo_count_megre",
+          "name": "Multi-Echo Count Validation",
+          "description": "The ME-GRE sequence should acquire at least 4 echoes for robust T2* fitting.",
+          "implementation": "echo_times = value['EchoTime'].dropna().unique()\nif len(echo_times) < 4:\n    raise ValidationWarning(f\"Found {len(echo_times)} echoes. At least 4 echoes recommended for accurate T2* mapping.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_megre_echoes_pass",
+              "name": "4 echoes present",
+              "data": {
+                "EchoTime": [4, 8, 12, 16]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_megre_echoes_warning",
+              "name": "Insufficient echoes",
+              "data": {
+                "EchoTime": [4, 8]
+              },
+              "expectedResult": "warning",
+              "description": ""
+            }
+          ]
+        }
+      ]
+    },
+    "MT_GRE_3D": {
+      "description": "Magnetization transfer gradient echo imaging for myelin-sensitive quantification",
+      "detailed_description": "## 3D Gradient Echo with Magnetization Transfer\n\n### Overview\nThree-dimensional gradient echo imaging with magnetization transfer (MT) preparation for myelin-specific quantitative imaging. The protocol acquires two volumes: MT-on (with saturation pulse) and MT-off (baseline), allowing calculation of the magnetization transfer ratio (MTR).\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SPGR (SPoiled Gradient Recalled echo)\n- **Siemens:** GRE (Gradient Recalled Echo) or FLASH\n- **Philips:** FFE (Fast Field Echo)\n\n### Clinical Purpose\n- **Myelin Quantification:** MTR is highly sensitive to myelin content\n- **Demyelination Assessment:** Reduced MTR indicates myelin loss\n- **White Matter Integrity:** Complements DTI for microstructural characterization\n- **Longitudinal Monitoring:** Track remyelination or disease progression\n\n### Acquisition Variants\n\nThe protocol includes **two mandatory acquisitions**:\n\n1. **MT1 (MT-on):** With magnetization transfer saturation pulse\n   - Off-resonance RF pulse saturates bound water pool (myelin)\n   - Signal reduction proportional to macromolecular content\n   \n2. **MT0 (MT-off):** Baseline acquisition without saturation\n   - Identical parameters except no MT pulse\n   - Reference for MTR calculation\n\n**Optional:** Some implementations include a third acquisition (T1w variant) with different contrast weighting.\n\n### Magnetization Transfer Ratio (MTR)\n\nMTR is calculated as:\n```\nMTR = (MT0 - MT1) / MT0 × 100%\n```\n\nTypical values in healthy spinal cord:\n- White matter: 40-50%\n- Gray matter: 30-40%\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Resolution:** 0.9×0.9×5.0 mm (some protocols use 1.5mm slice)\n- **TR:** 15-35 ms (short for T1 weighting)\n- **TE:** 2-3 ms (minimum, vendor-dependent)\n- **Flip Angle:** 6-9°\n- **Coverage:** Sagittal slabs covering cervical cord\n- **Scan Duration:** ~3-4 minutes per volume (6-8 min total)\n\n### Technical Notes\n- **MT Pulse Characteristics:**\n  - Frequency offset: Typically 1-2 kHz off-resonance\n  - Pulse shape: Gaussian or sinc-Gauss\n  - Flip angle: 500-1200° (vendor-specific)\n- **Spoiling:** Gradient and/or RF spoiling ensures steady-state\n- **Parallel Imaging:** Factor 2-3 for time efficiency\n- **B1 Sensitivity:** MTR can be affected by B1 inhomogeneity; some protocols include B1 mapping for correction\n\n### Cross-Vendor Standardization\n\nMT pulse parameters vary across vendors but are calibrated to produce similar MTR values:\n- Offset frequency adjustments account for different pulse implementations\n- Reference phantom measurements recommended for cross-site studies\n- SAR limits may require parameter adjustment on some platforms",
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 5.0,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 3.5
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [0.9, 0.9],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.6
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 35,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 20
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 3,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 1.0
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 9,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 3
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 0.3
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": ["GR"],
+          "vr": "CS",
+          "dataType": "list_string"
+        }
+      ],
+      "series": [
+        {
+          "name": "MT1_MTon",
+          "fields": [
+            {
+              "field": "SeriesDescription",
+              "tag": "0008,103E",
+              "value": "MT1"
+            },
+            {
+              "field": "MagnetizationTransfer",
+              "tag": "0018,9020",
+              "value": "ON"
+            }
+          ]
+        },
+        {
+          "name": "MT0_MToff",
+          "fields": [
+            {
+              "field": "SeriesDescription",
+              "tag": "0008,103E",
+              "value": "MT0"
+            },
+            {
+              "field": "MagnetizationTransfer",
+              "tag": "0018,9020",
+              "value": "OFF"
+            }
+          ]
+        },
+        {
+          "name": "GE_SPGR",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "GE MEDICAL SYSTEMS"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "SPGR"
+            }
+          ]
+        },
+        {
+          "name": "Siemens_GRE",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "SIEMENS"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "*fl3d"
+            }
+          ]
+        },
+        {
+          "name": "Philips_FFE",
+          "fields": [
+            {
+              "field": "Manufacturer",
+              "tag": "0008,0070",
+              "value": "Philips"
+            },
+            {
+              "field": "SequenceName",
+              "tag": "0018,0024",
+              "value": "FFE"
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "id": "validate_mt_pair",
+          "name": "MT Pair Validation",
+          "description": "Both MT-on and MT-off acquisitions must be present for MTR calculation.",
+          "implementation": "if 'MagnetizationTransfer' in value:\n    mt_states = value['MagnetizationTransfer'].dropna().unique()\n    if 'ON' not in mt_states or 'OFF' not in mt_states:\n        raise ValidationError(\"Both MT-on and MT-off acquisitions are required for MTR calculation.\")",
+          "fields": ["MagnetizationTransfer"],
+          "testCases": [
+            {
+              "id": "test_mt_pair_pass",
+              "name": "Both MT states present",
+              "data": {
+                "MagnetizationTransfer": ["ON", "OFF"]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_mt_pair_fail",
+              "name": "Missing MT-off",
+              "data": {
+                "MagnetizationTransfer": ["ON"]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

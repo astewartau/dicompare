@@ -116,7 +116,6 @@ def extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
                 return float(items[0])
             except (ValueError, TypeError):
                 # Value exists but can't be converted to float - use string
-                logger.warning(f"CSA tag '{tag_name}' has value '{items[0]}' that couldn't be converted to float, using string")
                 return str(items[0])
             except IndexError:
                 logger.warning(f"CSA tag '{tag_name}' has empty items list")
@@ -129,7 +128,6 @@ def extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
                     result.append(float(item))
                 except (ValueError, TypeError):
                     # Value exists but can't be converted - use string
-                    logger.warning(f"CSA tag '{tag_name}' item {i} value '{item}' couldn't be converted to float, using string")
                     result.append(str(item))
             return result if result else None
 
@@ -310,23 +308,105 @@ def get_dicom_values(ds, skip_pixel_data=True):
 
 
 
+def _update_metadata(metadata: Union[Dict[str, Any], List[Dict[str, Any]]],
+                     update_dict: Dict[str, Any]) -> None:
+    """
+    Helper to update metadata whether it's a dict or list of dicts.
+
+    Args:
+        metadata: Either a single dict or list of dicts
+        update_dict: Dictionary of values to merge in
+    """
+    if isinstance(metadata, list):
+        for item in metadata:
+            item.update(update_dict)
+    else:
+        metadata.update(update_dict)
+
+
+def _get_metadata_value(metadata: Union[Dict[str, Any], List[Dict[str, Any]]],
+                        key: str,
+                        default: Any = None) -> Any:
+    """
+    Helper to get a value from metadata whether it's a dict or list of dicts.
+    For lists, returns the first non-None value found.
+
+    Args:
+        metadata: Either a single dict or list of dicts
+        key: The key to look up
+        default: Default value if key not found
+
+    Returns:
+        The value associated with the key, or default if not found
+    """
+    if isinstance(metadata, list):
+        for item in metadata:
+            if key in item and item[key] is not None:
+                return item[key]
+        return default
+    else:
+        return metadata.get(key, default)
+
+
+def _set_metadata_value(metadata: Union[Dict[str, Any], List[Dict[str, Any]]],
+                        key: str,
+                        value: Any) -> None:
+    """
+    Helper to set a value in metadata whether it's a dict or list of dicts.
+
+    Args:
+        metadata: Either a single dict or list of dicts
+        key: The key to set
+        value: The value to set
+    """
+    if isinstance(metadata, list):
+        for item in metadata:
+            item[key] = value
+    else:
+        metadata[key] = value
+
+
+def _key_in_metadata(metadata: Union[Dict[str, Any], List[Dict[str, Any]]],
+                     key: str) -> bool:
+    """
+    Helper to check if a key exists in metadata whether it's a dict or list of dicts.
+
+    Args:
+        metadata: Either a single dict or list of dicts
+        key: The key to check
+
+    Returns:
+        True if key exists in metadata (or any item in list), False otherwise
+    """
+    if isinstance(metadata, list):
+        return any(key in item for item in metadata)
+    else:
+        return key in metadata
+
+
 def load_dicom(
     dicom_file: Union[str, bytes], skip_pixel_data: bool = True
-) -> Dict[str, Any]:
+) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
     """
-    Load a DICOM file and extract its metadata as a dictionary.
+    Load a DICOM file and extract its metadata as a dictionary or list of dictionaries.
 
     Args:
         dicom_file (Union[str, bytes]): Path to the DICOM file or file content in bytes.
         skip_pixel_data (bool): Whether to skip the pixel data element (default: True).
 
     Returns:
-        Dict[str, Any]: A dictionary of DICOM metadata, with normalized and truncated values.
+        Union[Dict[str, Any], List[Dict[str, Any]]]:
+            - For regular DICOM: A dictionary of DICOM metadata
+            - For enhanced DICOM: A list of dictionaries (one per frame)
 
     Raises:
         FileNotFoundError: If the specified DICOM file path does not exist.
         pydicom.errors.InvalidDicomError: If the file is not a valid DICOM file.
     """
+    # Log a warning if CSA metadata is not a dict
+    import logging
+    logger = logging.getLogger(__name__)
+
     if isinstance(dicom_file, (bytes, memoryview)):
         ds_raw = pydicom.dcmread(
             BytesIO(dicom_file),
@@ -340,47 +420,50 @@ def load_dicom(
             defer_size=True,
         )
 
-    # Convert to plain metadata dict (flattened)
+    # Convert to plain metadata dict (flattened) or list of dicts for enhanced DICOM
     metadata = get_dicom_values(ds_raw, skip_pixel_data=skip_pixel_data)
 
     # Only extract CSA metadata for Siemens DICOM files
     manufacturer = getattr(ds_raw, 'Manufacturer', '').upper()
     if 'SIEMENS' in manufacturer:
         csa_metadata = extract_csa_metadata(ds_raw)
-        metadata.update(csa_metadata)
+        if isinstance(csa_metadata, dict) and csa_metadata:
+            _update_metadata(metadata, csa_metadata)
+        elif csa_metadata and not isinstance(csa_metadata, dict):
+            logger.warning(f"Unexpected format of CSA metadata extracted from Siemens DICOM file {dicom_file}")
 
     inferred_metadata = extract_inferred_metadata(ds_raw)
-    metadata.update(inferred_metadata)
+    if not inferred_metadata:
+        logger.debug(f"No inferred metadata extracted from DICOM file {dicom_file}")
+    elif isinstance(inferred_metadata, dict):
+        _update_metadata(metadata, inferred_metadata)
+    else:
+        logger.warning(f"Unexpected format of inferred metadata extracted from DICOM file {dicom_file}")
 
     # Add CoilType as a regular metadata field
     coil_field = "(0051,100F)"
-    if coil_field in metadata:
-        coil_value = metadata[coil_field]
-        if coil_value:
-            def contains_number(value):
-                if pd.isna(value) or value is None or value == "":
-                    return False
-                return any(char.isdigit() for char in str(value))
+    coil_value = _get_metadata_value(metadata, coil_field)
 
-            def is_non_numeric_special(value):
-                if pd.isna(value) or value is None or value == "":
-                    return False
-                val_str = str(value)
-                return val_str == "HEA;HEP" or not any(char.isdigit() for char in val_str)
+    def contains_number(value):
+        if pd.isna(value) or value is None or value == "":
+            return False
+        return any(char.isdigit() for char in str(value))
 
-            if contains_number(coil_value):
-                metadata["CoilType"] = "Uncombined"
-            elif is_non_numeric_special(coil_value):
-                metadata["CoilType"] = "Combined"
-            else:
-                metadata["CoilType"] = None
-        else:
-            metadata["CoilType"] = None
+    def is_non_numeric_special(value):
+        if pd.isna(value) or value is None or value == "":
+            return False
+        val_str = str(value)
+        return val_str == "HEA;HEP" or not any(char.isdigit() for char in val_str)
+
+    if contains_number(coil_value):
+        _set_metadata_value(metadata, "CoilType", "Uncombined")
+    elif is_non_numeric_special(coil_value):
+        _set_metadata_value(metadata, "CoilType", "Combined")
 
     # Add GE ImageType mapping based on private tag (0043,102F)
     ge_private_tag = "(0043,102F)"
-    if ge_private_tag in metadata:
-        ge_value = metadata[ge_private_tag]
+    if _key_in_metadata(metadata, ge_private_tag):
+        ge_value = _get_metadata_value(metadata, ge_private_tag)
         # Map GE private tag values to ImageType
         ge_image_type_map = {
             0: 'M',         # Magnitude
@@ -393,18 +476,19 @@ def load_dicom(
         mapped_type = ge_image_type_map[ge_value_int]
 
         # Set ImageType to the mapped value
-        if 'ImageType' in metadata:
-            current_type = metadata['ImageType']
+        if _key_in_metadata(metadata, 'ImageType'):
+            current_type = _get_metadata_value(metadata, 'ImageType')
             if isinstance(current_type, (list, tuple)):
-                metadata['ImageType'] = list(current_type) + [mapped_type]
+                new_image_type = list(current_type) + [mapped_type]
             else:
-                metadata['ImageType'] = [current_type, mapped_type]
+                new_image_type = [current_type, mapped_type]
+            _set_metadata_value(metadata, 'ImageType', new_image_type)
         else:
-            metadata['ImageType'] = [mapped_type]
+            _set_metadata_value(metadata, 'ImageType', [mapped_type])
 
     # Add AcquisitionPlane based on ImageOrientationPatient
-    if 'ImageOrientationPatient' in metadata:
-        iop = metadata['ImageOrientationPatient']
+    if _key_in_metadata(metadata, 'ImageOrientationPatient'):
+        iop = _get_metadata_value(metadata, 'ImageOrientationPatient')
         try:
             # Convert to list if it's a tuple or other sequence
             if isinstance(iop, (tuple, list)) and len(iop) == 6:
@@ -426,20 +510,17 @@ def load_dicom(
                 max_component = abs_normal.index(max(abs_normal))
 
                 if max_component == 0:  # X-axis dominant
-                    metadata['AcquisitionPlane'] = 'sagittal'
+                    _set_metadata_value(metadata, 'AcquisitionPlane', 'sagittal')
                 elif max_component == 1:  # Y-axis dominant
-                    metadata['AcquisitionPlane'] = 'coronal'
+                    _set_metadata_value(metadata, 'AcquisitionPlane', 'coronal')
                 else:  # Z-axis dominant (max_component == 2)
-                    metadata['AcquisitionPlane'] = 'axial'
+                    _set_metadata_value(metadata, 'AcquisitionPlane', 'axial')
 
             else:
-                metadata['AcquisitionPlane'] = 'Unknown'
+                _set_metadata_value(metadata, 'AcquisitionPlane', 'Unknown')
         except (ValueError, TypeError, IndexError):
             # If calculation fails, mark as unknown
-            metadata['AcquisitionPlane'] = 'Unknown'
-    else:
-        # If ImageOrientationPatient is not available, mark as unknown
-        metadata['AcquisitionPlane'] = 'Unknown'
+            _set_metadata_value(metadata, 'AcquisitionPlane', 'Unknown')
 
     return metadata
 
@@ -456,9 +537,16 @@ def _load_one_dicom_path(path: str, skip_pixel_data: bool) -> Dict[str, Any]:
         raise ValueError(f"File lacks required Modality field - likely not a valid DICOM image: {path}")
 
     dicom_values = load_dicom(path, skip_pixel_data=skip_pixel_data)
-    dicom_values["DICOM_Path"] = path
-    # If you want 'InstanceNumber' for path-based
-    dicom_values["InstanceNumber"] = int(dicom_values["InstanceNumber"])
+
+    if isinstance(dicom_values, list):
+        for item in dicom_values:
+            item["DICOM_Path"] = path
+            # If you want 'InstanceNumber' for path-based
+            item["InstanceNumber"] = int(item["InstanceNumber"])
+    else:
+        dicom_values["DICOM_Path"] = path
+        # If you want 'InstanceNumber' for path-based
+        dicom_values["InstanceNumber"] = int(dicom_values["InstanceNumber"])
     return dicom_values
 
 
@@ -481,8 +569,14 @@ def _load_one_dicom_bytes(
         raise ValueError(f"File lacks required Modality field - likely not a valid DICOM image: {key}")
 
     dicom_values = load_dicom(content, skip_pixel_data=skip_pixel_data)
-    dicom_values["DICOM_Path"] = key
-    dicom_values["InstanceNumber"] = int(dicom_values["InstanceNumber"])
+
+    if isinstance(dicom_values, list):
+        for item in dicom_values:
+            item["DICOM_Path"] = key
+            item["InstanceNumber"] = int(item["InstanceNumber"])
+    else:
+        dicom_values["DICOM_Path"] = key
+        dicom_values["InstanceNumber"] = int(dicom_values["InstanceNumber"])
     return dicom_values
 
 
@@ -637,8 +731,17 @@ async def async_load_dicom_session(
             description
         )
 
+    # Flatten session_data in case of enhanced DICOM files
+    # (which return lists of dicts instead of single dicts)
+    flattened_data = []
+    for item in session_data:
+        if isinstance(item, list):
+            flattened_data.extend(item)
+        else:
+            flattened_data.append(item)
+
     # Create and prepare session DataFrame
-    return prepare_session_dataframe(session_data)
+    return prepare_session_dataframe(flattened_data)
 
 
 # Synchronous wrapper

@@ -9,15 +9,16 @@ values used throughout the dicompare package.
 DEFAULT_SETTINGS_FIELDS = [
     # Core acquisition parameters
     "ScanOptions",
-    "MRAcquisitionType", 
+    "MRAcquisitionType",
     # "SequenceName",  # Removed - varies per diffusion direction in multi-shell sequences
     "AngioFlag",
     "SliceThickness",
     "AcquisitionMatrix",
     "RepetitionTime",
-    # "InversionTime",  # Removed - varies between inversion points in MP2RAGE sequences
+    "EchoTime",  # Can vary within multi-echo acquisitions - handled by parameter set grouping
+    "InversionTime",  # Can vary within MP2RAGE acquisitions - handled by parameter set grouping
+    "FlipAngle",  # Can vary within some acquisitions - handled by parameter set grouping
     "NumberOfAverages",
-    "ImagingFrequency",
     "ImagedNucleus",
     "MagneticFieldStrength",
     "NumberOfPhaseEncodingSteps",
@@ -25,31 +26,29 @@ DEFAULT_SETTINGS_FIELDS = [
     "PercentSampling",
     "PercentPhaseFieldOfView",
     "PixelBandwidth",
-    
+
     # Coil and hardware parameters
     "ReceiveCoilName",
     "TransmitCoilName",
-    # "FlipAngle",  # Removed - varies between inversion points in MP2RAGE sequences
     "ReconstructionDiameter",
     "InPlanePhaseEncodingDirection",
     "ParallelReductionFactorInPlane",
     "ParallelAcquisitionTechnique",
-    
+
     # Timing and triggering
     "TriggerTime",
     "TriggerSourceOrType",
     "BeatRejectionFlag",
     "LowRRValue",
     "HighRRValue",
-    
+
     # Safety and limits
-    "SAR",
     "dBdt",
-    
+
     # Advanced sequence parameters
     "GradientEchoTrainLength",
     "SpoilingRFPhaseAngle",
-    # "DiffusionBValue",  # Removed - varies per b-shell in multi-shell sequences
+    "DiffusionBValue",  # Can vary within multi-shell acquisitions - handled by parameter set grouping
     # "DiffusionGradientDirectionSequence",  # Removed - varies per diffusion direction
     "PerfusionTechnique",
     "SpectrallySelectedExcitation",
@@ -58,15 +57,12 @@ DEFAULT_SETTINGS_FIELDS = [
     "TimeOfFlightContrast",
     "SteadyStatePulseSequence",
     "PartialFourierDirection",
-    "MultibandFactor"
+    "MultibandFactor",
+    "ImageType"  # Can vary within multi-part acquisitions (M/P) - handled by parameter set grouping
 ]
 
 DEFAULT_SERIES_FIELDS = [
-    "SeriesInstanceUID",
     "SeriesDescription",
-    "SeriesNumber",
-    "SeriesDate",
-    "SeriesTime",
     "ImageType",
     "EchoTime",
     "DiffusionBValue",

@@ -182,7 +182,19 @@ def _process_dicom_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 # Source is empty and target has value - just remove empty source
                 plain_metadata.pop(src)
-    
+
+    # Step 5: Split AcquisitionDateTime into AcquisitionDate and AcquisitionTime if needed
+    # This handles enhanced DICOM which stores combined datetime instead of separate fields
+    if 'AcquisitionDateTime' in plain_metadata:
+        dt_value = plain_metadata['AcquisitionDateTime']
+        if dt_value and isinstance(dt_value, str) and len(dt_value) >= 8:
+            # AcquisitionDateTime format: YYYYMMDDHHMMSS.FFFFFF
+            # Extract date (first 8 chars) and time (rest) if they don't already exist
+            if 'AcquisitionDate' not in plain_metadata or not plain_metadata['AcquisitionDate']:
+                plain_metadata['AcquisitionDate'] = dt_value[:8]
+            if 'AcquisitionTime' not in plain_metadata or not plain_metadata['AcquisitionTime']:
+                plain_metadata['AcquisitionTime'] = dt_value[8:] if len(dt_value) > 8 else None
+
     return plain_metadata
 
 
@@ -213,7 +225,7 @@ def prepare_session_dataframe(session_data: List[Dict[str, Any]]) -> pd.DataFram
         session_df.sort_values("InstanceNumber", inplace=True)
     elif "DICOM_Path" in session_df.columns:
         session_df.sort_values("DICOM_Path", inplace=True)
-    
+
     return session_df
 
 

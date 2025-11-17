@@ -7,7 +7,9 @@ rather than iteratively splitting and reassigning.
 """
 
 import pandas as pd
+import numpy as np
 import logging
+import warnings
 from typing import List, Optional
 
 from ..config import DEFAULT_SETTINGS_FIELDS, DEFAULT_ACQUISITION_FIELDS, DEFAULT_RUN_GROUP_FIELDS, DEFAULT_SERIES_FIELDS
@@ -47,441 +49,408 @@ def _dicom_time_to_seconds(time_str):
     return float(time_str)
 
 
-def _validate_and_setup_fields(session_df, settings_fields, acquisition_fields, run_group_fields):
-    """
-    Validate inputs and set up default field lists.
-    
-    Args:
-        session_df (pd.DataFrame): Input session DataFrame
-        reference_fields (Optional[List[str]]): Fields for detecting acquisition settings
-        acquisition_fields (Optional[List[str]]): Fields for grouping acquisitions
-        run_group_fields (Optional[List[str]]): Fields for identifying runs
-        
-    Returns:
-        Tuple[List[str], List[str], List[str]]: Validated field lists
-    """
-    if settings_fields is None:
-        settings_fields = DEFAULT_SETTINGS_FIELDS.copy()
-    
-    if acquisition_fields is None:
-        acquisition_fields = DEFAULT_ACQUISITION_FIELDS.copy()
-        
-    if run_group_fields is None:
-        run_group_fields = DEFAULT_RUN_GROUP_FIELDS.copy()
-    
-    # Ensure ProtocolName exists
-    if "ProtocolName" not in session_df.columns:
-        logger.warning("'ProtocolName' not found in session_df columns. Setting it to 'SeriesDescription' instead.")
-        session_df["ProtocolName"] = session_df.get("SeriesDescription", "Unknown")
-    
-    # Ensure ProtocolName values are strings and handle NaN values
-    session_df["ProtocolName"] = session_df["ProtocolName"].fillna("Unknown").astype(str)
-    
-    return settings_fields, acquisition_fields, run_group_fields
-
-
-def _get_series_differentiator(group):
-    """
-    Choose SeriesTime or SeriesInstanceUID as the series differentiator.
-    
-    Args:
-        group (pd.DataFrame): DataFrame group to check for time fields
-        
-    Returns:
-        str: Field name to use for series differentiation
-    """
-    if "SeriesTime" in group.columns:
-        return "SeriesTime"
-    else:
-        return "SeriesInstanceUID"
-
-
-def _determine_settings_group_fields(session_df):
-    """
-    Determine which fields to use for settings grouping based on CoilType availability.
-    
-    Args:
-        session_df (pd.DataFrame): Input session DataFrame
-        
-    Returns:
-        List[str]: Fields to use for settings grouping
-    """
-    base_fields = ["PatientName", "PatientID", "StudyDate", "RunNumber"]
-    
-    if "CoilType" in session_df.columns:
-        coil_type_counts = session_df["CoilType"].value_counts()
-        has_combined = "Combined" in coil_type_counts.index
-        has_uncombined = "Uncombined" in coil_type_counts.index
-        
-        if has_combined and has_uncombined:
-            return [f for f in base_fields + ["CoilType"] if f in session_df.columns]
-    
-    return [f for f in base_fields if f in session_df.columns]
-
-
-def build_acquisition_signatures(session_df, acquisition_fields, reference_fields):
-    """
-    Build complete acquisition signatures that include protocol + settings.
-    
-    This function creates comprehensive signatures that capture all relevant differences
-    between acquisitions, eliminating the need for later splitting operations.
-    
-    Args:
-        session_df (pd.DataFrame): Input session DataFrame
-        acquisition_fields (List[str]): Fields for basic acquisition grouping
-        reference_fields (List[str]): Fields for detecting settings differences
-        
-    Returns:
-        pd.DataFrame: Session DataFrame with 'AcquisitionSignature' column added
-    """
-    # Make all values hashable
-    session_df = make_dataframe_hashable(session_df)
-
-    # Create basic acquisition labels
-    def clean_acquisition_values(row):
-        return "-".join(str(val) if pd.notnull(val) else "NA" for val in row)
-
-    session_df["BaseAcquisition"] = "acq-" + session_df[acquisition_fields].apply(
-        clean_acquisition_values, axis=1
-    ).apply(clean_string)
-    
-    # Build comprehensive signatures by protocol
-    logger.debug("Building acquisition signatures...")
-    
-    for protocol_name, protocol_group in session_df.groupby("ProtocolName"):
-        logger.debug(f"Processing protocol '{protocol_name}' with {len(protocol_group)} rows")
-        
-        # Determine settings group fields
-        settings_group_fields = _determine_settings_group_fields(protocol_group)
-        
-        # First, identify unique parameter combinations by looking at actual field values
-        # Group by all reference fields to detect different settings
-        reference_fields_present = [f for f in reference_fields if f in protocol_group.columns]
-        
-        # Add CoilType if present
-        grouping_fields = reference_fields_present.copy()
-        if "CoilType" in protocol_group.columns:
-            grouping_fields.append("CoilType")
-        
-        param_to_signature = {}
-        counter = 1
-        
-        if grouping_fields:
-            # Group by the actual field values to detect different settings
-            unique_combinations = list(protocol_group.groupby(grouping_fields, dropna=False))
-            
-            for param_vals, param_group in unique_combinations:
-                # Create parameter tuple for this unique combination
-                if len(grouping_fields) == 1:
-                    param_vals = (param_vals,)
-                
-                param_tuple = tuple(zip(grouping_fields, param_vals))
-                
-                # Assign signature number for this parameter combination
-                if param_tuple not in param_to_signature:
-                    param_to_signature[param_tuple] = counter
-                    logger.debug(f"  - NEW parameter combination #{counter}: {param_tuple}")
-                    counter += 1
-                
-                signature_num = param_to_signature[param_tuple]
-                
-                # Create full acquisition signature  
-                base_acq = param_group["BaseAcquisition"].iloc[0]
-                if len(unique_combinations) > 1:  # Only add suffix if multiple settings detected
-                    signature = f"{base_acq}-{signature_num}"
-                else:
-                    signature = base_acq
-                    
-                session_df.loc[param_group.index, "AcquisitionSignature"] = signature
-        else:
-            # No reference fields to group by, use base acquisition
-            base_acq = protocol_group["BaseAcquisition"].iloc[0]
-            session_df.loc[protocol_group.index, "AcquisitionSignature"] = base_acq
-    
-    return session_df
-
-
-def assign_series_within_acquisitions(session_df, reference_fields):
-    """
-    Assign Series column that groups files within each acquisition based on varying parameter values.
-    
-    Args:
-        session_df (pd.DataFrame): Session DataFrame with Acquisition column
-        reference_fields (List[str]): Fields that were used for acquisition grouping - we'll exclude these
-        
-    Returns:
-        pd.DataFrame: Session DataFrame with Series column added
-    """
-    logger.debug("Assigning series within acquisitions...")
-    
-    # Filter out parameters that were already used for acquisition grouping
-    # This prevents double-grouping where acquisition signatures already split based on these fields
-    series_params = [p for p in DEFAULT_SERIES_FIELDS if p not in reference_fields]
-    
-    # Initialize Series column
-    session_df["Series"] = ""
-    
-    # Process each acquisition separately
-    for acquisition_name, acq_group in session_df.groupby("Acquisition"):
-        logger.debug(f"Processing acquisition '{acquisition_name}' with {len(acq_group)} rows")
-        
-        # Find parameters that vary within this acquisition
-        varying_params = []
-        for param in series_params:
-            if param in acq_group.columns and acq_group[param].nunique() > 1:
-                # Check if there's actual meaningful variation (not just NaN vs values)
-                non_null_values = acq_group[param].dropna()
-                if len(non_null_values) > 0 and non_null_values.nunique() > 1:
-                    varying_params.append(param)
-        
-        logger.debug(f"  - Varying parameters: {varying_params}")
-        
-        if varying_params:
-            # Group by varying parameters to create series
-            try:
-                series_groups = list(acq_group.groupby(varying_params, dropna=False))
-                logger.debug(f"  - Created {len(series_groups)} series groups")
-                
-                for i, (group_key, group_df) in enumerate(series_groups):
-                    series_name = f"{acquisition_name}_Series_{i+1:03d}"
-                    session_df.loc[group_df.index, "Series"] = series_name
-                    logger.debug(f"    - Series {i+1}: {series_name} ({len(group_df)} files)")
-                    
-            except Exception as e:
-                logger.warning(f"  - Could not create series groups for {acquisition_name}: {e}")
-                # Fall back to single series
-                series_name = f"{acquisition_name}_Series_001"
-                session_df.loc[acq_group.index, "Series"] = series_name
-        else:
-            # No varying parameters - single series
-            series_name = f"{acquisition_name}_Series_001"
-            session_df.loc[acq_group.index, "Series"] = series_name
-            logger.debug(f"  - Single series: {series_name}")
-    
-    return session_df
-
-
-def assign_temporal_runs(session_df, run_group_fields):
-    """
-    Identify temporal runs within each acquisition signature.
-    
-    Args:
-        session_df (pd.DataFrame): Session DataFrame with AcquisitionSignature column
-        run_group_fields (List[str]): Fields for identifying run groups
-        
-    Returns:
-        pd.DataFrame: Session DataFrame with RunNumber column added
-    """
-    logger.debug("Assigning temporal runs...")
-    
-    # Initialize RunNumber column
-    session_df["RunNumber"] = 1
-    
-    # Build run grouping keys
-    run_keys = [f for f in run_group_fields if f in session_df.columns]
-    
-    # Group by run identification fields
-    for key_vals, group in session_df.groupby(run_keys):
-        series_differentiator = _get_series_differentiator(group)
-        group = group.sort_values(series_differentiator)
-        
-        # Within each acquisition signature, detect temporal runs
-        for acq_sig, acq_group in group.groupby("AcquisitionSignature"):
-            for series_desc, series_group in acq_group.groupby("SeriesDescription"):
-                # Get unique time points for this series
-                times = sorted(series_group[series_differentiator].unique())
-
-                # Convert times to seconds if using SeriesTime
-                if series_differentiator == "SeriesTime":
-                    times_in_seconds = [_dicom_time_to_seconds(t) for t in times]
-                    # Keep only times that are > 5s apart
-                    filtered_indices = [i for i, t in enumerate(times_in_seconds) 
-                                      if i == 0 or (t - times_in_seconds[i-1]) > 5]
-                    times = [times[i] for i in filtered_indices]
-                else:
-                    # For SeriesInstanceUID, keep all unique values
-                    pass
-                
-                if len(times) > 1:
-                    logger.debug(f"  - Detected {len(times)} runs for {acq_sig}/{series_desc}")
-                    # Assign run numbers based on time order
-                    for run_num, time_point in enumerate(times, start=1):
-                        mask = (
-                            (session_df["AcquisitionSignature"] == acq_sig) &
-                            (session_df["SeriesDescription"] == series_desc) &
-                            (session_df[series_differentiator] == time_point)
-                        )
-                        # Add run key matching
-                        for i, key in enumerate(run_keys):
-                            val = key_vals[i] if isinstance(key_vals, tuple) else key_vals
-                            mask &= (session_df[key] == val)
-                        
-                        session_df.loc[mask, "RunNumber"] = run_num
-    
-    return session_df
-
-
-def apply_manufacturer_specific_corrections(session_df):
-    """
-    Apply manufacturer-specific corrections to session metadata.
-
-    This function handles cases where manufacturers don't follow standard DICOM conventions
-    and corrections require analyzing multiple files across the session.
-
-    Currently handles:
-    - Bruker: Adds 'M' (magnitude) / 'P' (phase) to ImageType when multiple series
-      with consecutive SeriesNumbers exist within the same acquisition.
-
-    Args:
-        session_df (pd.DataFrame): Session DataFrame with Acquisition column
-
-    Returns:
-        pd.DataFrame: Session DataFrame with corrected metadata
-    """
-    logger.debug("Applying manufacturer-specific corrections...")
-
-    # Check if required columns exist
-    if "Manufacturer" not in session_df.columns:
-        logger.debug("No Manufacturer column found, skipping corrections")
-        return session_df
-
-    if "ImageType" not in session_df.columns:
-        logger.debug("No ImageType column found, skipping corrections")
-        return session_df
-
-    if "SeriesNumber" not in session_df.columns:
-        logger.debug("No SeriesNumber column found, skipping corrections")
-        return session_df
-
-    if "Acquisition" not in session_df.columns:
-        logger.debug("No Acquisition column found, skipping corrections")
-        return session_df
-
-    # Process each acquisition separately
-    for acquisition_name, acq_group in session_df.groupby("Acquisition"):
-        # Check if this is Bruker data
-        manufacturers = acq_group["Manufacturer"].dropna().unique()
-        if len(manufacturers) == 0:
-            continue
-
-        is_bruker = any("bruker" in str(mfr).lower() for mfr in manufacturers)
-        if not is_bruker:
-            continue
-
-        logger.debug(f"Processing Bruker acquisition '{acquisition_name}'")
-
-        # Check if ImageType needs correction (doesn't contain 'M' or 'P')
-        needs_correction = False
-        for idx, row in acq_group.iterrows():
-            image_type = row.get("ImageType")
-            if image_type is not None:
-                # Convert to list if it's a tuple
-                if isinstance(image_type, tuple):
-                    image_type = list(image_type)
-                elif not isinstance(image_type, list):
-                    image_type = [image_type]
-
-                # Check if 'M' or 'P' is not present
-                if 'M' not in image_type and 'P' not in image_type:
-                    needs_correction = True
-                    break
-
-        if not needs_correction:
-            logger.debug(f"  - ImageType already contains M/P, skipping")
-            continue
-
-        # Check if there are exactly 2 unique SeriesNumbers
-        unique_series_numbers = sorted(acq_group["SeriesNumber"].dropna().unique())
-
-        if len(unique_series_numbers) != 2:
-            logger.debug(f"  - Found {len(unique_series_numbers)} unique series numbers, expected 2, skipping")
-            continue
-
-        # Check if series numbers are consecutive (or at least in sequence)
-        series_num_1, series_num_2 = unique_series_numbers
-        logger.debug(f"  - Found two series: {series_num_1} and {series_num_2}")
-
-        # Assign 'M' to lower SeriesNumber (magnitude), 'P' to higher (phase)
-        for idx, row in acq_group.iterrows():
-            series_num = row["SeriesNumber"]
-            image_type = row.get("ImageType")
-
-            if pd.isna(series_num) or image_type is None:
-                continue
-
-            # Convert ImageType to list for manipulation
-            if isinstance(image_type, tuple):
-                image_type = list(image_type)
-            elif not isinstance(image_type, list):
-                image_type = [str(image_type)]
-            else:
-                image_type = list(image_type)
-
-            # Append 'M' or 'P' based on SeriesNumber
-            if series_num == series_num_1:
-                image_type.append('M')
-                logger.debug(f"  - Adding 'M' to SeriesNumber {series_num}")
-            elif series_num == series_num_2:
-                image_type.append('P')
-                logger.debug(f"  - Adding 'P' to SeriesNumber {series_num}")
-
-            # Update the DataFrame with tuple (to match dicompare convention)
-            session_df.at[idx, "ImageType"] = tuple(image_type)
-
-    return session_df
-
-
 def assign_acquisition_and_run_numbers(
     session_df,
-    reference_fields: Optional[List[str]] = None,
-    acquisition_fields: Optional[List[str]] = None,
-    run_group_fields: Optional[List[str]] = None
+    settings_fields: Optional[List[str]] = None,
+    series_fields: Optional[List[str]] = None
 ):
     """
-    Assign acquisition, series, and run numbers in a single coherent pass.
+    Assign acquisition, series, and run numbers using a canonical 4-stage process.
 
-    This function builds complete acquisition signatures upfront, assigns series
-    within each acquisition based on varying parameter values, and then assigns
-    temporal runs, avoiding the need for iterative splitting and reassignment.
+    This function implements the correct sequential process:
+    1. Identify acquisitions by ProtocolName (fallback: SequenceName)
+    2. Identify series within acquisitions using non-settings fields
+    3. Identify runs within series using SeriesInstanceUID/SeriesTime
+    4. Split acquisitions where settings changed between runs
 
     Args:
         session_df (pd.DataFrame): Input session DataFrame
-        reference_fields (Optional[List[str]]): Fields for detecting acquisition settings
-        acquisition_fields (Optional[List[str]]): Fields for grouping acquisitions
-        run_group_fields (Optional[List[str]]): Fields for identifying runs
+        settings_fields (Optional[List[str]]): Fields that represent acquisition settings.
+            Defaults to DEFAULT_SETTINGS_FIELDS if not provided.
+        series_fields (Optional[List[str]]): Fields for differentiating series (not settings).
+            Defaults to ["SeriesDescription", "ImageType", "InversionTime"] if not provided.
 
     Returns:
-        pd.DataFrame: Session DataFrame with Acquisition, Series, and Run columns
+        pd.DataFrame: Session DataFrame with Acquisition, Series, and RunNumber columns
     """
-    logger.debug("Starting assign_acquisition_and_run_numbers (refactored)")
 
-    # 1. Validate inputs and set up fields
-    reference_fields, acquisition_fields, run_group_fields = _validate_and_setup_fields(
-        session_df, reference_fields, acquisition_fields, run_group_fields
+    logger.debug("Starting assign_acquisition_and_run_numbers")
+
+    # Suppress DataFrame fragmentation warnings
+    warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
+
+    # Set defaults
+    if settings_fields is None:
+        settings_fields = DEFAULT_SETTINGS_FIELDS.copy()
+    if series_fields is None:
+        # Fields that differentiate series but are NOT acquisition settings
+        series_fields = ["SeriesDescription", "ImageType", "InversionTime"]
+
+    session_df = session_df.copy()
+    session_df = make_dataframe_hashable(session_df)
+
+    # ===== STAGE 1: Identify acquisitions by ProtocolName (fallback: SequenceName) =====
+    logger.debug("Stage 1: Identifying acquisitions by ProtocolName/SequenceName")
+
+    # Use ProtocolName if available, otherwise fall back to SequenceName on a per-file basis
+    has_protocol_name = "ProtocolName" in session_df.columns
+    has_sequence_name = "SequenceName" in session_df.columns
+
+    if not has_protocol_name and not has_sequence_name:
+        raise ValueError("Neither ProtocolName nor SequenceName found in session data")
+
+    if has_protocol_name and has_sequence_name:
+        # Use ProtocolName where available, SequenceName as fallback
+        session_df["_AcquisitionProtocol"] = session_df.apply(
+            lambda row: row["ProtocolName"] if pd.notna(row["ProtocolName"])
+                       else (row["SequenceName"] if pd.notna(row["SequenceName"]) else "Unknown"),
+            axis=1
+        )
+        logger.debug(f"  Using ProtocolName (with SequenceName fallback) for acquisition identification")
+    elif has_protocol_name:
+        session_df["_AcquisitionProtocol"] = session_df["ProtocolName"].fillna("Unknown")
+        logger.debug(f"  Using ProtocolName for acquisition identification")
+    else:
+        session_df["_AcquisitionProtocol"] = session_df["SequenceName"].fillna("Unknown")
+        logger.debug(f"  Using SequenceName for acquisition identification")
+
+    # Clean the protocol name
+    session_df["_AcquisitionProtocol"] = session_df["_AcquisitionProtocol"].apply(
+        lambda x: clean_string(str(x)) if pd.notna(x) else "Unknown"
     )
 
-    logger.debug(f"Using fields - acquisition: {acquisition_fields}, reference: {len(reference_fields)} fields, run_group: {run_group_fields}")
+    logger.debug(f"  Found {session_df['_AcquisitionProtocol'].nunique()} unique protocols")
 
-    # 2. Build complete acquisition signatures
-    session_df = build_acquisition_signatures(session_df, acquisition_fields, reference_fields)
+    # Create Patient identifier (combination of PatientName and PatientID)
+    # RunNumber will restart at 1 for each unique Patient
+    has_patient_name = "PatientName" in session_df.columns
+    has_patient_id = "PatientID" in session_df.columns
 
-    # 3. Create final Acquisition labels from signatures
-    session_df["Acquisition"] = session_df["AcquisitionSignature"].fillna("Unknown").astype(str)
+    if has_patient_name and has_patient_id:
+        session_df["Patient"] = session_df.apply(
+            lambda row: f"{row['PatientName']}|{row['PatientID']}"
+            if pd.notna(row['PatientName']) and pd.notna(row['PatientID'])
+            else (row['PatientName'] if pd.notna(row['PatientName'])
+                  else (row['PatientID'] if pd.notna(row['PatientID']) else "Unknown")),
+            axis=1
+        )
+    elif has_patient_name:
+        session_df["Patient"] = session_df["PatientName"].fillna("Unknown")
+    elif has_patient_id:
+        session_df["Patient"] = session_df["PatientID"].fillna("Unknown")
+    else:
+        session_df["Patient"] = "Unknown"
 
-    # 4. Assign series within each acquisition based on varying parameters
-    session_df = assign_series_within_acquisitions(session_df, reference_fields)
+    logger.debug(f"  Found {session_df['Patient'].nunique()} unique patients")
 
-    # 5. Assign temporal runs within each signature
-    session_df = assign_temporal_runs(session_df, run_group_fields)
+    # ===== STAGE 2: Identify series within acquisitions =====
+    logger.debug(f"Stage 2: Identifying series using fields: {series_fields}")
 
-    # 6. Clean up temporary columns
-    session_df = session_df.drop(columns=["BaseAcquisition", "AcquisitionSignature"]).reset_index(drop=True)
+    available_series_fields = [f for f in series_fields if f in session_df.columns]
+    logger.debug(f"  Available series fields: {available_series_fields}")
 
-    logger.debug(f"Final result - {len(session_df['Acquisition'].unique())} unique acquisitions, {len(session_df['Series'].unique())} unique series")
-    logger.debug(f"Acquisitions: {list(session_df['Acquisition'].unique())}")
-    logger.debug(f"Series: {list(session_df['Series'].unique())}")
+    session_df["_SeriesSignature"] = ""
 
-    # 7. Apply manufacturer-specific corrections
-    session_df = apply_manufacturer_specific_corrections(session_df)
+    for acq_protocol, acq_group in session_df.groupby("_AcquisitionProtocol"):
+        if available_series_fields:
+            # Create series signatures (will be used for run detection)
+            for series_vals, series_group in acq_group.groupby(available_series_fields, dropna=False):
+                # Create a hashable signature for this series combination
+                sig = tuple(series_vals) if isinstance(series_vals, tuple) else (series_vals,)
+                session_df.loc[series_group.index, "_SeriesSignature"] = str(sig)
+        else:
+            # No series fields available
+            session_df.loc[acq_group.index, "_SeriesSignature"] = "default"
+
+    # ===== STAGE 3: Identify runs using SeriesInstanceUID =====
+    # RunNumber will restart at 1 for each unique Patient within each acquisition
+    logger.debug("Stage 3: Identifying runs using SeriesInstanceUID (per patient)")
+
+    session_df["_OriginalRunNumber"] = 1
+
+    for acq_protocol, acq_group in session_df.groupby("_AcquisitionProtocol"):
+        # Process each patient separately within this acquisition
+        for patient, patient_group in acq_group.groupby("Patient"):
+            # Determine which time field to use (prefer SeriesTime over AcquisitionTime)
+            time_field = None
+            if "SeriesTime" in patient_group.columns and patient_group["SeriesTime"].notna().any():
+                time_field = "SeriesTime"
+            elif "AcquisitionTime" in patient_group.columns and patient_group["AcquisitionTime"].notna().any():
+                time_field = "AcquisitionTime"
+
+            if time_field is None:
+                logger.debug(f"  {acq_protocol}/{patient}: No time field available, defaulting to single run")
+                continue
+
+            # Check if SeriesInstanceUID is available
+            if "SeriesInstanceUID" not in patient_group.columns:
+                logger.debug(f"  {acq_protocol}/{patient}: No SeriesInstanceUID available, defaulting to single run")
+                continue
+
+            # Step 1: Find series signatures that have multiple SeriesInstanceUIDs (repeated series)
+            repeated_series = {}  # {series_sig: [uid1, uid2, ...]}
+
+            for series_sig, sig_group in patient_group.groupby("_SeriesSignature"):
+                unique_uids = sig_group["SeriesInstanceUID"].dropna().unique()
+                if len(unique_uids) > 1:
+                    repeated_series[series_sig] = sorted(unique_uids)
+
+            if not repeated_series:
+                logger.debug(f"  {acq_protocol}/{patient}: No repeated series found, defaulting to single run")
+                continue
+
+            logger.debug(f"  {acq_protocol}/{patient}: Found {len(repeated_series)} series with multiple UIDs")
+
+            # Step 2: Assign run numbers to repeated series based on their SeriesInstanceUID
+            # We need to map UIDs to run numbers - use temporal ordering
+            all_uid_times = {}  # {uid: median_time}
+
+            for series_sig, uids in repeated_series.items():
+                sig_group = patient_group[patient_group["_SeriesSignature"] == series_sig]
+
+                for uid in uids:
+                    uid_files = sig_group[sig_group["SeriesInstanceUID"] == uid]
+                    times = uid_files[time_field].apply(_dicom_time_to_seconds).dropna()
+                    if len(times) > 0:
+                        median_time = times.median()
+                        all_uid_times[uid] = median_time
+
+            # Sort UIDs by their median time
+            sorted_uids = sorted(all_uid_times.keys(), key=lambda uid: all_uid_times[uid])
+            sorted_times = [all_uid_times[uid] for uid in sorted_uids]
+
+            # Cluster UIDs by time - UIDs within 60s span belong to the same run
+            # Check span from first UID in cluster to current UID
+            gap_threshold = 60  # seconds - if span from cluster start > 60s, start new run
+
+            uid_to_run = {}
+            current_run = 1
+            cluster_start_time = sorted_times[0]
+
+            for i, uid in enumerate(sorted_uids):
+                uid_time = sorted_times[i]
+
+                if i == 0:
+                    # First UID is always run 1
+                    uid_to_run[uid] = current_run
+                else:
+                    # Check time span from start of current cluster
+                    time_span = uid_time - cluster_start_time
+
+                    if time_span > gap_threshold:
+                        # Span too large - start new run
+                        current_run += 1
+                        cluster_start_time = uid_time
+
+                    uid_to_run[uid] = current_run
+
+            num_runs = current_run
+            logger.debug(f"  {acq_protocol}/{patient}: Clustered {len(sorted_uids)} UIDs into {num_runs} runs")
+
+            # Assign run numbers to files with these UIDs
+            for series_sig, uids in repeated_series.items():
+                sig_group = patient_group[patient_group["_SeriesSignature"] == series_sig]
+
+                for uid in uids:
+                    run_num = uid_to_run.get(uid, 1)
+                    mask = (
+                        (session_df["_AcquisitionProtocol"] == acq_protocol) &
+                        (session_df["Patient"] == patient) &
+                        (session_df["_SeriesSignature"] == series_sig) &
+                        (session_df["SeriesInstanceUID"] == uid)
+                    )
+                    session_df.loc[mask, "_OriginalRunNumber"] = run_num
+
+            # Step 3: Calculate median time for each run (from repeated series ONLY)
+            # Important: Only use files from repeated series to avoid pollution from orphan series
+            # that still have the default _OriginalRunNumber = 1
+            run_median_times = {}  # {run_num: median_time}
+            for run_num in range(1, num_runs + 1):
+                # Only include files from repeated series (not orphans)
+                run_files = session_df[
+                    (session_df["_AcquisitionProtocol"] == acq_protocol) &
+                    (session_df["Patient"] == patient) &
+                    (session_df["_OriginalRunNumber"] == run_num) &
+                    (session_df["_SeriesSignature"].isin([str(sig) for sig in repeated_series.keys()]))
+                ]
+                if len(run_files) > 0:
+                    times = run_files[time_field].apply(_dicom_time_to_seconds).dropna()
+                    if len(times) > 0:
+                        run_median_times[run_num] = times.median()
+
+            # Step 4: Assign unrepeated/orphan series to closest run by median time
+            all_series_sigs = patient_group["_SeriesSignature"].unique()
+            orphan_series = [sig for sig in all_series_sigs if sig not in repeated_series]
+
+            for series_sig in orphan_series:
+                sig_group = patient_group[patient_group["_SeriesSignature"] == series_sig]
+
+                # Calculate median time for this orphan series
+                times = sig_group[time_field].apply(_dicom_time_to_seconds).dropna()
+                if len(times) == 0:
+                    logger.debug(f"  {acq_protocol}/{patient}/{series_sig}: No time data, assigning to run 1")
+                    mask = (
+                        (session_df["_AcquisitionProtocol"] == acq_protocol) &
+                        (session_df["Patient"] == patient) &
+                        (session_df["_SeriesSignature"] == series_sig)
+                    )
+                    session_df.loc[mask, "_OriginalRunNumber"] = 1
+                    continue
+
+                orphan_median_time = times.median()
+
+                # Find closest run by median time
+                closest_run = 1
+                min_distance = float('inf')
+
+                for run_num, run_median in run_median_times.items():
+                    distance = abs(orphan_median_time - run_median)
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_run = run_num
+
+                logger.debug(f"  {acq_protocol}/{patient}/{series_sig}: Orphan series assigned to run {closest_run}")
+
+                mask = (
+                    (session_df["_AcquisitionProtocol"] == acq_protocol) &
+                    (session_df["Patient"] == patient) &
+                    (session_df["_SeriesSignature"] == series_sig)
+                )
+                session_df.loc[mask, "_OriginalRunNumber"] = closest_run
+
+    # ===== STAGE 4: Split acquisitions where settings changed between runs =====
+    # Check settings changes within each patient separately using run-level signatures
+    logger.debug("Stage 4: Checking for settings changes between runs (per patient, run-level signatures)")
+
+    available_settings = [f for f in settings_fields if f in session_df.columns]
+    logger.debug(f"  Checking {len(available_settings)} settings fields")
+
+    session_df["_SettingsGroup"] = 0
+
+    for acq_protocol, acq_group in session_df.groupby("_AcquisitionProtocol"):
+        # Process each patient separately within this acquisition
+        for patient, patient_group in acq_group.groupby("Patient"):
+            runs = sorted(patient_group["_OriginalRunNumber"].unique())
+
+            if len(runs) == 1:
+                # Single run, no settings change possible
+                continue
+
+            # Build run-level signatures for each run
+            # A signature is a dict of {field: set_of_unique_values}
+            def build_run_signature(run_data):
+                """Build a signature for a run by collecting unique values for each field."""
+                signature = {}
+                for field in available_settings:
+                    if field not in run_data.columns:
+                        signature[field] = frozenset()
+                        continue
+
+                    # Collect all unique values for this field across all files in the run
+                    unique_values = set()
+                    for val in run_data[field].dropna():
+                        hashable_val = make_hashable(val)
+                        if not pd.isna(hashable_val):
+                            unique_values.add(hashable_val)
+
+                    # Convert to frozenset for hashability and comparison
+                    signature[field] = frozenset(unique_values)
+
+                return signature
+
+            # Compare settings between consecutive runs using signatures
+            current_group = 0
+            baseline_signature = None
+
+            for run_num in runs:
+                run_data = patient_group[patient_group["_OriginalRunNumber"] == run_num]
+                run_signature = build_run_signature(run_data)
+
+                if baseline_signature is None:
+                    # First run, establish baseline
+                    baseline_signature = run_signature
+                else:
+                    # Compare current run signature with baseline signature
+                    settings_changed = False
+                    changed_fields = []
+
+                    for field in available_settings:
+                        baseline_values = baseline_signature.get(field, frozenset())
+                        current_values = run_signature.get(field, frozenset())
+
+                        # Compare the sets of values
+                        if baseline_values != current_values:
+                            settings_changed = True
+                            changed_fields.append(field)
+                            logger.debug(f"  {acq_protocol}/{patient}: Field '{field}' changed between runs")
+                            logger.debug(f"    Baseline: {sorted(baseline_values) if baseline_values else 'empty'}")
+                            logger.debug(f"    Current:  {sorted(current_values) if current_values else 'empty'}")
+
+                    if settings_changed:
+                        # Settings changed, create new acquisition
+                        current_group += 1
+                        logger.debug(f"  {acq_protocol}/{patient}: Settings changed at run {run_num}")
+                        logger.debug(f"    Changed fields: {changed_fields}")
+
+                        # Update baseline for future comparisons
+                        baseline_signature = run_signature
+
+                # Assign settings group to this run
+                mask = (
+                    (session_df["_AcquisitionProtocol"] == acq_protocol) &
+                    (session_df["Patient"] == patient) &
+                    (session_df["_OriginalRunNumber"] == run_num)
+                )
+                session_df.loc[mask, "_SettingsGroup"] = current_group
+
+    # ===== FINAL: Assign acquisition names, series numbers (local to each run), and run numbers =====
+    # RunNumber restarts at 1 for each patient
+    session_df["Acquisition"] = ""
+    session_df["Series"] = ""
+    session_df["RunNumber"] = 1
+
+    for (acq_protocol, settings_group), group in session_df.groupby(
+        ["_AcquisitionProtocol", "_SettingsGroup"]
+    ):
+        # Determine acquisition name based on settings group
+        if settings_group == 0:
+            acquisition_name = f"acq-{acq_protocol}"
+        else:
+            acquisition_name = f"acq-{acq_protocol}_{settings_group + 1}"
+
+        # Process each patient separately - RunNumber restarts at 1 per patient
+        for patient, patient_group in group.groupby("Patient"):
+            # For each run within this patient's data, number series sequentially
+            # Renumber runs starting from 1 for each patient
+            for new_run_num, orig_run_num in enumerate(sorted(patient_group["_OriginalRunNumber"].unique()), start=1):
+                run_data = patient_group[patient_group["_OriginalRunNumber"] == orig_run_num]
+
+                # Get unique series signatures in this run
+                unique_series = run_data["_SeriesSignature"].unique()
+
+                # Assign series numbers sequentially within this run
+                for series_idx, series_sig in enumerate(sorted(unique_series), start=1):
+                    series_name = f"{acquisition_name}_series{series_idx:03d}"
+
+                    mask = (
+                        (session_df["_AcquisitionProtocol"] == acq_protocol) &
+                        (session_df["Patient"] == patient) &
+                        (session_df["_SettingsGroup"] == settings_group) &
+                        (session_df["_OriginalRunNumber"] == orig_run_num) &
+                        (session_df["_SeriesSignature"] == series_sig)
+                    )
+                    session_df.loc[mask, "Acquisition"] = acquisition_name
+                    session_df.loc[mask, "Series"] = series_name
+                    session_df.loc[mask, "RunNumber"] = new_run_num
+
+    # Clean up temporary columns
+    temp_cols = ["_AcquisitionProtocol", "_SeriesSignature", "_OriginalRunNumber", "_SettingsGroup"]
+    # Only drop columns that exist
+    cols_to_drop = [col for col in temp_cols if col in session_df.columns]
+    session_df = session_df.drop(columns=cols_to_drop)
+
+    logger.debug(f"Final result: {len(session_df['Acquisition'].unique())} acquisitions, "
+                f"{len(session_df['Series'].unique())} series")
+    logger.debug(f"Acquisitions: {sorted(session_df['Acquisition'].unique())}")
 
     return session_df
