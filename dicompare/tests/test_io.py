@@ -22,9 +22,11 @@ def create_dummy_file_dataset(filename, patient_name="Doe^John", series_number=1
     ds.PatientName = patient_name
     ds.SeriesNumber = series_number
     ds.InstanceNumber = instance_number
+    ds.Modality = "MR"  # Required field for DICOM image validation
     ds.add_new((0x0010, 0x0010), "PN", patient_name)
     ds.add_new((0x0020, 0x0011), "IS", str(series_number))
     ds.add_new((0x0020, 0x0013), "IS", str(instance_number))
+    ds.add_new((0x0008, 0x0060), "CS", "MR")  # Modality tag
     if include_pixel:
         ds.add_new((0x7fe0, 0x0010), "OB", b'\x00\x01')
     return ds
@@ -310,12 +312,13 @@ def test_assign_acquisition_and_run_numbers_multiple_protocols():
 
 
 def test_assign_acquisition_and_run_numbers_settings_splitting():
-    """Test acquisition splitting when different settings are detected."""
+    """Test acquisition splitting when different settings are detected between runs."""
     data = {
         "ProtocolName": ["fMRI", "fMRI", "fMRI", "fMRI"],
         "SeriesDescription": ["BOLD", "BOLD", "BOLD", "BOLD"],
         "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
         "SeriesTime": ["120000", "120000", "130000", "130000"],
+        "SeriesInstanceUID": ["1.2.3.1", "1.2.3.1", "1.2.3.2", "1.2.3.2"],  # Two different series UIDs for run detection
         "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
         "PatientID": ["ID1", "ID1", "ID1", "ID1"],
         "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
@@ -324,20 +327,20 @@ def test_assign_acquisition_and_run_numbers_settings_splitting():
         "RepetitionTime": [2000, 2000, 2000, 2000],  # Same TR
     }
     df = pd.DataFrame(data)
-    
-    # Use specific reference fields that include the varying field
+
+    # Use specific settings fields that include the varying field
     df_out = dicompare.assign_acquisition_and_run_numbers(
-        df.copy(), 
-        reference_fields=["FlipAngle", "RepetitionTime"]
+        df.copy(),
+        settings_fields=["FlipAngle", "RepetitionTime"]
     )
-    
-    # Should split into two acquisitions due to different FlipAngle
+
+    # Should split into two acquisitions due to different FlipAngle between runs
     unique_acquisitions = df_out["Acquisition"].unique()
     assert len(unique_acquisitions) == 2
-    
-    # Check that acquisitions are named with settings numbers
+
+    # Check that acquisitions are named with settings group numbers
     acq_names = sorted(unique_acquisitions)
-    assert "acq-fmri-1" in acq_names and "acq-fmri-2" in acq_names
+    assert "acq-fmri" in acq_names and "acq-fmri_2" in acq_names
 
 
 def test_assign_acquisition_and_run_numbers_temporal_runs():
@@ -346,7 +349,8 @@ def test_assign_acquisition_and_run_numbers_temporal_runs():
         "ProtocolName": ["rsfMRI", "rsfMRI", "rsfMRI", "rsfMRI"],
         "SeriesDescription": ["BOLD", "BOLD", "BOLD", "BOLD"],
         "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
-        "SeriesTime": ["120000", "120000", "140000", "140000"],  # Two different times
+        "SeriesTime": ["120000", "120000", "140000", "140000"],  # Two different times (>60s apart)
+        "SeriesInstanceUID": ["1.2.3.1", "1.2.3.1", "1.2.3.2", "1.2.3.2"],  # Two different series UIDs
         "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
         "PatientID": ["ID1", "ID1", "ID1", "ID1"],
         "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
@@ -356,26 +360,26 @@ def test_assign_acquisition_and_run_numbers_temporal_runs():
     df = pd.DataFrame(data)
     df_out = dicompare.assign_acquisition_and_run_numbers(
         df.copy(),
-        reference_fields=["FlipAngle", "RepetitionTime"]
+        settings_fields=["FlipAngle", "RepetitionTime"]
     )
-    
-    # Should have one acquisition type
+
+    # Should have one acquisition type (settings don't change)
     unique_acquisitions = df_out["Acquisition"].unique()
     assert len(unique_acquisitions) == 1
-    
-    # Current behavior: Run detection happens but may not work as expected in this case
-    # because the logic groups by various fields before detecting runs
+
+    # Should detect two runs based on SeriesInstanceUID temporal clustering
     run_numbers = sorted(df_out["RunNumber"].unique())
     assert len(run_numbers) == 2  # Two runs detected
 
 
 def test_assign_acquisition_and_run_numbers_coil_type_splitting():
-    """Test CoilType-based acquisition splitting."""
+    """Test CoilType-based acquisition splitting between runs."""
     data = {
         "ProtocolName": ["GRE", "GRE", "GRE", "GRE"],
         "SeriesDescription": ["GRE_magnitude", "GRE_magnitude", "GRE_magnitude", "GRE_magnitude"],
         "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
-        "SeriesTime": ["120000", "120000", "120000", "120000"],
+        "SeriesTime": ["120000", "120000", "121000", "121000"],  # Two time points for run detection
+        "SeriesInstanceUID": ["1.2.3.1", "1.2.3.1", "1.2.3.2", "1.2.3.2"],  # Two series UIDs
         "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
         "PatientID": ["ID1", "ID1", "ID1", "ID1"],
         "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
@@ -385,41 +389,44 @@ def test_assign_acquisition_and_run_numbers_coil_type_splitting():
     df = pd.DataFrame(data)
     df_out = dicompare.assign_acquisition_and_run_numbers(
         df.copy(),
-        reference_fields=["FlipAngle"]
+        settings_fields=["FlipAngle", "CoilType"]  # Include CoilType in settings
     )
-    
-    # New implementation correctly splits on CoilType differences
+
+    # Should split on CoilType differences between runs
     unique_acquisitions = df_out["Acquisition"].unique()
     assert len(unique_acquisitions) == 2
-    
+
     # Verify CoilType is preserved in output
     assert "CoilType" in df_out.columns
 
 
 def test_assign_acquisition_and_run_numbers_missing_protocol():
-    """Test handling when ProtocolName is missing."""
+    """Test handling when ProtocolName is missing but SequenceName is available."""
     data = {
+        "SequenceName": ["*tfl3d1_16ns", "*tfl3d1_16ns", "*tse2d1_15"],  # SequenceName as fallback
         "SeriesDescription": ["T1_MPR", "T1_MPR", "T2_TSE"],
         "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
         "SeriesTime": ["120000", "120000", "130000"],
         "PatientName": ["Patient1", "Patient1", "Patient1"],
         "PatientID": ["ID1", "ID1", "ID1"],
         "StudyDate": ["20210101", "20210101", "20210101"],
-        # No ProtocolName column
+        # No ProtocolName column - should use SequenceName
     }
     df = pd.DataFrame(data)
     df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
-    
-    # Should create ProtocolName from SeriesDescription
-    assert "ProtocolName" in df_out.columns
+
+    # Should use SequenceName for acquisition identification
     assert "Acquisition" in df_out.columns
     assert "RunNumber" in df_out.columns
+    # Should create two acquisitions based on SequenceName
+    unique_acquisitions = df_out["Acquisition"].unique()
+    assert len(unique_acquisitions) == 2
 
 
 def test_assign_acquisition_and_run_numbers_custom_fields():
-    """Test using custom acquisition and reference fields."""
+    """Test using custom settings fields."""
     data = {
-        "CustomProtocol": ["Scan1", "Scan1", "Scan2"],
+        "ProtocolName": ["Scan1", "Scan1", "Scan2"],
         "SeriesDescription": ["desc1", "desc1", "desc2"],
         "ImageType": [("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY"), ("ORIGINAL", "PRIMARY")],
         "SeriesTime": ["120000", "120000", "130000"],
@@ -431,12 +438,10 @@ def test_assign_acquisition_and_run_numbers_custom_fields():
     df = pd.DataFrame(data)
     df_out = dicompare.assign_acquisition_and_run_numbers(
         df.copy(),
-        acquisition_fields=["CustomProtocol"],
-        reference_fields=["CustomField"],
-        run_group_fields=["PatientName", "PatientID", "StudyDate"]
+        settings_fields=["CustomField"]
     )
-    
-    # Should create acquisitions based on CustomProtocol
+
+    # Should create acquisitions based on ProtocolName
     unique_acquisitions = df_out["Acquisition"].unique()
     assert len(unique_acquisitions) == 2
     assert any("scan1" in acq.lower() for acq in unique_acquisitions)
@@ -446,7 +451,11 @@ def test_assign_acquisition_and_run_numbers_custom_fields():
 # ---------- Tests for Series Grouping Functionality ----------
 
 def test_assign_acquisition_and_run_numbers_series_multiecho():
-    """Test series grouping for multi-echo sequences with varying EchoTime."""
+    """Test series grouping for multi-echo sequences with varying EchoTime.
+
+    In the new model, EchoTime is a parameter variation within a series, not a series differentiator.
+    Multi-echo acquisitions are single series with varying echo times.
+    """
     data = {
         "ProtocolName": ["T2star_multiecho", "T2star_multiecho", "T2star_multiecho", "T2star_multiecho"],
         "SeriesDescription": ["MultiEcho", "MultiEcho", "MultiEcho", "MultiEcho"],
@@ -455,32 +464,33 @@ def test_assign_acquisition_and_run_numbers_series_multiecho():
         "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
         "PatientID": ["ID1", "ID1", "ID1", "ID1"],
         "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
-        "EchoTime": [5.0, 10.0, 15.0, 20.0],  # 4 different echo times
+        "EchoTime": [5.0, 10.0, 15.0, 20.0],  # 4 different echo times - parameter variation within series
     }
     df = pd.DataFrame(data)
-    
+
     df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
-    
-    # Should have 1 acquisition but 4 series (one per echo time)
+
+    # Should have 1 acquisition and 1 series (EchoTime is parameter variation, not series differentiator)
     unique_acquisitions = df_out["Acquisition"].unique()
     unique_series = df_out["Series"].unique()
-    
+
     assert len(unique_acquisitions) == 1
-    assert len(unique_series) == 4
-    
-    # Check series naming convention
-    for series in unique_series:
-        assert "acq-t2starmultiecho_Series_" in series
-        assert series.endswith(("001", "002", "003", "004"))
-    
-    # Verify each echo time gets its own series
-    for echo_time in [5.0, 10.0, 15.0, 20.0]:
-        echo_rows = df_out[df_out["EchoTime"] == echo_time]
-        assert len(echo_rows["Series"].unique()) == 1  # Each echo time has exactly one series
+    assert len(unique_series) == 1
+
+    # Check series naming convention (lowercase, no underscore before number)
+    series_name = unique_series[0]
+    assert "acq-t2starmultiecho_series001" == series_name
+
+    # Verify all echo times belong to the same series
+    assert all(df_out["Series"] == series_name)
 
 
 def test_assign_acquisition_and_run_numbers_series_dti():
-    """Test series grouping for DTI sequences with varying DiffusionBValue."""
+    """Test series grouping for DTI sequences with varying DiffusionBValue.
+
+    In the new model, DiffusionBValue is a parameter variation within a series, not a series differentiator.
+    DTI acquisitions are single series with varying b-values.
+    """
     data = {
         "ProtocolName": ["DTI_30dir", "DTI_30dir", "DTI_30dir", "DTI_30dir"],
         "SeriesDescription": ["DTI", "DTI", "DTI", "DTI"],
@@ -489,29 +499,29 @@ def test_assign_acquisition_and_run_numbers_series_dti():
         "PatientName": ["Patient1", "Patient1", "Patient1", "Patient1"],
         "PatientID": ["ID1", "ID1", "ID1", "ID1"],
         "StudyDate": ["20210101", "20210101", "20210101", "20210101"],
-        "DiffusionBValue": [0, 0, 1000, 1000],  # b=0 and b=1000 values
-        "RepetitionTime": [5000, 5000, 5000, 5000],  # Same TR to avoid acquisition splitting
+        "DiffusionBValue": [0, 0, 1000, 1000],  # b=0 and b=1000 values - parameter variation
+        "RepetitionTime": [5000, 5000, 5000, 5000],  # Same TR
     }
     df = pd.DataFrame(data)
-    
-    # Use reference fields that exclude DiffusionBValue so it can be used for series grouping
+
     df_out = dicompare.assign_acquisition_and_run_numbers(
-        df.copy(), 
-        reference_fields=["RepetitionTime", "EchoTime"]  # Exclude DiffusionBValue from acquisition grouping
+        df.copy(),
+        settings_fields=["RepetitionTime", "EchoTime"]
     )
-    
-    # Should have 1 acquisition but 2 series (b=0 and b=1000)
+
+    # Should have 1 acquisition and 1 series (DiffusionBValue is parameter variation)
     unique_acquisitions = df_out["Acquisition"].unique()
     unique_series = df_out["Series"].unique()
-    
+
     assert len(unique_acquisitions) == 1
-    assert len(unique_series) == 2
-    
-    # Check series naming
-    series_names = sorted(unique_series)
-    expected_pattern = "acq-dti30dir_Series_"
-    assert all(expected_pattern in name for name in series_names)
-    assert all(name.endswith(("001", "002")) for name in series_names)
+    assert len(unique_series) == 1
+
+    # Check series naming (lowercase, no underscore before number)
+    series_name = unique_series[0]
+    assert "acq-dti30dir_series001" == series_name
+
+    # Verify all b-values belong to the same series
+    assert all(df_out["Series"] == series_name)
 
 
 def test_assign_acquisition_and_run_numbers_series_single_sequence():
@@ -528,20 +538,23 @@ def test_assign_acquisition_and_run_numbers_series_single_sequence():
         "RepetitionTime": [2000, 2000, 2000],  # Same TR for all
     }
     df = pd.DataFrame(data)
-    
+
     df_out = dicompare.assign_acquisition_and_run_numbers(df.copy())
-    
+
     # Should have 1 acquisition and 1 series (no varying parameters)
     unique_acquisitions = df_out["Acquisition"].unique()
     unique_series = df_out["Series"].unique()
-    
+
     assert len(unique_acquisitions) == 1
     assert len(unique_series) == 1
-    assert "acq-t1mprage_Series_001" in unique_series
+    assert "acq-t1mprage_series001" in unique_series
 
 
 def test_assign_acquisition_and_run_numbers_series_multiple_acquisitions():
-    """Test series grouping across multiple different acquisitions."""
+    """Test series grouping across multiple different acquisitions.
+
+    In the new model, parameter variations (EchoTime, DiffusionBValue) don't create separate series.
+    """
     data = {
         "ProtocolName": ["T2star_multiecho", "T2star_multiecho", "DTI_30dir", "DTI_30dir", "T1_MPRAGE"],
         "SeriesDescription": ["MultiEcho", "MultiEcho", "DTI", "DTI", "MPRAGE"],
@@ -550,32 +563,32 @@ def test_assign_acquisition_and_run_numbers_series_multiple_acquisitions():
         "PatientName": ["Patient1"] * 5,
         "PatientID": ["ID1"] * 5,
         "StudyDate": ["20210101"] * 5,
-        "EchoTime": [5.0, 10.0, None, None, 5.0],  # MultiEcho varies, others don't
-        "DiffusionBValue": [None, None, 0, 1000, None],  # DTI varies, others don't
+        "EchoTime": [5.0, 10.0, None, None, 5.0],  # MultiEcho varies (parameter variation)
+        "DiffusionBValue": [None, None, 0, 1000, None],  # DTI varies (parameter variation)
         "RepetitionTime": [2000] * 5,  # Same for all
     }
     df = pd.DataFrame(data)
-    
+
     # Use reference fields that exclude series-grouping parameters
     df_out = dicompare.assign_acquisition_and_run_numbers(
         df.copy(),
-        reference_fields=["RepetitionTime"]  # Exclude EchoTime and DiffusionBValue
+        settings_fields=["RepetitionTime"]  # Exclude EchoTime and DiffusionBValue
     )
-    
+
     # Should have 3 acquisitions (one for each protocol)
     unique_acquisitions = df_out["Acquisition"].unique()
     assert len(unique_acquisitions) == 3
-    
-    # Check series for T2star_multiecho (should have 2 series due to EchoTime variation)
+
+    # Check series for T2star_multiecho (should have 1 series - EchoTime is parameter variation)
     t2star_rows = df_out[df_out["ProtocolName"] == "T2star_multiecho"]
     t2star_series = t2star_rows["Series"].unique()
-    assert len(t2star_series) == 2
-    
-    # Check series for DTI_30dir (should have 2 series due to DiffusionBValue variation)
+    assert len(t2star_series) == 1
+
+    # Check series for DTI_30dir (should have 1 series - DiffusionBValue is parameter variation)
     dti_rows = df_out[df_out["ProtocolName"] == "DTI_30dir"]
     dti_series = dti_rows["Series"].unique()
-    assert len(dti_series) == 2
-    
+    assert len(dti_series) == 1
+
     # Check series for T1_MPRAGE (should have 1 series, no variation)
     t1_rows = df_out[df_out["ProtocolName"] == "T1_MPRAGE"]
     t1_series = t1_rows["Series"].unique()
