@@ -109,14 +109,8 @@ session_df = load_dicom_session(
     show_progress=True
 )
 
-# Filter reference fields to those present in the session
-reference_fields = [f for f in DEFAULT_SETTINGS_FIELDS if f in session_df.columns]
-
 # Build the schema
-json_schema = build_schema(
-    session_df=session_df,
-    reference_fields=reference_fields
-)
+json_schema = build_schema(session_df)
 
 # Save the schema
 serializable_schema = make_json_serializable(json_schema)

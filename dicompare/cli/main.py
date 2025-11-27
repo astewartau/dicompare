@@ -9,7 +9,6 @@ import pandas as pd
 from dicompare.io import load_dicom_session, load_schema
 from dicompare.io.json import make_json_serializable
 from dicompare.schema import build_schema
-from dicompare.config import DEFAULT_SETTINGS_FIELDS
 from dicompare.validation import check_acquisition_compliance
 from dicompare.validation.helpers import ComplianceStatus, create_compliance_record
 from dicompare.session import map_to_json_reference, interactive_mapping_to_json_reference, assign_acquisition_and_run_numbers
@@ -27,14 +26,8 @@ def build_command(args) -> None:
         show_progress=True
     )
 
-    # Filter reference fields to only those present in the session
-    available_fields = [f for f in DEFAULT_SETTINGS_FIELDS if f in session_data.columns]
-
     # Generate JSON schema
-    json_schema = build_schema(
-        session_df=session_data,
-        reference_fields=available_fields
-    )
+    json_schema = build_schema(session_df=session_data)
 
     # Write JSON to output file
     serializable_schema = make_json_serializable(json_schema)

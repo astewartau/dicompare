@@ -7,18 +7,19 @@ that can be used for validation purposes.
 
 import pandas as pd
 from typing import List, Dict, Any
+from ..config import DEFAULT_SETTINGS_FIELDS
 from ..utils import clean_string
 from ..session import assign_acquisition_and_run_numbers
 from .tags import get_tag_info
 
 
-def build_schema(session_df: pd.DataFrame, reference_fields: List[str]) -> Dict[str, Any]:
+def build_schema(session_df: pd.DataFrame, reference_fields: List[str] = None) -> Dict[str, Any]:
     """
     Create a JSON schema from the session DataFrame.
 
     Args:
         session_df (pd.DataFrame): DataFrame of the DICOM session.
-        reference_fields (List[str]): Fields to include in JSON schema.
+        reference_fields (List[str], optional): Fields to include in JSON schema.
 
     Returns:
         Dict[str, Any]: JSON structure representing the schema.
@@ -30,7 +31,7 @@ def build_schema(session_df: pd.DataFrame, reference_fields: List[str]) -> Dict[
     if session_df.empty:
         raise ValueError("Session DataFrame cannot be empty")
     if not reference_fields:
-        raise ValueError("Reference fields list cannot be empty")
+        reference_fields = [f for f in DEFAULT_SETTINGS_FIELDS if f in session_df.columns]
 
     # Use assign_acquisition_and_run_numbers to get proper series identification
     df = assign_acquisition_and_run_numbers(session_df.copy())
