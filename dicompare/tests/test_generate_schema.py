@@ -147,15 +147,20 @@ class TestCreateJsonSchema:
             build_schema(df, reference_fields)
 
     def test_create_json_schema_empty_reference_fields(self):
-        """Test error handling for empty reference fields."""
+        """Test that empty reference fields falls back to defaults."""
         df = pd.DataFrame({
             'ProtocolName': ['BOLD'],
             'RepetitionTime': [2000]
         })
         reference_fields = []
 
-        with pytest.raises(ValueError, match="Reference fields list cannot be empty"):
-            build_schema(df, reference_fields)
+        # Empty reference_fields should fall back to DEFAULT_SETTINGS_FIELDS
+        schema = build_schema(df, reference_fields)
+        assert 'acquisitions' in schema
+        # RepetitionTime is in DEFAULT_SETTINGS_FIELDS, so it should be included
+        acq = schema['acquisitions']['acq-bold']
+        field_names = [f['field'] for f in acq['fields']]
+        assert 'RepetitionTime' in field_names
 
     def test_create_json_schema_series_naming(self):
         """Test that series are named correctly."""
