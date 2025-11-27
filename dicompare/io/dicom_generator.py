@@ -99,6 +99,17 @@ def generate_test_dicoms_from_schema(
             except Exception as e:
                 print(f"  Skipping invalid tag: {field_name} -> {tag_str}, error: {e}")
 
+    # Pre-generate SeriesInstanceUIDs for each unique series
+    # This ensures DICOMs in the same series share the same SeriesInstanceUID
+    series_uid_map = {}  # {seriesIndex: SeriesInstanceUID}
+
+    for row_data in test_data:
+        series_idx = row_data.get('_seriesIndex')
+        if series_idx is not None and series_idx not in series_uid_map:
+            series_uid_map[series_idx] = generate_uid()
+
+    print(f"📊 Generated {len(series_uid_map)} unique SeriesInstanceUIDs for series")
+
     # Create ZIP file in memory
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
@@ -117,16 +128,26 @@ def generate_test_dicoms_from_schema(
             ds.file_meta.ImplementationClassUID = generate_uid()
             ds.file_meta.ImplementationVersionName = 'DICOMPARE_TEST_GEN_1.0'
 
+            # Extract series metadata if available
+            series_idx = row_data.get('_seriesIndex')
+            series_name = row_data.get('_seriesName', '')
+
             # Core DICOM elements
             ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.4'
             ds.SOPInstanceUID = generate_uid()
             ds.StudyInstanceUID = generate_uid()
-            ds.SeriesInstanceUID = generate_uid()
+
+            # Use shared SeriesInstanceUID for same series, or generate new if no series info
+            if series_idx is not None and series_idx in series_uid_map:
+                ds.SeriesInstanceUID = series_uid_map[series_idx]
+            else:
+                ds.SeriesInstanceUID = generate_uid()
+
             ds.FrameOfReferenceUID = generate_uid()
 
-            # Basic patient/study info
+            # Basic patient/study info - use same PatientID for all files in the session
             ds.PatientName = 'TEST^PATIENT'
-            ds.PatientID = f'TEST_ID_{idx:03d}'
+            ds.PatientID = 'TEST_PATIENT_001'
             ds.StudyDate = datetime.now().strftime('%Y%m%d')
             ds.StudyTime = datetime.now().strftime('%H%M%S')
             ds.AccessionNumber = f'TEST_ACC_{idx:03d}'
@@ -134,8 +155,13 @@ def generate_test_dicoms_from_schema(
             ds.Modality = 'MR'  # Required field for DICOM image validation
             ds.SeriesDate = ds.StudyDate
             ds.SeriesTime = ds.StudyTime
-            ds.SeriesDescription = acquisition_info.get('seriesDescription', 'Test Series')
-            ds.SeriesNumber = str(idx + 1)
+
+            # Use series name as SeriesDescription
+            if series_name:
+                ds.SeriesDescription = series_name
+            else:
+                ds.SeriesDescription = acquisition_info.get('seriesDescription', 'Test Series')
+            ds.SeriesNumber = str(series_idx + 1 if series_idx is not None else idx + 1)
             ds.InstanceNumber = str(idx + 1)
 
             # Image-specific elements (minimal)
@@ -160,6 +186,10 @@ def generate_test_dicoms_from_schema(
             special_fields = {}
 
             for field_name, value in row_data.items():
+                # Skip internal metadata fields (used for series grouping)
+                if field_name.startswith('_'):
+                    continue
+
                 if field_name in field_tag_map:
                     standard_fields[field_name] = value
                 else:
@@ -326,10 +356,11 @@ def generate_test_dicoms_from_schema_json(
 
     if series_list:
         print(f"📊 Found {len(series_list)} series")
-        for series in series_list:
+        for series_idx, series in enumerate(series_list):
             series_name = series.get('name', 'Unknown')
-            series_values = base_values.copy()
 
+            # Get series-level fields
+            series_values = base_values.copy()
             series_fields = series.get('fields', [])
             for field in series_fields:
                 field_name = field.get('field') or field.get('name')
@@ -337,6 +368,9 @@ def generate_test_dicoms_from_schema_json(
                     series_values[field_name] = field['value']
                     print(f"  Series '{series_name}': {field_name} = {field['value']}")
 
+            # Add series metadata for UID mapping
+            series_values['_seriesName'] = series_name
+            series_values['_seriesIndex'] = series_idx
             test_data_rows.append(series_values)
     else:
         # No series - use base acquisition values
@@ -489,14 +523,19 @@ def generate_test_dicoms_from_schema_json(
                 })
                 print(f"  ✅ {field_name}: {tag_str} (VR: {vr}) [from DICOM dict]")
             except (KeyError, AttributeError):
-                warnings.warn(
-                    f"⚠️  Unknown field '{field_name}' from validation test - "
-                    "cannot map to DICOM tag (field will be skipped)"
-                )
-                print(f"  ⚠️  {field_name}: Unknown DICOM tag (skipping)")
-                # Remove from test data
-                for row in test_data_rows:
-                    row.pop(field_name, None)
+                # Check if it's a metadata field (starts with _)
+                if field_name.startswith('_'):
+                    # Keep metadata fields - they're used by the generator but not as DICOM tags
+                    print(f"  ⚠️  {field_name}: Internal metadata (preserved)")
+                else:
+                    warnings.warn(
+                        f"⚠️  Unknown field '{field_name}' from validation test - "
+                        "cannot map to DICOM tag (field will be skipped)"
+                    )
+                    print(f"  ⚠️  {field_name}: Unknown DICOM tag (skipping)")
+                    # Remove from test data
+                    for row in test_data_rows:
+                        row.pop(field_name, None)
 
     # Step 7: Generate DICOMs using existing function
     acquisition_info = {

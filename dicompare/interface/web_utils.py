@@ -143,7 +143,7 @@ async def analyze_dicom_files_for_web(
     try:
         from ..io import async_load_dicom_session
         from ..session import assign_acquisition_and_run_numbers
-        from ..schema import create_json_schema
+        from ..schema import build_schema
         from ..config import DEFAULT_DICOM_FIELDS
         import asyncio
 
@@ -237,9 +237,6 @@ async def analyze_dicom_files_for_web(
 
         print(f"async_load_dicom_session returned: type={type(session_df)}, shape={getattr(session_df, 'shape', 'no shape')}")
 
-        # Assign acquisitions and run numbers
-        session_df = assign_acquisition_and_run_numbers(session_df)
-
         # Filter reference fields to only include fields that exist in the session
         available_fields = [field for field in reference_fields if field in session_df.columns]
         missing_fields = [field for field in reference_fields if field not in session_df.columns]
@@ -259,7 +256,7 @@ async def analyze_dicom_files_for_web(
         _cache_session(session_df, metadata, None)
 
         # Create schema from session with only available fields
-        schema_result = create_json_schema(session_df, available_fields)
+        schema_result = build_schema(session_df, available_fields)
 
         # Format for web
         web_result = {

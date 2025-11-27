@@ -6,7 +6,7 @@ import sys
 import os
 import logging
 import pandas as pd
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -162,50 +162,6 @@ def infer_type_from_extension(ref_path):
     else:
         logger.error("Could not determine the reference type. Please specify '--type'.")
         sys.exit(1)
-
-
-def filter_available_fields(df: pd.DataFrame, 
-                           requested_fields: List[str], 
-                           fallback_fields: Optional[List[str]] = None) -> List[str]:
-    """
-    Get fields that exist in the dataframe from requested fields.
-    
-    Args:
-        df: DataFrame to check for field availability
-        requested_fields: List of field names to check
-        fallback_fields: Optional fallback fields if none of requested_fields exist
-        
-    Returns:
-        List of available field names
-        
-    Raises:
-        ValueError: If no suitable fields are found
-        
-    Examples:
-        >>> df = pd.DataFrame({'A': [1, 2], 'B': [3, 4]})
-        >>> filter_available_fields(df, ['A', 'C', 'D'], ['B'])
-        ['A']
-        >>> filter_available_fields(df, ['X', 'Y'], ['B'])
-        ['B']
-    """
-    # Check which requested fields exist in the dataframe
-    available = [field for field in requested_fields if field in df.columns]
-    
-    # If no requested fields are available, try fallback fields
-    if not available and fallback_fields:
-        available = [field for field in fallback_fields if field in df.columns]
-    
-    # If still no fields found, raise an error
-    if not available:
-        available_cols = list(df.columns)
-        raise ValueError(
-            f"No suitable fields found in dataframe. "
-            f"Requested: {requested_fields}, "
-            f"Fallback: {fallback_fields}, "
-            f"Available: {available_cols}"
-        )
-    
-    return available
 
 
 def detect_constant_fields(df: pd.DataFrame, 

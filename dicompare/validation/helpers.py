@@ -8,6 +8,8 @@ from typing import Any, List, Dict, Tuple, Optional
 from enum import Enum
 import logging
 
+from ..utils import make_hashable
+
 logger = logging.getLogger(__name__)
 
 
@@ -232,8 +234,9 @@ def validate_constraint(
         if not isinstance(actual_value, (list, tuple)):
             return False
         # Handle both lists and tuples from make_hashable
-        actual_normalized = list(normalize_value(list(actual_value) if isinstance(actual_value, tuple) else actual_value))
-        expected_normalized = list(normalize_value(expected_value))
+        # Use make_hashable to convert nested lists to tuples for set comparison
+        actual_normalized = [make_hashable(x) for x in normalize_value(list(actual_value) if isinstance(actual_value, tuple) else actual_value)]
+        expected_normalized = [make_hashable(x) for x in normalize_value(expected_value)]
         return set(actual_normalized) == set(expected_normalized)
     elif expected_value is not None:
         return check_equality(actual_value, expected_value)
@@ -251,7 +254,7 @@ def validate_field_values(
 ) -> Tuple[bool, List[Any], str]:
     """
     Validate all values for a field against constraints.
-    
+
     Args:
         field_name: Name of the field being validated
         actual_values: List of actual values from the data
@@ -260,36 +263,39 @@ def validate_field_values(
         contains: Substring constraint
         contains_any: List of substrings/elements where at least one must match
         contains_all: List of elements that must all be present in lists
-        
+
     Returns:
         Tuple of (all_passed, invalid_values, error_message)
     """
     invalid_values = []
-    
+
     # Priority order: contains_any, contains_all, contains, tolerance, value
+    # Use validate_constraint() as single source of truth for simple cases
+
     if contains_any is not None:
         for val in actual_values:
-            if not check_contains_any(val, contains_any):
+            if not validate_constraint(val, contains_any=contains_any):
                 invalid_values.append(val)
         if invalid_values:
             return False, invalid_values, f"Expected to contain any of {contains_any}, but got {invalid_values}"
-    
+
     elif contains_all is not None:
         for val in actual_values:
-            if not check_contains_all(val, contains_all):
+            if not validate_constraint(val, contains_all=contains_all):
                 invalid_values.append(val)
         if invalid_values:
             return False, invalid_values, f"Expected to contain all of {contains_all}, but got {invalid_values}"
-    
+
     elif contains is not None:
         for val in actual_values:
-            if not check_contains(val, contains):
+            if not validate_constraint(val, contains=contains):
                 invalid_values.append(val)
         if invalid_values:
             return False, invalid_values, f"Expected to contain '{contains}', but got {invalid_values}"
-    
+
     elif tolerance is not None:
-        # Handle tuples by unpacking them into individual values (for multi-value fields like PixelSpacing)
+        # Special handling for tolerance: unpack tuples and handle multi-value expected values
+        # This is more sophisticated than validate_constraint() for fields like PixelSpacing
         values_to_check = []
         for val in actual_values:
             if isinstance(val, (list, tuple)):
@@ -303,7 +309,6 @@ def validate_field_values(
             return False, non_numeric, f"Field must be numeric; found {non_numeric}"
 
         # Check tolerance for each individual value
-        # Handle both single expected values and multi-value expected values
         if isinstance(expected_value, (list, tuple)):
             # Multi-value field: compare each actual value against corresponding expected value
             if len(values_to_check) != len(expected_value):
@@ -311,31 +316,31 @@ def validate_field_values(
 
             for i, val in enumerate(values_to_check):
                 expected_val = expected_value[i]
-                if not (expected_val - tolerance <= val <= expected_val + tolerance):
+                if not validate_constraint(val, expected_value=expected_val, tolerance=tolerance):
                     invalid_values.append(val)
         else:
             # Single expected value: compare all actual values against it
             for val in values_to_check:
-                if not (expected_value - tolerance <= val <= expected_value + tolerance):
+                if not validate_constraint(val, expected_value=expected_value, tolerance=tolerance):
                     invalid_values.append(val)
 
         if invalid_values:
             return False, invalid_values, f"Expected {expected_value} ±{tolerance}, but got {invalid_values}"
-    
+
     elif isinstance(expected_value, list):
         # Handle special case where actual_values contains a single list/tuple (from make_hashable)
         # that should be compared directly against expected_value
         if len(actual_values) == 1 and isinstance(actual_values[0], (list, tuple)):
-            if not validate_constraint(actual_values[0], expected_value):
+            if not validate_constraint(actual_values[0], expected_value=expected_value):
                 return False, actual_values, f"Expected {expected_value}, got {actual_values}"
         else:
             # Compare the entire actual_values list against expected_value list
-            if not validate_constraint(actual_values, expected_value):
+            if not validate_constraint(actual_values, expected_value=expected_value):
                 return False, actual_values, f"Expected {expected_value}, got {actual_values}"
-    
+
     elif expected_value is not None:
         for val in actual_values:
-            if not check_equality(val, expected_value):
+            if not validate_constraint(val, expected_value=expected_value):
                 invalid_values.append(val)
         if invalid_values:
             # Create clear error message showing expected vs actual values
@@ -343,7 +348,7 @@ def validate_field_values(
                 return False, invalid_values, f"Expected {expected_value} but got {invalid_values[0]}"
             else:
                 return False, invalid_values, f"Expected {expected_value} but got values: {invalid_values}"
-    
+
     return True, [], "Passed."
 
 
@@ -385,70 +390,57 @@ def format_constraint_description(
 
 
 def create_compliance_record(
-    schema_acq_name: str,
-    in_acq_name: str,
-    series_name: Optional[str],
-    field_name: str,
-    expected_value: Any = None,
+    field: str,
+    message: str,
+    status: ComplianceStatus,
+    value: Any = None,
+    expected: Any = None,
+    series: Optional[str] = None,
+    rule_name: Optional[str] = None,
     tolerance: float = None,
     contains: str = None,
     contains_any: List[str] = None,
     contains_all: List[str] = None,
-    actual_values: List[Any] = None,
-    message: str = "",
-    passed: bool = True,
-    status: Optional[ComplianceStatus] = None
 ) -> Dict[str, Any]:
     """
     Create a standardized compliance record.
-    
+
     Args:
-        schema_acq_name: Schema acquisition name
-        in_acq_name: Input acquisition name
-        series_name: Series name (None for acquisition-level)
-        field_name: Field name being validated
-        expected_value: Expected value constraint
-        tolerance: Numeric tolerance constraint
-        contains: Substring constraint
+        field: Field name being validated
+        message: Validation message
+        status: Compliance status
+        value: Actual value(s) found
+        expected: Expected value or constraint description
+        series: Series name (None for acquisition-level)
+        rule_name: Rule name (None if not a rule validation)
+        tolerance: Numeric tolerance constraint (used to format expected if expected not provided)
+        contains: Substring constraint (used to format expected if expected not provided)
         contains_any: List of substrings/elements where at least one must match
         contains_all: List of elements that must all be present in lists
-        actual_values: List of actual values found
-        message: Validation message
-        passed: Whether validation passed
-        status: Compliance status (if None, will be derived from passed/message)
-        
+
     Returns:
         Compliance record dictionary
     """
-    if (expected_value is not None or tolerance is not None or contains is not None or 
-        contains_any is not None or contains_all is not None):
-        expected_desc = format_constraint_description(expected_value, tolerance, contains, contains_any, contains_all)
-    else:
-        expected_desc = f"(value={expected_value}, tolerance={tolerance}, contains={contains}, contains_any={contains_any}, contains_all={contains_all})"
-    
-    # Determine status if not explicitly provided
-    if status is None:
-        if "Field not found in input" in message:
-            logger.debug(f"Setting status to NA for message: '{message}'")
-            status = ComplianceStatus.NA
-        elif passed:
-            status = ComplianceStatus.OK
-        else:
-            logger.debug(f"Setting status to ERROR for message: '{message}', passed: {passed}")
-            status = ComplianceStatus.ERROR
-    
+    # Format expected description if constraint parameters provided but no explicit expected
+    if expected is None and (tolerance is not None or contains is not None or
+                             contains_any is not None or contains_all is not None):
+        expected = format_constraint_description(None, tolerance, contains, contains_any, contains_all)
+
     result = {
-        "schema acquisition": schema_acq_name,
-        "input acquisition": in_acq_name,
-        "series": series_name,
-        "field": field_name,
-        "expected": expected_desc,
-        "value": actual_values,
+        "field": field,
+        "value": value,
         "message": message,
-        "passed": passed,
-        "status": status.value  # Store as string for JSON serialization
+        "status": status.value,  # Store as string for JSON serialization
+        "series": series
     }
-    
+
+    # Add optional fields only if provided
+    if expected is not None:
+        result["expected"] = expected
+
+    if rule_name is not None:
+        result["rule_name"] = rule_name
+
     # Debug: log records with "not found" message
     if "not found" in message.lower():
         logger.debug(f"create_compliance_record: Created record with status '{status.value}' for message: '{message}'")

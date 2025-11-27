@@ -1,15 +1,14 @@
 """
 Unit tests for enhanced utilities in dicompare.utils module.
-Tests for filter_available_fields and detect_constant_fields functions.
+Tests for detect_constant_fields function.
 """
 
 import unittest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch, Mock
-import logging
+import pytest
 
-from dicompare.utils import filter_available_fields, detect_constant_fields
+from dicompare.utils import detect_constant_fields
 
 
 class TestUtilsEnhanced(unittest.TestCase):
@@ -28,73 +27,7 @@ class TestUtilsEnhanced(unittest.TestCase):
             'G': [1, 2, np.nan, 4],  # Field with NaN
             'H': [np.nan, np.nan, np.nan, np.nan]  # All NaN field
         })
-    
-    def test_filter_available_fields_basic(self):
-        """Test basic functionality of filter_available_fields."""
-        # All requested fields exist
-        requested = ['A', 'B', 'C']
-        result = filter_available_fields(self.df, requested)
-        self.assertEqual(result, ['A', 'B', 'C'])
-    
-    def test_filter_available_fields_partial_match(self):
-        """Test when only some requested fields exist."""
-        # Some fields exist, some don't
-        requested = ['A', 'X', 'B', 'Y']
-        result = filter_available_fields(self.df, requested)
-        self.assertEqual(result, ['A', 'B'])
-    
-    def test_filter_available_fields_no_match(self):
-        """Test when no requested fields exist."""
-        requested = ['X', 'Y', 'Z']
-        with self.assertRaises(ValueError) as cm:
-            filter_available_fields(self.df, requested)
-        
-        error_msg = str(cm.exception)
-        self.assertIn("No suitable fields found", error_msg)
-        self.assertIn("Requested: ['X', 'Y', 'Z']", error_msg)
-    
-    def test_filter_available_fields_with_fallback(self):
-        """Test filter_available_fields with fallback fields."""
-        # No requested fields exist, but fallback fields do
-        requested = ['X', 'Y', 'Z']
-        fallback = ['A', 'B']
-        result = filter_available_fields(self.df, requested, fallback)
-        self.assertEqual(result, ['A', 'B'])
-    
-    def test_filter_available_fields_partial_fallback(self):
-        """Test with partial fallback match."""
-        requested = ['X', 'Y']
-        fallback = ['A', 'X', 'B', 'Z']
-        result = filter_available_fields(self.df, requested, fallback)
-        self.assertEqual(result, ['A', 'B'])
-    
-    def test_filter_available_fields_no_fallback_match(self):
-        """Test when neither requested nor fallback fields exist."""
-        requested = ['X', 'Y']
-        fallback = ['Z', 'W']
-        
-        with self.assertRaises(ValueError) as cm:
-            filter_available_fields(self.df, requested, fallback)
-        
-        error_msg = str(cm.exception)
-        self.assertIn("No suitable fields found", error_msg)
-        self.assertIn("Fallback: ['Z', 'W']", error_msg)
-    
-    def test_filter_available_fields_empty_dataframe(self):
-        """Test with empty DataFrame."""
-        empty_df = pd.DataFrame()
-        requested = ['A', 'B']
-        
-        with self.assertRaises(ValueError):
-            filter_available_fields(empty_df, requested)
-    
-    def test_filter_available_fields_empty_requests(self):
-        """Test with empty requested fields list."""
-        requested = []
-        fallback = ['A', 'B']
-        result = filter_available_fields(self.df, requested, fallback)
-        self.assertEqual(result, ['A', 'B'])
-    
+
     def test_detect_constant_fields_basic(self):
         """Test basic functionality of detect_constant_fields."""
         fields = ['A', 'B', 'E', 'F']
@@ -133,18 +66,13 @@ class TestUtilsEnhanced(unittest.TestCase):
     def test_detect_constant_fields_nonexistent_field(self):
         """Test with fields that don't exist in DataFrame."""
         fields = ['A', 'NONEXISTENT', 'E']
-        
-        with patch('dicompare.utils.logger') as mock_logger:
-            constant, variable = detect_constant_fields(self.df, fields)
-            
-            # Should log warning for nonexistent field
-            mock_logger.warning.assert_called_once_with(
-                "Field 'NONEXISTENT' not found in dataframe columns"
-            )
-            
-            # Should still process existing fields
-            self.assertEqual(constant, {'E': 100})
-            self.assertEqual(variable, ['A'])
+
+        # Note: Warning logging is tested in test_detect_constant_fields_nonexistent_field_logs_warning
+        constant, variable = detect_constant_fields(self.df, fields)
+
+        # Should still process existing fields
+        self.assertEqual(constant, {'E': 100})
+        self.assertEqual(variable, ['A'])
     
     def test_detect_constant_fields_empty_fields_list(self):
         """Test with empty fields list."""
@@ -220,13 +148,7 @@ class TestUtilsEnhanced(unittest.TestCase):
         
         self.assertEqual(constant, expected_constant)
         self.assertEqual(variable, [])
-    
-    def test_filter_available_fields_preserves_order(self):
-        """Test that filter_available_fields preserves the order of requested fields."""
-        requested = ['C', 'A', 'B', 'D']
-        result = filter_available_fields(self.df, requested)
-        self.assertEqual(result, ['C', 'A', 'B', 'D'])
-    
+
     def test_detect_constant_fields_preserves_order(self):
         """Test that detect_constant_fields preserves order in variable list."""
         fields = ['D', 'A', 'E', 'B', 'F']
@@ -235,31 +157,7 @@ class TestUtilsEnhanced(unittest.TestCase):
         # Variable fields should maintain the order they appeared in input
         expected_variable = ['D', 'A', 'B']
         self.assertEqual(variable, expected_variable)
-    
-    def test_filter_available_fields_real_world_scenario(self):
-        """Test with realistic DICOM field names."""
-        dicom_df = pd.DataFrame({
-            'RepetitionTime': [2000, 2000, 2000],
-            'EchoTime': [0.01, 0.02, 0.03],
-            'FlipAngle': [30, 30, 30],
-            'SliceThickness': [1.0, 1.0, 1.0],
-            'AcquisitionMatrix': ['256\\256', '256\\256', '256\\256'],
-            'PixelSpacing': ['1.0\\1.0', '1.0\\1.0', '1.0\\1.0'],
-            'MagneticFieldStrength': [3.0, 3.0, 3.0]
-        })
-        
-        # Request priority fields that exist
-        priority_fields = [
-            'RepetitionTime', 'EchoTime', 'FlipAngle', 'SliceThickness',
-            'FieldOfView', 'BandwidthPerPixel'  # These don't exist
-        ]
-        
-        fallback_fields = ['AcquisitionMatrix', 'PixelSpacing', 'MagneticFieldStrength']
-        
-        result = filter_available_fields(dicom_df, priority_fields, fallback_fields)
-        expected = ['RepetitionTime', 'EchoTime', 'FlipAngle', 'SliceThickness']
-        self.assertEqual(result, expected)
-    
+
     def test_detect_constant_fields_real_world_scenario(self):
         """Test detect_constant_fields with realistic DICOM data."""
         dicom_df = pd.DataFrame({
@@ -284,6 +182,25 @@ class TestUtilsEnhanced(unittest.TestCase):
         
         self.assertEqual(constant, expected_constant)
         self.assertEqual(set(variable), set(expected_variable))
+
+
+def test_detect_constant_fields_nonexistent_field_logs_warning(caplog):
+    """Test that detect_constant_fields logs warning for nonexistent fields."""
+    df = pd.DataFrame({
+        'A': [1, 2, 3, 4],
+        'E': [100, 100, 100, 100],
+    })
+    fields = ['A', 'NONEXISTENT', 'E']
+
+    with caplog.at_level('WARNING', logger='dicompare.utils'):
+        constant, variable = detect_constant_fields(df, fields)
+
+    # Should log warning for nonexistent field
+    assert "Field 'NONEXISTENT' not found in dataframe columns" in caplog.text
+
+    # Should still process existing fields
+    assert constant == {'E': 100}
+    assert variable == ['A']
 
 
 if __name__ == '__main__':

@@ -15,22 +15,7 @@ import dicompare
 from dicompare.tests.test_dicom_factory import create_test_dicom_series, create_multi_echo_series
 from dicompare.validation import check_acquisition_compliance
 from dicompare.validation.helpers import ComplianceStatus
-
-def check_session_compliance(in_session, schema_data, session_map, validation_rules=None, validation_models=None, raise_errors=False):
-    """Helper for legacy test format - uses new API internally."""
-    for ref_acq_name, input_acq_name in session_map.items():
-        if ref_acq_name in schema_data["acquisitions"]:
-            acq_rules = validation_rules.get(ref_acq_name) if validation_rules else None
-            acq_model = validation_models.get(ref_acq_name) if validation_models else None
-            return check_acquisition_compliance(
-                in_session,
-                schema_data["acquisitions"][ref_acq_name],
-                acquisition_name=input_acq_name,
-                validation_rules=acq_rules,
-                validation_model=acq_model,
-                raise_errors=raise_errors
-            )
-    return []
+from dicompare.tests.test_helpers import check_session_compliance
 
 
 class TestQSMConsensusGuidelines:
@@ -40,8 +25,8 @@ class TestQSMConsensusGuidelines:
     def qsm_schema(self):
         """Load QSM Consensus Guidelines schema."""
         schema_path = "schemas/QSM_Consensus_Guidelines_v1.0.json"
-        fields, schema = dicompare.load_json_schema(schema_path)
-        return fields, schema
+        fields, schema, validation_rules = dicompare.load_schema(schema_path)
+        return fields, schema, validation_rules
 
     @pytest.fixture
     def valid_qsm_session(self, tmp_path):
@@ -160,7 +145,7 @@ class TestQSMConsensusGuidelines:
 
     def test_load_qsm_schema(self, qsm_schema):
         """Test that QSM schema loads successfully."""
-        fields, schema = qsm_schema
+        fields, schema, validation_rules = qsm_schema
 
         assert "acquisitions" in schema
         assert "QSM" in schema["acquisitions"]
@@ -177,14 +162,14 @@ class TestQSMConsensusGuidelines:
 
     def test_valid_qsm_session_passes(self, qsm_schema, valid_qsm_session):
         """Test that a valid QSM session passes all rules."""
-        fields, schema = qsm_schema
+        fields, schema, validation_rules = qsm_schema
 
         # Get the actual acquisition name from the session
         actual_acq_name = valid_qsm_session['Acquisition'].iloc[0]
         session_map = {"QSM": actual_acq_name}
 
         # Use check_session_compliance with rules
-        _, schema_data, validation_rules = dicompare.load_hybrid_schema(
+        _, schema_data, validation_rules = dicompare.load_schema(
             "schemas/QSM_Consensus_Guidelines_v1.0.json"
         )
 
@@ -200,12 +185,12 @@ class TestQSMConsensusGuidelines:
         assert len(compliance) > 0
 
         # Most rules should pass (some might warn about specific conditions)
-        passed_rules = [r for r in compliance if r["passed"]]
+        passed_rules = [r for r in compliance if r["status"] == "ok"]
         assert len(passed_rules) > 0
 
     def test_single_echo_qsm_fails(self, qsm_schema, invalid_qsm_single_echo):
         """Test that single-echo QSM fails validation."""
-        _, schema_data, validation_rules = dicompare.load_hybrid_schema(
+        _, schema_data, validation_rules = dicompare.load_schema(
             "schemas/QSM_Consensus_Guidelines_v1.0.json"
         )
 
@@ -222,7 +207,7 @@ class TestQSMConsensusGuidelines:
         )
 
         # Should have failures
-        failed_rules = [r for r in compliance if not r["passed"]]
+        failed_rules = [r for r in compliance if r["status"] != "ok"]
         assert len(failed_rules) > 0
 
         # Should specifically fail the echo count rule
@@ -234,7 +219,7 @@ class TestQSMConsensusGuidelines:
 
     def test_2d_qsm_fails(self, qsm_schema, invalid_qsm_2d):
         """Test that 2D QSM acquisition fails validation."""
-        _, schema_data, validation_rules = dicompare.load_hybrid_schema(
+        _, schema_data, validation_rules = dicompare.load_schema(
             "schemas/QSM_Consensus_Guidelines_v1.0.json"
         )
 
@@ -251,7 +236,7 @@ class TestQSMConsensusGuidelines:
         )
 
         # Should have failures
-        failed_rules = [r for r in compliance if not r["passed"]]
+        failed_rules = [r for r in compliance if r["status"] != "ok"]
         assert len(failed_rules) > 0
 
         # Should specifically fail the 3D acquisition rule
@@ -269,8 +254,8 @@ class TestUKBiobankSchema:
     def ukb_schema(self):
         """Load UK Biobank schema."""
         schema_path = "schemas/UK_Biobank_v1.0.json"
-        fields, schema = dicompare.load_json_schema(schema_path)
-        return fields, schema
+        fields, schema, validation_rules = dicompare.load_schema(schema_path)
+        return fields, schema, validation_rules
 
     @pytest.fixture
     def valid_t1_session(self, tmp_path, ukb_schema):
@@ -278,7 +263,7 @@ class TestUKBiobankSchema:
         import zipfile
         import io
 
-        _, schema = ukb_schema
+        _, schema, _ = ukb_schema
 
         # Generate DICOMs from schema
         zip_bytes = dicompare.generate_test_dicoms_from_schema_json(
@@ -406,7 +391,7 @@ class TestUKBiobankSchema:
 
     def test_load_ukb_schema(self, ukb_schema):
         """Test that UK Biobank schema loads successfully."""
-        fields, schema = ukb_schema
+        fields, schema, validation_rules = ukb_schema
 
         assert "acquisitions" in schema
 
@@ -437,7 +422,7 @@ class TestUKBiobankSchema:
 
     def test_valid_t1_session_passes(self, ukb_schema, valid_t1_session):
         """Test that a valid T1 session passes field validation."""
-        fields, schema = ukb_schema
+        fields, schema, validation_rules = ukb_schema
 
         # Get the single acquisition from schema
         schema_acq = schema["acquisitions"]["T1 structural brain images"]
@@ -455,15 +440,15 @@ class TestUKBiobankSchema:
         assert len(compliance) > 0
 
         # Most fields should pass
-        passed_fields = [r for r in compliance if r["passed"]]
-        failed_fields = [r for r in compliance if not r["passed"]]
+        passed_fields = [r for r in compliance if r["status"] == "ok"]
+        failed_fields = [r for r in compliance if r["status"] != "ok"]
 
         # Should have more passes than failures
         assert len(passed_fields) >= len(failed_fields)
 
     def test_t1_wrong_tr_fails_tolerance(self, ukb_schema, invalid_t1_wrong_tr):
         """Test that T1 with wrong TR fails validation."""
-        fields, schema = ukb_schema
+        fields, schema, validation_rules = ukb_schema
 
         # Get the actual acquisition name from the session
         actual_acq_name = invalid_t1_wrong_tr['Acquisition'].iloc[0]
@@ -478,7 +463,7 @@ class TestUKBiobankSchema:
         )
 
         # Should have failures
-        failed_fields = [r for r in compliance if not r["passed"]]
+        failed_fields = [r for r in compliance if r["status"] != "ok"]
         assert len(failed_fields) > 0
 
         # Should specifically fail RepetitionTime
@@ -490,7 +475,7 @@ class TestUKBiobankSchema:
 
     def test_dwi_session_with_rules(self, ukb_schema, valid_dwi_session):
         """Test that diffusion session validates with embedded Python rules."""
-        _, schema_data, validation_rules = dicompare.load_hybrid_schema(
+        _, schema_data, validation_rules = dicompare.load_schema(
             "schemas/UK_Biobank_v1.0.json"
         )
 
@@ -559,7 +544,7 @@ class TestSchemaFeatures:
         )
 
         # Both should pass - within tolerance
-        assert all(r["passed"] for r in compliance)
+        assert all(r["status"] == "ok" for r in compliance)
 
     def test_contains_any_validation(self, tmp_path):
         """Test that contains_any validation works with list values."""
@@ -600,7 +585,7 @@ class TestSchemaFeatures:
         )
 
         # Both should pass - contains at least one required value
-        assert all(r["passed"] for r in compliance)
+        assert all(r["status"] == "ok" for r in compliance)
 
     def test_series_validation(self, tmp_path):
         """Test that series-level validation works correctly."""

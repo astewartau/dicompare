@@ -23,8 +23,7 @@ from .dicom import (
 
 # JSON/Schema I/O functions
 from .json import (
-    load_json_schema,
-    load_hybrid_schema,
+    load_schema,
     make_json_serializable,
 )
 
@@ -68,8 +67,7 @@ __all__ = [
     "get_unhandled_field_warnings",
     "get_field_categorization_summary",
     # JSON/Schema I/O
-    "load_json_schema",
-    "load_hybrid_schema",
+    "load_schema",
     "make_json_serializable",
     # PRO file support
     "load_pro_file",

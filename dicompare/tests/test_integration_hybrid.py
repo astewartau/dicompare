@@ -6,43 +6,8 @@ import json
 import tempfile
 import os
 import dicompare
-from dicompare.validation import check_acquisition_compliance
 from dicompare.validation.helpers import ComplianceStatus
-
-def check_session_compliance(in_session, schema_data, session_map, validation_rules=None, validation_models=None, raise_errors=False):
-    """Helper wrapper to emulate check_session_compliance using new check_acquisition_compliance."""
-    all_results = []
-
-    for ref_acq_name, schema_acq in schema_data["acquisitions"].items():
-        if ref_acq_name not in session_map:
-            all_results.append({
-                "field": "Acquisition Mapping",
-                "value": None,
-                "expected": f"Acquisition '{ref_acq_name}' to be mapped",
-                "message": f"Reference acquisition '{ref_acq_name}' is not mapped to any input acquisition.",
-                "passed": False,
-                "status": ComplianceStatus.ERROR.value,
-                "series": None
-            })
-            continue
-
-        input_acq_name = session_map[ref_acq_name]
-
-        # Get validation rules/model for this acquisition
-        acq_rules = validation_rules.get(ref_acq_name) if validation_rules else None
-        acq_model = validation_models.get(ref_acq_name) if validation_models else None
-
-        results = check_acquisition_compliance(
-            in_session,
-            schema_acq,
-            acquisition_name=input_acq_name,
-            validation_rules=acq_rules,
-            validation_model=acq_model,
-            raise_errors=raise_errors
-        )
-        all_results.extend(results)
-
-    return all_results
+from dicompare.tests.test_helpers import check_session_compliance
 
 
 def test_end_to_end_hybrid_workflow():
@@ -160,7 +125,7 @@ if len(value['EchoTime']) > 0:
     
     try:
         # Load hybrid schema
-        reference_fields, schema_data, validation_rules = dicompare.load_hybrid_schema(schema_path)
+        reference_fields, schema_data, validation_rules = dicompare.load_schema(schema_path)
         
         # Verify schema loading worked
         assert len(reference_fields) >= 5  # TR, TE, FA, TaskName, NumberOfVolumes
@@ -180,22 +145,22 @@ if len(value['EchoTime']) > 0:
         )
         
         # Analyze results
-        passed_results = [r for r in results if r['passed']]
-        failed_results = [r for r in results if not r['passed']]
-        
+        passed_results = [r for r in results if r['status'] == 'ok']
+        failed_results = [r for r in results if r['status'] != 'ok']
+
         # All checks should pass in this scenario
         assert len(failed_results) == 0, f"Unexpected failures: {failed_results}"
-        
+
         # Should have multiple passed checks
         assert len(passed_results) >= 6  # Multiple field + rule checks
-        
+
         # Verify specific rule results
         t1_rule_results = [r for r in passed_results if r.get('rule_name') == 'T1 Timing Validation']
         assert len(t1_rule_results) == 1
-        
+
         qsm_rule_results = [r for r in passed_results if 'Multi-Echo' in r.get('rule_name', '')]
         assert len(qsm_rule_results) == 1
-        
+
         echo_spacing_results = [r for r in passed_results if 'Echo Spacing' in r.get('rule_name', '')]
         assert len(echo_spacing_results) == 1
         
@@ -246,17 +211,17 @@ if val != 42:
     )
     
     # Should have failures
-    failed_results = [r for r in results if not r['passed']]
-    passed_results = [r for r in results if r['passed']]
-    
+    failed_results = [r for r in results if r['status'] != 'ok']
+    passed_results = [r for r in results if r['status'] == 'ok']
+
     # Expect 2 failures: 1 field mismatch + 1 rule failure
     assert len(failed_results) == 2
     assert len(passed_results) == 0
-    
+
     # Check specific failure types
     field_failures = [r for r in failed_results if 'RequiredField' in str(r.get('field', ''))]
     rule_failures = [r for r in failed_results if 'TestField' in str(r.get('field', ''))]
-    
+
     assert len(field_failures) == 1
     assert len(rule_failures) == 1
     assert 'must be exactly 42' in rule_failures[0]['message']
@@ -284,7 +249,7 @@ def test_backward_compatibility_with_existing_schemas():
             }
         }
     }
-    
+
     # Compatible session data
     session_df = pd.DataFrame({
         'Acquisition': ['Traditional'] * 4,
@@ -293,7 +258,7 @@ def test_backward_compatibility_with_existing_schemas():
         'ImageOrientationPatient': ['1\\0\\0\\0\\1\\0'] * 4,
         'NumberOfSlices': [176] * 4
     })
-    
+
     # Test with no validation rules (traditional usage)
     results = check_session_compliance(
         in_session=session_df,
@@ -301,15 +266,15 @@ def test_backward_compatibility_with_existing_schemas():
         session_map={"Traditional": "Traditional"}
         # No validation_rules parameter
     )
-    
+
     # Should only have field-based compliance checks
-    passed_results = [r for r in results if r['passed']]
-    failed_results = [r for r in results if not r['passed']]
-    
+    passed_results = [r for r in results if r['status'] == 'ok']
+    failed_results = [r for r in results if r['status'] != 'ok']
+
     # All field checks should pass
     assert len(failed_results) == 0
     assert len(passed_results) >= 3  # Acquisition fields + series result (not individual fields)
-    
+
     # None should be rule-based
     rule_results = [r for r in results if 'rule_name' in r and r['rule_name'] not in ['Field validation', None]]
     assert len(rule_results) == 0  # No custom rules

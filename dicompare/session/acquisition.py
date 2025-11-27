@@ -7,12 +7,11 @@ rather than iteratively splitting and reassigning.
 """
 
 import pandas as pd
-import numpy as np
 import logging
 import warnings
 from typing import List, Optional
 
-from ..config import DEFAULT_SETTINGS_FIELDS, DEFAULT_ACQUISITION_FIELDS, DEFAULT_RUN_GROUP_FIELDS, DEFAULT_SERIES_FIELDS
+from ..config import DEFAULT_SETTINGS_FIELDS, DEFAULT_SERIES_FIELDS
 from ..utils import clean_string, make_hashable
 from ..data_utils import make_dataframe_hashable
 
@@ -22,31 +21,58 @@ logger = logging.getLogger(__name__)
 def _dicom_time_to_seconds(time_str):
     """
     Convert DICOM time string (HHMMSS or HHMMSS.FFFFFF) to seconds.
-    
+
     Args:
         time_str: DICOM time string
-        
+
     Returns:
         float: Time in seconds since midnight
     """
     if pd.isna(time_str) or time_str == '':
         return 0
-        
+
     # Handle string type
     if isinstance(time_str, str):
         # Remove fractional seconds if present
         time_str = time_str.split('.')[0]
         # Pad with zeros if needed
         time_str = time_str.ljust(6, '0')
-        
+
         hours = int(time_str[0:2])
         minutes = int(time_str[2:4])
         seconds = int(time_str[4:6])
-        
+
         return hours * 3600 + minutes * 60 + seconds
-    
+
     # If it's already numeric, return as is
     return float(time_str)
+
+
+def _normalize_series_description_for_run_detection(series_desc):
+    """
+    Normalize SeriesDescription for run detection by removing _RR suffixes.
+
+    Siemens scanners append '_RR' suffixes to SeriesDescription during image export.
+    This can cause images from the same acquisition to have different SeriesDescriptions,
+    breaking run detection. This function strips these suffixes so that runs can be
+    properly grouped.
+
+    Args:
+        series_desc: SeriesDescription string
+
+    Returns:
+        str: Normalized SeriesDescription with trailing _RR patterns removed
+
+    Examples:
+        't2star_qsm_tra_p3_224_Iso1mm_5TEs_RR' -> 't2star_qsm_tra_p3_224_Iso1mm_5TEs'
+        't2star_qsm_tra_p3_224_Iso1mm_5TEs_RR_RR' -> 't2star_qsm_tra_p3_224_Iso1mm_5TEs'
+        't2star_qsm_tra_p3_224_Iso1mm_5TEs' -> 't2star_qsm_tra_p3_224_Iso1mm_5TEs'
+    """
+    import re
+    if pd.isna(series_desc) or series_desc == '':
+        return series_desc
+    # Remove one or more trailing '_RR' patterns
+    return re.sub(r'(_RR)+$', '', str(series_desc))
 
 
 def assign_acquisition_and_run_numbers(
@@ -83,8 +109,7 @@ def assign_acquisition_and_run_numbers(
     if settings_fields is None:
         settings_fields = DEFAULT_SETTINGS_FIELDS.copy()
     if series_fields is None:
-        # Fields that differentiate series but are NOT acquisition settings
-        series_fields = ["SeriesDescription", "ImageType", "InversionTime"]
+        series_fields = DEFAULT_SERIES_FIELDS.copy()
 
     session_df = session_df.copy()
     session_df = make_dataframe_hashable(session_df)
@@ -150,20 +175,34 @@ def assign_acquisition_and_run_numbers(
     logger.debug(f"  Available series fields: {available_series_fields}")
 
     session_df["_SeriesSignature"] = ""
+    session_df["_NormalizedSeriesSignature"] = ""  # For run detection (with _RR stripped)
 
     for acq_protocol, acq_group in session_df.groupby("_AcquisitionProtocol"):
         if available_series_fields:
-            # Create series signatures (will be used for run detection)
+            # Create series signatures (will be used for final series naming)
             for series_vals, series_group in acq_group.groupby(available_series_fields, dropna=False):
                 # Create a hashable signature for this series combination
                 sig = tuple(series_vals) if isinstance(series_vals, tuple) else (series_vals,)
                 session_df.loc[series_group.index, "_SeriesSignature"] = str(sig)
+
+                # Create normalized signature for run detection
+                # Normalize SeriesDescription by stripping _RR suffixes
+                normalized_vals = list(sig)
+                if "SeriesDescription" in available_series_fields:
+                    sd_idx = available_series_fields.index("SeriesDescription")
+                    normalized_vals[sd_idx] = _normalize_series_description_for_run_detection(
+                        normalized_vals[sd_idx]
+                    )
+                normalized_sig = tuple(normalized_vals)
+                session_df.loc[series_group.index, "_NormalizedSeriesSignature"] = str(normalized_sig)
         else:
             # No series fields available
             session_df.loc[acq_group.index, "_SeriesSignature"] = "default"
+            session_df.loc[acq_group.index, "_NormalizedSeriesSignature"] = "default"
 
     # ===== STAGE 3: Identify runs using SeriesInstanceUID =====
     # RunNumber will restart at 1 for each unique Patient within each acquisition
+    # Uses _NormalizedSeriesSignature to detect repeated series (handles _RR suffixes)
     logger.debug("Stage 3: Identifying runs using SeriesInstanceUID (per patient)")
 
     session_df["_OriginalRunNumber"] = 1
@@ -187,10 +226,12 @@ def assign_acquisition_and_run_numbers(
                 logger.debug(f"  {acq_protocol}/{patient}: No SeriesInstanceUID available, defaulting to single run")
                 continue
 
-            # Step 1: Find series signatures that have multiple SeriesInstanceUIDs (repeated series)
-            repeated_series = {}  # {series_sig: [uid1, uid2, ...]}
+            # Step 1: Find normalized series signatures that have multiple SeriesInstanceUIDs (repeated series)
+            # Using normalized signatures allows detection even when SeriesDescription changes between runs
+            # (e.g., _RR suffix variations)
+            repeated_series = {}  # {normalized_series_sig: [uid1, uid2, ...]}
 
-            for series_sig, sig_group in patient_group.groupby("_SeriesSignature"):
+            for series_sig, sig_group in patient_group.groupby("_NormalizedSeriesSignature"):
                 unique_uids = sig_group["SeriesInstanceUID"].dropna().unique()
                 if len(unique_uids) > 1:
                     repeated_series[series_sig] = sorted(unique_uids)
@@ -206,7 +247,7 @@ def assign_acquisition_and_run_numbers(
             all_uid_times = {}  # {uid: median_time}
 
             for series_sig, uids in repeated_series.items():
-                sig_group = patient_group[patient_group["_SeriesSignature"] == series_sig]
+                sig_group = patient_group[patient_group["_NormalizedSeriesSignature"] == series_sig]
 
                 for uid in uids:
                     uid_files = sig_group[sig_group["SeriesInstanceUID"] == uid]
@@ -249,14 +290,14 @@ def assign_acquisition_and_run_numbers(
 
             # Assign run numbers to files with these UIDs
             for series_sig, uids in repeated_series.items():
-                sig_group = patient_group[patient_group["_SeriesSignature"] == series_sig]
+                sig_group = patient_group[patient_group["_NormalizedSeriesSignature"] == series_sig]
 
                 for uid in uids:
                     run_num = uid_to_run.get(uid, 1)
                     mask = (
                         (session_df["_AcquisitionProtocol"] == acq_protocol) &
                         (session_df["Patient"] == patient) &
-                        (session_df["_SeriesSignature"] == series_sig) &
+                        (session_df["_NormalizedSeriesSignature"] == series_sig) &
                         (session_df["SeriesInstanceUID"] == uid)
                     )
                     session_df.loc[mask, "_OriginalRunNumber"] = run_num
@@ -271,7 +312,7 @@ def assign_acquisition_and_run_numbers(
                     (session_df["_AcquisitionProtocol"] == acq_protocol) &
                     (session_df["Patient"] == patient) &
                     (session_df["_OriginalRunNumber"] == run_num) &
-                    (session_df["_SeriesSignature"].isin([str(sig) for sig in repeated_series.keys()]))
+                    (session_df["_NormalizedSeriesSignature"].isin([str(sig) for sig in repeated_series.keys()]))
                 ]
                 if len(run_files) > 0:
                     times = run_files[time_field].apply(_dicom_time_to_seconds).dropna()
@@ -279,11 +320,13 @@ def assign_acquisition_and_run_numbers(
                         run_median_times[run_num] = times.median()
 
             # Step 4: Assign unrepeated/orphan series to closest run by median time
-            all_series_sigs = patient_group["_SeriesSignature"].unique()
+            # Note: Orphan detection uses _NormalizedSeriesSignature, but there shouldn't be
+            # any orphans now since normalization groups series with _RR suffixes together
+            all_series_sigs = patient_group["_NormalizedSeriesSignature"].unique()
             orphan_series = [sig for sig in all_series_sigs if sig not in repeated_series]
 
             for series_sig in orphan_series:
-                sig_group = patient_group[patient_group["_SeriesSignature"] == series_sig]
+                sig_group = patient_group[patient_group["_NormalizedSeriesSignature"] == series_sig]
 
                 # Calculate median time for this orphan series
                 times = sig_group[time_field].apply(_dicom_time_to_seconds).dropna()
@@ -292,7 +335,7 @@ def assign_acquisition_and_run_numbers(
                     mask = (
                         (session_df["_AcquisitionProtocol"] == acq_protocol) &
                         (session_df["Patient"] == patient) &
-                        (session_df["_SeriesSignature"] == series_sig)
+                        (session_df["_NormalizedSeriesSignature"] == series_sig)
                     )
                     session_df.loc[mask, "_OriginalRunNumber"] = 1
                     continue
@@ -314,7 +357,7 @@ def assign_acquisition_and_run_numbers(
                 mask = (
                     (session_df["_AcquisitionProtocol"] == acq_protocol) &
                     (session_df["Patient"] == patient) &
-                    (session_df["_SeriesSignature"] == series_sig)
+                    (session_df["_NormalizedSeriesSignature"] == series_sig)
                 )
                 session_df.loc[mask, "_OriginalRunNumber"] = closest_run
 
@@ -430,7 +473,7 @@ def assign_acquisition_and_run_numbers(
 
                 # Assign series numbers sequentially within this run
                 for series_idx, series_sig in enumerate(sorted(unique_series), start=1):
-                    series_name = f"{acquisition_name}_series{series_idx:03d}"
+                    series_name = f"Series {series_idx:02d}"
 
                     mask = (
                         (session_df["_AcquisitionProtocol"] == acq_protocol) &
@@ -444,7 +487,8 @@ def assign_acquisition_and_run_numbers(
                     session_df.loc[mask, "RunNumber"] = new_run_num
 
     # Clean up temporary columns
-    temp_cols = ["_AcquisitionProtocol", "_SeriesSignature", "_OriginalRunNumber", "_SettingsGroup"]
+    temp_cols = ["_AcquisitionProtocol", "_SeriesSignature", "_NormalizedSeriesSignature",
+                 "_OriginalRunNumber", "_SettingsGroup"]
     # Only drop columns that exist
     cols_to_drop = [col for col in temp_cols if col in session_df.columns]
     session_df = session_df.drop(columns=cols_to_drop)

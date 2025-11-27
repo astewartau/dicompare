@@ -5,7 +5,6 @@ Unit tests for dicompare.serialization module.
 import unittest
 import numpy as np
 import pandas as pd
-from unittest.mock import patch
 import json
 
 from dicompare.io import make_json_serializable
@@ -245,25 +244,25 @@ class TestSerialization(unittest.TestCase):
     
     def test_object_with_item_method(self):
         """Test handling of objects with item() method."""
-        # Create a mock object with item() method
-        class MockObject:
+        # Create an object with item() method (like numpy scalars)
+        class ObjectWithItemMethod:
             def item(self):
                 return 42
-        
-        mock_obj = MockObject()
-        result = make_json_serializable(mock_obj)
+
+        obj = ObjectWithItemMethod()
+        result = make_json_serializable(obj)
         self.assertEqual(result, 42)
-    
+
     def test_object_with_item_method_exception(self):
         """Test handling when item() method raises an exception."""
-        class BadMockObject:
+        class ObjectWithFailingItemMethod:
             def item(self):
                 raise ValueError("Cannot convert")
 
-        bad_mock = BadMockObject()
+        obj = ObjectWithFailingItemMethod()
         # Should raise the exception (fail fast philosophy)
         with self.assertRaises(ValueError):
-            make_json_serializable(bad_mock)
+            make_json_serializable(obj)
     
     def test_deeply_nested_structure(self):
         """Test with deeply nested structures."""

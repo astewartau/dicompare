@@ -2,100 +2,102 @@
 Test cases for web utility functions.
 """
 
-import unittest
-import pandas as pd
-import numpy as np
-import asyncio
+import tempfile
 import pytest
-from unittest.mock import patch, Mock, MagicMock
-
-from dicompare.interface import (
-    analyze_dicom_files_for_web,
-)
+from dicompare.interface import analyze_dicom_files_for_web
+from dicompare.tests.test_dicom_factory import create_test_dicom_series
 
 
-class TestWebUtils(unittest.TestCase):
-    """Test cases for web utility functions."""
-
-    @pytest.mark.asyncio
-    async def test_analyze_dicom_files_for_web_basic(self):
-        """Test analyze_dicom_files_for_web with valid DICOM data."""
-        # Mock the dependencies
-        with patch('dicompare.interface.web_utils.async_load_dicom_session') as mock_load, \
-             patch('dicompare.interface.web_utils.assign_acquisition_and_run_numbers') as mock_assign, \
-             patch('dicompare.interface.web_utils.create_json_schema') as mock_schema, \
-             patch('dicompare.interface.web_utils.DEFAULT_DICOM_FIELDS', ['SeriesDescription', 'RepetitionTime']):
-
-            # Setup mocks
-            mock_df = pd.DataFrame({
-                'SeriesDescription': ['T1_MPRAGE', 'T1_MPRAGE'],
-                'RepetitionTime': [2300, 2300],
-                'Acquisition': ['T1', 'T1']
-            })
-            mock_load.return_value = mock_df
-            mock_assign.return_value = mock_df
-            mock_schema.return_value = {
-                'acquisitions': {
-                    'T1': {
-                        'fields': [{'field': 'RepetitionTime', 'value': 2300}]
-                    }
-                }
+@pytest.mark.asyncio
+async def test_analyze_dicom_files_for_web_basic():
+    """Test analyze_dicom_files_for_web with valid DICOM data."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create real test DICOM files
+        _, dicom_bytes = create_test_dicom_series(
+            base_dir=tmpdir,
+            acquisition_name="T1_MPRAGE",
+            num_slices=3,
+            metadata_base={
+                'RepetitionTime': 2300.0,
+                'EchoTime': 2.98,
+                'FlipAngle': 9.0,
+                'SeriesDescription': 'T1w anatomical'
             }
+        )
 
-            # Test data
-            dicom_files = {
-                'file1.dcm': b'mock_dicom_data_1',
-                'file2.dcm': b'mock_dicom_data_2'
+        # Call function with real data
+        result = await analyze_dicom_files_for_web(
+            dicom_bytes,
+            reference_fields=['RepetitionTime', 'EchoTime', 'FlipAngle']
+        )
+
+        # Verify results
+        assert result['status'] == 'success'
+        assert result['total_files'] == 3
+        assert 'acquisitions' in result
+        assert 'field_summary' in result
+
+
+@pytest.mark.asyncio
+async def test_analyze_dicom_files_for_web_default_fields():
+    """Test analyze_dicom_files_for_web uses default fields when none provided."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create real test DICOM files
+        _, dicom_bytes = create_test_dicom_series(
+            base_dir=tmpdir,
+            acquisition_name="BOLD_fMRI",
+            num_slices=2,
+            metadata_base={
+                'RepetitionTime': 2000.0,
+                'EchoTime': 30.0,
+                'SeriesDescription': 'functional run'
             }
+        )
 
-            # Call function
-            result = await analyze_dicom_files_for_web(dicom_files)
+        # Call with None reference_fields (should use defaults)
+        result = await analyze_dicom_files_for_web(dicom_bytes, None)
 
-            # Verify results
-            self.assertEqual(result['status'], 'success')
-            self.assertEqual(result['total_files'], 2)
-            self.assertIn('acquisitions', result)
-            self.assertIn('field_summary', result)
-
-    @pytest.mark.asyncio
-    async def test_analyze_dicom_files_for_web_default_fields(self):
-        """Test analyze_dicom_files_for_web uses default fields when none provided."""
-        with patch('dicompare.interface.web_utils.async_load_dicom_session') as mock_load, \
-             patch('dicompare.interface.web_utils.assign_acquisition_and_run_numbers') as mock_assign, \
-             patch('dicompare.interface.web_utils.create_json_schema') as mock_schema, \
-             patch('dicompare.interface.web_utils.DEFAULT_DICOM_FIELDS', ['SeriesDescription']):
-
-            mock_df = pd.DataFrame({
-                'SeriesDescription': ['T1_MPRAGE'],
-                'Acquisition': ['T1']
-            })
-            mock_load.return_value = mock_df
-            mock_assign.return_value = mock_df
-            mock_schema.return_value = {'acquisitions': {}}
-
-            dicom_files = {'file1.dcm': b'mock_data'}
-
-            # Call with None reference_fields
-            result = await analyze_dicom_files_for_web(dicom_files, None)
-
-            self.assertEqual(result['status'], 'success')
-            # Should have used DEFAULT_DICOM_FIELDS
-            mock_schema.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_analyze_dicom_files_for_web_empty_files(self):
-        """Test analyze_dicom_files_for_web with empty files dict."""
-        with patch('dicompare.interface.web_utils.async_load_dicom_session') as mock_load:
-            # Make async_load_dicom_session raise ValueError for no data
-            mock_load.side_effect = ValueError("No session data found to process.")
-
-            dicom_files = {}
-
-            result = await analyze_dicom_files_for_web(dicom_files)
-
-            self.assertEqual(result['status'], 'error')
-            self.assertIn('Error analyzing DICOM files', result['message'])
+        assert result['status'] == 'success'
+        assert result['total_files'] == 2
 
 
-if __name__ == '__main__':
-    unittest.main()
+@pytest.mark.asyncio
+async def test_analyze_dicom_files_for_web_empty_files():
+    """Test analyze_dicom_files_for_web with empty files dict."""
+    result = await analyze_dicom_files_for_web({})
+
+    assert result['status'] == 'error'
+    assert 'message' in result
+
+
+@pytest.mark.asyncio
+async def test_analyze_dicom_files_for_web_multiple_acquisitions():
+    """Test analyze_dicom_files_for_web with multiple acquisitions."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create T1 series
+        _, t1_bytes = create_test_dicom_series(
+            base_dir=tmpdir,
+            acquisition_name="T1_MPRAGE",
+            num_slices=2,
+            metadata_base={'RepetitionTime': 2300.0, 'EchoTime': 2.98}
+        )
+
+        # Create T2 series
+        _, t2_bytes = create_test_dicom_series(
+            base_dir=tmpdir,
+            acquisition_name="T2_TSE",
+            num_slices=2,
+            metadata_base={'RepetitionTime': 5000.0, 'EchoTime': 100.0}
+        )
+
+        # Combine
+        all_bytes = {**t1_bytes, **t2_bytes}
+
+        result = await analyze_dicom_files_for_web(
+            all_bytes,
+            reference_fields=['RepetitionTime', 'EchoTime']
+        )
+
+        assert result['status'] == 'success'
+        assert result['total_files'] == 4
+        assert len(result['acquisitions']) == 2

@@ -477,9 +477,11 @@ def test_assign_acquisition_and_run_numbers_series_multiecho():
     assert len(unique_acquisitions) == 1
     assert len(unique_series) == 1
 
-    # Check series naming convention (lowercase, no underscore before number)
+    # Check acquisition and series naming convention
+    acq_name = unique_acquisitions[0]
     series_name = unique_series[0]
-    assert "acq-t2starmultiecho_series001" == series_name
+    assert "acq-t2starmultiecho" == acq_name
+    assert "Series 01" == series_name
 
     # Verify all echo times belong to the same series
     assert all(df_out["Series"] == series_name)
@@ -516,9 +518,11 @@ def test_assign_acquisition_and_run_numbers_series_dti():
     assert len(unique_acquisitions) == 1
     assert len(unique_series) == 1
 
-    # Check series naming (lowercase, no underscore before number)
+    # Check acquisition and series naming
+    acq_name = unique_acquisitions[0]
     series_name = unique_series[0]
-    assert "acq-dti30dir_series001" == series_name
+    assert "acq-dti30dir" == acq_name
+    assert "Series 01" == series_name
 
     # Verify all b-values belong to the same series
     assert all(df_out["Series"] == series_name)
@@ -547,7 +551,8 @@ def test_assign_acquisition_and_run_numbers_series_single_sequence():
 
     assert len(unique_acquisitions) == 1
     assert len(unique_series) == 1
-    assert "acq-t1mprage_series001" in unique_series
+    assert "acq-t1mprage" == unique_acquisitions[0]
+    assert "Series 01" == unique_series[0]
 
 
 def test_assign_acquisition_and_run_numbers_series_multiple_acquisitions():
@@ -645,15 +650,17 @@ def test_assign_acquisition_and_run_numbers_backward_compatibility():
     assert len(unique_acquisitions) == 2
 
 
-# ---------- Tests for load_json_schema ----------
+# ---------- Tests for load_schema ----------
 
-def test_load_json_schema(json_file):
-    fields, ref_data = dicompare.load_json_schema(json_file)
+def test_load_schema(json_file):
+    fields, ref_data, validation_rules = dicompare.load_schema(json_file)
     # Expect two fields: one from acquisitions and one from series.
     assert "TestField" in fields
     assert "SeriesField" in fields
     # Check structure.
     assert "acquisitions" in ref_data
+    # validation_rules can be empty dict if no rules in schema
+    assert isinstance(validation_rules, dict)
     assert "acq1" in ref_data["acquisitions"]  # protocolName becomes the key
     acq = ref_data["acquisitions"]["acq1"]
     assert "fields" in acq
@@ -675,7 +682,7 @@ def test_load_json_schema(json_file):
 
 # ---------- Tests for load_python_schema ----------
 
-def test_load_hybrid_schema(tmp_path):
+def test_load_schema(tmp_path):
     """Test loading a hybrid JSON schema with both fields and rules."""
     # Create a hybrid schema with both fields and rules
     hybrid_schema = {
@@ -717,7 +724,7 @@ def test_load_hybrid_schema(tmp_path):
         json.dump(hybrid_schema, f)
     
     # Test loading the hybrid schema
-    fields, schema_data, validation_rules = dicompare.load_hybrid_schema(str(schema_path))
+    fields, schema_data, validation_rules = dicompare.load_schema(str(schema_path))
     
     # Check that all fields are extracted correctly
     assert "EchoTime" in fields
@@ -742,10 +749,10 @@ def test_load_hybrid_schema(tmp_path):
     assert qsm_rules[1]["id"] == "validate_tr_range"
 
 
-def test_load_hybrid_schema_backward_compatible(json_file):
+def test_load_schema_backward_compatible(json_file):
     """Test that hybrid loader works with old field-only schemas."""
     # Use existing test JSON file which has no rules
-    fields, schema_data, validation_rules = dicompare.load_hybrid_schema(json_file)
+    fields, schema_data, validation_rules = dicompare.load_schema(json_file)
     
     # Should work like the old loader
     assert "TestField" in fields

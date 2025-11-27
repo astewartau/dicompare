@@ -6,12 +6,53 @@ from typing import List, Dict, Any, Optional
 import logging
 from .core import BaseValidationModel, create_validation_models_from_rules
 from .helpers import (
-    validate_constraint, validate_field_values, create_compliance_record, format_constraint_description,
+    validate_constraint, validate_field_values, create_compliance_record,
     ComplianceStatus
 )
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+
+def _find_column_match(field_name: str, columns: List[str]) -> Optional[str]:
+    """
+    Find a matching column name, trying various normalizations.
+
+    Args:
+        field_name: Field name from schema (e.g., "Flip Angle")
+        columns: Available column names in DataFrame (e.g., ["FlipAngle"])
+
+    Returns:
+        Matching column name if found, None otherwise
+    """
+    # Try exact match first
+    if field_name in columns:
+        return field_name
+
+    # Try without spaces
+    no_space = field_name.replace(' ', '')
+    if no_space in columns:
+        return no_space
+
+    # Try without underscores
+    no_underscore = field_name.replace('_', '')
+    if no_underscore in columns:
+        return no_underscore
+
+    # Try case-insensitive match
+    field_lower = field_name.lower()
+    for col in columns:
+        if col.lower() == field_lower:
+            return col
+
+    # Try case-insensitive without spaces/underscores
+    field_normalized = field_name.replace(' ', '').replace('_', '').lower()
+    for col in columns:
+        col_normalized = col.replace(' ', '').replace('_', '').lower()
+        if col_normalized == field_normalized:
+            return col
+
+    return None
 
 def check_acquisition_compliance(
     in_session: pd.DataFrame,
@@ -52,14 +93,15 @@ def check_acquisition_compliance(
 
     Example:
         >>> # Load schema
-        >>> _, schema = load_json_schema("schema.json")
+        >>> _, schema, validation_rules = load_schema("schema.json")
         >>> schema_acq = schema["acquisitions"]["T1_MPRAGE"]
         >>>
         >>> # Check compliance for one acquisition
         >>> results = check_acquisition_compliance(
         ...     in_session=session_df,
         ...     schema_acquisition=schema_acq,
-        ...     acquisition_name="T1_structural"
+        ...     acquisition_name="T1_structural",
+        ...     validation_rules=validation_rules.get("T1_MPRAGE")
         ... )
     """
     compliance_summary = []
@@ -71,15 +113,12 @@ def check_acquisition_compliance(
         in_acq = in_session[in_session["Acquisition"] == acquisition_name]
 
         if in_acq.empty:
-            compliance_summary.append({
-                "field": "Acquisition",
-                "value": None,
-                "expected": f"Acquisition '{acquisition_name}' to exist",
-                "message": f"Acquisition '{acquisition_name}' not found in session data.",
-                "passed": False,
-                "status": ComplianceStatus.ERROR.value,
-                "series": None
-            })
+            compliance_summary.append(create_compliance_record(
+                field="Acquisition",
+                message=f"Acquisition '{acquisition_name}' not found in session data.",
+                status=ComplianceStatus.ERROR,
+                expected=f"Acquisition '{acquisition_name}' to exist"
+            ))
             return compliance_summary
     else:
         in_acq = in_session
@@ -97,42 +136,42 @@ def check_acquisition_compliance(
             contains_any = fdef.get("contains_any")
             contains_all = fdef.get("contains_all")
 
-            if field not in in_acq.columns:
-                results.append({
-                    "field": field,
-                    "value": None,
-                    "expected": expected_value,
-                    "tolerance": tolerance,
-                    "contains": contains,
-                    "contains_any": contains_any,
-                    "contains_all": contains_all,
-                    "message": "Field not found in input session.",
-                    "passed": False,
-                    "status": ComplianceStatus.NA.value,
-                    "series": series_name
-                })
+            # Find matching column name (handles "Flip Angle" vs "FlipAngle")
+            matched_field = _find_column_match(field, in_acq.columns.tolist())
+
+            if matched_field is None:
+                results.append(create_compliance_record(
+                    field=field,
+                    message="Field not found in input session.",
+                    status=ComplianceStatus.NA,
+                    expected=expected_value,
+                    series=series_name,
+                    tolerance=tolerance,
+                    contains=contains,
+                    contains_any=contains_any,
+                    contains_all=contains_all
+                ))
                 continue
 
-            actual_values = in_acq[field].unique().tolist()
+            actual_values = in_acq[matched_field].unique().tolist()
 
             # Use validation helper
             passed, invalid_values, message = validate_field_values(
                 field, actual_values, expected_value, tolerance, contains, contains_any, contains_all
             )
 
-            results.append({
-                "field": field,
-                "value": actual_values,
-                "expected": expected_value,
-                "tolerance": tolerance,
-                "contains": contains,
-                "contains_any": contains_any,
-                "contains_all": contains_all,
-                "message": message,
-                "passed": passed,
-                "status": ComplianceStatus.OK.value if passed else ComplianceStatus.ERROR.value,
-                "series": series_name
-            })
+            results.append(create_compliance_record(
+                field=field,
+                message=message,
+                status=ComplianceStatus.OK if passed else ComplianceStatus.ERROR,
+                value=actual_values,
+                expected=expected_value,
+                series=series_name,
+                tolerance=tolerance,
+                contains=contains,
+                contains_any=contains_any,
+                contains_all=contains_all
+            ))
 
         return results
 
@@ -150,32 +189,38 @@ def check_acquisition_compliance(
         if not series_fields:
             continue
 
-        # Check for missing fields
-        missing_fields = [f["field"] for f in series_fields if f["field"] not in in_acq.columns]
+        # Check for missing fields (with normalization)
+        missing_fields = []
+        field_map = {}  # Map schema field names to actual column names
+        for fdef in series_fields:
+            schema_field = fdef["field"]
+            matched_field = _find_column_match(schema_field, in_acq.columns.tolist())
+            if matched_field is None:
+                missing_fields.append(schema_field)
+            else:
+                field_map[schema_field] = matched_field
 
         if missing_fields:
-            compliance_summary.append({
-                "field": ", ".join([f["field"] for f in series_fields]),
-                "value": None,
-                "expected": None,
-                "message": f"Series '{series_name}' missing required fields: {', '.join(missing_fields)}",
-                "passed": False,
-                "status": ComplianceStatus.NA.value,
-                "series": series_name
-            })
+            compliance_summary.append(create_compliance_record(
+                field=", ".join([f["field"] for f in series_fields]),
+                message=f"Series '{series_name}' missing required fields: {', '.join(missing_fields)}",
+                status=ComplianceStatus.NA,
+                series=series_name
+            ))
             continue
 
         # Find rows matching ALL constraints
         matching_df = in_acq.copy()
         for fdef in series_fields:
-            field = fdef["field"]
+            schema_field = fdef["field"]
+            actual_field = field_map[schema_field]
             expected = fdef.get("value")
             tolerance = fdef.get("tolerance")
             contains = fdef.get("contains")
             contains_any = fdef.get("contains_any")
             contains_all = fdef.get("contains_all")
 
-            mask = matching_df[field].apply(
+            mask = matching_df[actual_field].apply(
                 lambda x: validate_constraint(x, expected, tolerance, contains, contains_any, contains_all)
             )
             matching_df = matching_df[mask]
@@ -211,25 +256,19 @@ def check_acquisition_compliance(
 
             message = f"Series '{series_name}' not found with constraints: {' AND '.join(constraint_desc)}"
 
-            compliance_summary.append({
-                "field": field_list,
-                "value": None,
-                "expected": None,
-                "message": message,
-                "passed": False,
-                "status": ComplianceStatus.ERROR.value,
-                "series": series_name
-            })
+            compliance_summary.append(create_compliance_record(
+                field=field_list,
+                message=message,
+                status=ComplianceStatus.ERROR,
+                series=series_name
+            ))
         else:
-            compliance_summary.append({
-                "field": field_list,
-                "value": None,
-                "expected": None,
-                "message": "Passed.",
-                "passed": True,
-                "status": ComplianceStatus.OK.value,
-                "series": series_name
-            })
+            compliance_summary.append(create_compliance_record(
+                field=field_list,
+                message="Passed.",
+                status=ComplianceStatus.OK,
+                series=series_name
+            ))
 
     # 3. Check rule-based validation
     if validation_rules or validation_model:
@@ -250,42 +289,36 @@ def check_acquisition_compliance(
             # Record errors
             for error in errors:
                 status = ComplianceStatus.NA if "not found" in error.get('message', '').lower() else ComplianceStatus.ERROR
-                compliance_summary.append({
-                    "field": error['field'],
-                    "value": error['value'],
-                    "expected": error.get('expected', error.get('rule_message', '')),
-                    "message": error['message'],
-                    "rule_name": error['rule_name'],
-                    "passed": False,
-                    "status": status.value,
-                    "series": None
-                })
+                compliance_summary.append(create_compliance_record(
+                    field=error['field'],
+                    message=error['message'],
+                    status=status,
+                    value=error['value'],
+                    expected=error.get('expected', error.get('rule_message', '')),
+                    rule_name=error['rule_name']
+                ))
 
             # Record warnings
             for warning in warnings:
-                compliance_summary.append({
-                    "field": warning['field'],
-                    "value": warning['value'],
-                    "expected": warning.get('expected', warning.get('rule_message', '')),
-                    "message": warning['message'],
-                    "rule_name": warning['rule_name'],
-                    "passed": True,
-                    "status": ComplianceStatus.WARNING.value,
-                    "series": None
-                })
+                compliance_summary.append(create_compliance_record(
+                    field=warning['field'],
+                    message=warning['message'],
+                    status=ComplianceStatus.WARNING,
+                    value=warning['value'],
+                    expected=warning.get('expected', warning.get('rule_message', '')),
+                    rule_name=warning['rule_name']
+                ))
 
             # Record passes
             for passed_test in passes:
-                compliance_summary.append({
-                    "field": passed_test['field'],
-                    "value": passed_test['value'],
-                    "expected": passed_test.get('expected', passed_test.get('rule_message', '')),
-                    "message": passed_test['message'],
-                    "rule_name": passed_test['rule_name'],
-                    "passed": True,
-                    "status": ComplianceStatus.OK.value,
-                    "series": None
-                })
+                compliance_summary.append(create_compliance_record(
+                    field=passed_test['field'],
+                    message=passed_test['message'],
+                    status=ComplianceStatus.OK,
+                    value=passed_test['value'],
+                    expected=passed_test.get('expected', passed_test.get('rule_message', '')),
+                    rule_name=passed_test['rule_name']
+                ))
 
             if raise_errors and not success:
                 raise ValueError(f"Validation failed for acquisition.")

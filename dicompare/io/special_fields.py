@@ -6,7 +6,7 @@ This module provides functionality to:
 2. Encode special fields (e.g., MultibandFactor in ImageComments)
 """
 
-from typing import Dict, List, Any, Tuple, Set
+from typing import Dict, List, Any, Tuple
 import pydicom
 
 

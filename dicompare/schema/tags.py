@@ -1,6 +1,6 @@
 # dicompare/tags.py
 
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any
 from pydicom.datadict import tag_for_keyword, dictionary_description, dictionary_VR, dictionary_VM
 from pydicom.multival import MultiValue
 
@@ -159,6 +159,24 @@ def get_tag_info(field_or_tag: str) -> Dict[str, Any]:
         # Try without underscores
         try:
             tag = tag_for_keyword(field_or_tag.replace('_', ''))
+            if tag is not None:
+                # tag_for_keyword returns an integer, convert to tuple
+                tag_tuple = (tag >> 16, tag & 0xFFFF)
+                tag_str = f"({tag_tuple[0]:04X},{tag_tuple[1]:04X})"
+                tag_type = _infer_type_from_tag(tag_tuple)
+
+                return {
+                    "tag": tag_str,
+                    "name": field_or_tag,
+                    "type": tag_type,
+                    "fieldType": "standard"
+                }
+        except:
+            pass
+
+        # Try without spaces (e.g., "Flip Angle" -> "FlipAngle")
+        try:
+            tag = tag_for_keyword(field_or_tag.replace(' ', ''))
             if tag is not None:
                 # tag_for_keyword returns an integer, convert to tuple
                 tag_tuple = (tag >> 16, tag & 0xFFFF)

@@ -312,22 +312,7 @@ def interactive_mapping_to_json_reference(in_session_df: pd.DataFrame, ref_sessi
             row_indicator = ">>" if i == selected_ref_idx else "  "
             current_map = mapping.get(ref_acq, "Unmapped")
 
-            # Optionally show some reference info from ref_session
-            ref_info = ref_session["acquisitions"][ref_acq].get("fields", [])
-            # Just show the first few fields or some summary
-            ref_info_str = ""
-            if ref_info:
-                # Example: show up to 2 fields in "field=value" style
-                limited_fields = [f"{f['field']}={f.get('value', 'None')}" for f in ref_info[:2]]
-                ref_info_str = f" ({', '.join(limited_fields)})"
-
-            # If there is a mapped input acquisition, show some metadata about it
-            if current_map != "Unmapped":
-                in_meta = input_acquisition_meta.get(current_map, {})
-                proto_str = in_meta.get("ProtocolName", "N/A")
-                current_map += f" (ProtocolName={proto_str})"
-
-            table_rows.append([row_indicator, f"{ref_acq}{ref_info_str}", current_map])
+            table_rows.append([row_indicator, ref_acq, current_map])
         
         return tabulate(table_rows, headers=["", "Reference Acquisition", "Mapped Input"], tablefmt="simple")
 

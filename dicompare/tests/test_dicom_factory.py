@@ -314,9 +314,10 @@ def create_multi_echo_series(
     return all_paths, all_bytes
 
 
-class DicomTestFactory:
+class DicomFactory:
     """Factory class for creating test DICOM files with common configurations."""
-    
+    __test__ = False  # Tell pytest this is not a test class
+
     def __init__(self, temp_dir: Optional[str] = None):
         """Initialize factory with temporary directory."""
         if temp_dir is None:
@@ -373,12 +374,13 @@ class DicomTestFactory:
 
 
 # For backwards compatibility
-TestDicomFactory = DicomTestFactory
+# Alias for backward compatibility
+TestDicomFactory = DicomFactory
 
 # Example usage for tests
 if __name__ == "__main__":
     # Create a test factory
-    factory = DicomTestFactory()
+    factory = DicomFactory()
     
     # Create some test series
     t1_paths, t1_bytes = factory.create_t1_mprage()

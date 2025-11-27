@@ -5,10 +5,8 @@ This module provides schema generation utilities and DICOM tag information
 for DICOM session validation and analysis.
 """
 
-from .generate_schema import (
-    create_json_schema,
-    detect_acquisition_variability,
-    create_acquisition_summary
+from .build_schema import (
+    build_schema
 )
 
 from .tags import (
@@ -22,9 +20,7 @@ from .tags import (
 
 __all__ = [
     # Schema generation
-    'create_json_schema',
-    'detect_acquisition_variability',
-    'create_acquisition_summary',
+    'build_schema',
 
     # Tag utilities
     'get_tag_info',

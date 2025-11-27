@@ -19,8 +19,7 @@ setup(
     py_modules=["dicompare"],
     entry_points={
         "console_scripts": [
-            "dcm-gen-session=dicompare.cli.gen_session:main",
-            "dcm-check-session=dicompare.cli.check_session:main",
+            "dicompare=dicompare.cli.main:main",
         ]
     },
     install_requires=[

@@ -17,7 +17,7 @@ from typing import Dict, List, Tuple
 # Add the parent directory to the path so we can import dicompare
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from dicompare.tests.test_dicom_factory import DicomTestFactory, create_test_dicom_series
+from dicompare.tests.test_dicom_factory import DicomFactory, create_test_dicom_series
 
 
 def create_comprehensive_test_dataset(output_dir: str) -> Dict[str, List[str]]:
@@ -177,7 +177,7 @@ def create_minimal_test_dataset(output_dir: str) -> Dict[str, List[str]]:
     Returns:
         Dictionary mapping acquisition names to list of file paths
     """
-    factory = DicomTestFactory(output_dir)
+    factory = DicomFactory(output_dir)
     
     dataset_info = {}
     all_bytes = {}

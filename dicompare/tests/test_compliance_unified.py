@@ -5,43 +5,8 @@ import pandas as pd
 import json
 import dicompare
 from dicompare import ValidationError
-from dicompare.validation import check_acquisition_compliance
 from dicompare.validation.helpers import ComplianceStatus
-
-def check_session_compliance(in_session, schema_data, session_map, validation_rules=None, validation_models=None, raise_errors=False):
-    """Helper wrapper to emulate check_session_compliance using new check_acquisition_compliance."""
-    all_results = []
-
-    for ref_acq_name, schema_acq in schema_data["acquisitions"].items():
-        if ref_acq_name not in session_map:
-            all_results.append({
-                "field": "Acquisition Mapping",
-                "value": None,
-                "expected": f"Acquisition '{ref_acq_name}' to be mapped",
-                "message": f"Reference acquisition '{ref_acq_name}' is not mapped to any input acquisition.",
-                "passed": False,
-                "status": ComplianceStatus.ERROR.value,
-                "series": None
-            })
-            continue
-
-        input_acq_name = session_map[ref_acq_name]
-
-        # Get validation rules/model for this acquisition
-        acq_rules = validation_rules.get(ref_acq_name) if validation_rules else None
-        acq_model = validation_models.get(ref_acq_name) if validation_models else None
-
-        results = check_acquisition_compliance(
-            in_session,
-            schema_acq,
-            acquisition_name=input_acq_name,
-            validation_rules=acq_rules,
-            validation_model=acq_model,
-            raise_errors=raise_errors
-        )
-        all_results.extend(results)
-
-    return all_results
+from dicompare.tests.test_helpers import check_session_compliance
 
 
 def test_unified_compliance_field_only(tmp_path):
@@ -75,9 +40,9 @@ def test_unified_compliance_field_only(tmp_path):
     )
     
     # All field checks should pass
-    passed_results = [r for r in results if r['passed']]
-    failed_results = [r for r in results if not r['passed']]
-    
+    passed_results = [r for r in results if r['status'] == 'ok']
+    failed_results = [r for r in results if r['status'] != 'ok']
+
     assert len(passed_results) == 3  # All 3 fields pass
     assert len(failed_results) == 0
 
@@ -129,12 +94,12 @@ if len(echo_times) < 3:
     # Field check should pass, rule check should fail
     field_results = [r for r in results if 'FlipAngle' in str(r.get('field', ''))]
     rule_results = [r for r in results if 'EchoTime' in str(r.get('field', ''))]
-    
+
     assert len(field_results) == 1
-    assert field_results[0]['passed'] == True  # FlipAngle passes
-    
+    assert field_results[0]['status'] == 'ok'  # FlipAngle passes
+
     assert len(rule_results) == 1
-    assert rule_results[0]['passed'] == False  # Echo count fails
+    assert rule_results[0]['status'] == 'error'  # Echo count fails
     assert 'Need at least 3 echoes' in rule_results[0]['message']
 
 
@@ -158,7 +123,7 @@ def test_unified_compliance_series_fields(tmp_path):
             }
         }
     }
-    
+
     # Create session with matching series
     session_df = pd.DataFrame({
         'Acquisition': ['fMRI'] * 2,
@@ -166,15 +131,15 @@ def test_unified_compliance_series_fields(tmp_path):
         'TaskName': ['rest', 'rest'],
         'NumberOfVolumes': [295, 305]  # Within tolerance
     })
-    
+
     results = check_session_compliance(
         in_session=session_df,
         schema_data=schema,
         session_map={"fMRI": "fMRI"}
     )
-    
+
     # Should have 2 passes: 1 acquisition field + 1 series result (not individual fields)
-    passed_results = [r for r in results if r['passed']]
+    passed_results = [r for r in results if r['status'] == 'ok']
     assert len(passed_results) == 2
 
 
@@ -204,7 +169,7 @@ def test_unified_compliance_missing_acquisition(tmp_path):
     
     # Should have one error for missing acquisition
     assert len(results) == 1
-    assert results[0]['passed'] == False
+    assert results[0]['status'] == 'error'
     assert 'not found in session data' in results[0]['message']
     assert results[0]['field'] == 'Acquisition'
 
@@ -253,20 +218,20 @@ if value['Field4'].iloc[0] > 500:
     )
     
     # Count results by type
-    passed = [r for r in results if r['passed']]
-    failed = [r for r in results if not r['passed']]
-    
+    passed = [r for r in results if r['status'] == 'ok']
+    failed = [r for r in results if r['status'] != 'ok']
+
     assert len(passed) == 1  # Only Field1 passes
     assert len(failed) == 3  # Field2 mismatch, Field3 missing, Field4 rule fails
-    
+
     # Check specific failures
     field2_results = [r for r in failed if 'Field2' in str(r.get('field', ''))]
     assert len(field2_results) == 1
-    
+
     field3_results = [r for r in failed if 'Field3' in str(r.get('field', ''))]
     assert len(field3_results) == 1
     assert 'not found' in field3_results[0]['message'].lower()
-    
+
     field4_results = [r for r in failed if 'Field4' in str(r.get('field', ''))]
     assert len(field4_results) == 1
     assert 'too large' in field4_results[0]['message']
@@ -353,5 +318,5 @@ if value['CustomField'].iloc[0] != 42:
     
     # Should pass the custom check
     assert len(results) == 1
-    assert results[0]['passed'] == True
+    assert results[0]['status'] == 'ok'
     assert results[0]['rule_name'] == 'Custom Check'

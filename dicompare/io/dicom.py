@@ -23,7 +23,7 @@ from tqdm import tqdm
 from pydicom.multival import MultiValue
 from pydicom.valuerep import DT, DSfloat, DSdecimal, IS
 
-from ..utils import normalize_numeric_values, safe_convert_value
+from ..utils import safe_convert_value
 from ..config import NONZERO_FIELDS
 from ..processing.parallel_utils import process_items_parallel, process_items_sequential
 from ..data_utils import make_dataframe_hashable, _process_dicom_metadata, prepare_session_dataframe

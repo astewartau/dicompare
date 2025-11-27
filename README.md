@@ -20,32 +20,42 @@ pip install dicompare
 
 ## Command-line interface (CLI)
 
-The package provides the following CLI entry points:
+The package provides a unified `dicompare` command with two subcommands:
 
-- **`dcm-gen-session`**: Generate JSON schemas for DICOM validation from a reference session
-- **`dcm-check-session`**: Validate DICOM sessions against JSON or Python schemas
+- **`dicompare build`**: Generate a JSON schema from a reference DICOM session
+- **`dicompare check`**: Validate DICOM sessions against a JSON schema
 
-### 1. Generate a JSON schema from a reference session
+### 1. Build a JSON schema from a reference session
 
 ```bash
-dcm-gen-session \
-    --in_session_dir /path/to/dicom/session \
-    --out_json_schema schema.json \
-    --reference_fields EchoTime RepetitionTime FlipAngle
+dicompare build /path/to/dicom/session schema.json
 ```
 
-This creates a JSON schema describing the session based on the specified reference fields.
+This creates a JSON schema describing the session based on default reference fields present in the data.
 
-### 2. Validate a DICOM session
+### 2. Check a DICOM session against a schema
 
 ```bash
-dcm-check-session \
-    --in_session /path/to/dicom/session \
-    --json_schema schema.json \
-    --out_json compliance_report.json
+dicompare check /path/to/dicom/session schema.json
 ```
 
 The tool will output a compliance summary, indicating deviations from the schema.
+
+### 3. Check with report output
+
+```bash
+dicompare check /path/to/dicom/session schema.json compliance_report.json
+```
+
+This saves the compliance report to a JSON file.
+
+### 4. Automatic acquisition mapping
+
+```bash
+dicompare check /path/to/dicom/session schema.json --auto-yes
+```
+
+Use `--auto-yes` or `-y` to automatically map acquisitions without interactive prompts.
 
 ## Python API
 
@@ -86,10 +96,11 @@ pro_session = load_pro_session(
 )
 ```
 
-### Generate a JSON schema
+### Build a JSON schema
 
 ```python
-from dicompare import load_dicom_session, create_json_schema
+from dicompare import load_dicom_session, build_schema, make_json_serializable
+from dicompare.config import DEFAULT_SETTINGS_FIELDS
 import json
 
 # Load the reference session
@@ -98,30 +109,34 @@ session_df = load_dicom_session(
     show_progress=True
 )
 
-# Create a JSON schema
-reference_fields = ["EchoTime", "RepetitionTime", "FlipAngle"]
-json_schema = create_json_schema(
+# Filter reference fields to those present in the session
+reference_fields = [f for f in DEFAULT_SETTINGS_FIELDS if f in session_df.columns]
+
+# Build the schema
+json_schema = build_schema(
     session_df=session_df,
     reference_fields=reference_fields
 )
 
 # Save the schema
+serializable_schema = make_json_serializable(json_schema)
 with open("schema.json", "w") as f:
-    json.dump(json_schema, f, indent=4)
+    json.dump(serializable_schema, f, indent=4)
 ```
 
 ### Validate a session against a JSON schema
 
 ```python
 from dicompare import (
-    load_json_schema,
+    load_schema,
     load_dicom_session,
-    check_session_compliance_with_json_schema,
-    map_to_json_reference
+    check_acquisition_compliance,
+    map_to_json_reference,
+    assign_acquisition_and_run_numbers
 )
 
 # Load the JSON schema
-reference_fields, json_schema = load_json_schema(json_schema_path="schema.json")
+reference_fields, json_schema, validation_rules = load_schema(json_schema_path="schema.json")
 
 # Load the input session
 in_session = load_dicom_session(
@@ -129,15 +144,28 @@ in_session = load_dicom_session(
     show_progress=True
 )
 
+# Assign acquisition and run numbers
+in_session = assign_acquisition_and_run_numbers(in_session)
+
 # Map acquisitions to schema
 session_map = map_to_json_reference(in_session, json_schema)
 
-# Check compliance
-compliance_summary = check_session_compliance_with_json_schema(
-    in_session=in_session,
-    ref_session=json_schema,
-    session_map=session_map
-)
+# Check compliance for each acquisition
+compliance_summary = []
+for ref_acq_name, schema_acq in json_schema["acquisitions"].items():
+    if ref_acq_name not in session_map:
+        continue
+
+    input_acq_name = session_map[ref_acq_name]
+    acq_validation_rules = validation_rules.get(ref_acq_name) if validation_rules else None
+
+    results = check_acquisition_compliance(
+        in_session,
+        schema_acq,
+        acquisition_name=input_acq_name,
+        validation_rules=acq_validation_rules
+    )
+    compliance_summary.extend(results)
 
 # Display results
 for entry in compliance_summary:
@@ -151,11 +179,7 @@ for entry in compliance_summary:
 ```python
 from dicompare import assign_acquisition_and_run_numbers
 
-session_df = assign_acquisition_and_run_numbers(
-    session_df=session_df,
-    acquisition_fields=["ProtocolName"],
-    reference_fields=["EchoTime", "RepetitionTime"]
-)
+session_df = assign_acquisition_and_run_numbers(session_df)
 ```
 
 **Get DICOM tag information:**

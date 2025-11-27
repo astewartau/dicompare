@@ -4,7 +4,7 @@ used in DICOM compliance checks.
 
 """
 
-from typing import Callable, List, Dict, Any, Tuple, Type
+from typing import Callable, List, Dict, Any, Tuple
 import pandas as pd
 from itertools import chain
 import math

@@ -15,53 +15,11 @@ from typing import Any, List, Dict, Tuple
 from ..utils import normalize_numeric_values
 
 
-def load_json_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any]]:
+def load_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any], Dict[str, Any]]:
     """
-    Load a JSON schema file and extract fields for acquisitions and series.
+    Load a JSON schema file with support for both field validation and embedded Python rules.
 
-    Expects the modern dict-based acquisitions format used by React applications.
-
-    Args:
-        json_schema_path (str): Path to the JSON schema file.
-
-    Returns:
-        Tuple[List[str], Dict[str, Any]]:
-            - Sorted list of all reference fields encountered.
-            - Schema data as loaded from the file.
-
-    Raises:
-        FileNotFoundError: If the specified JSON file path does not exist.
-        JSONDecodeError: If the file is not a valid JSON file.
-    """
-    with open(json_schema_path, "r") as f:
-        schema_data = json.load(f)
-
-    schema_data = normalize_numeric_values(schema_data)
-
-    # Extract field names from the schema
-    reference_fields = set()
-    acquisitions_data = schema_data.get("acquisitions", {})
-
-    for acq_name, acq_data in acquisitions_data.items():
-        # Extract field names from acquisition fields
-        for field in acq_data.get("fields", []):
-            if "field" in field:
-                reference_fields.add(field["field"])
-
-        # Extract field names from series fields
-        for series in acq_data.get("series", []):
-            for field in series.get("fields", []):
-                if "field" in field:
-                    reference_fields.add(field["field"])
-
-    return sorted(reference_fields), schema_data
-
-
-def load_hybrid_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any], Dict[str, Any]]:
-    """
-    Load a hybrid JSON schema file that supports both field validation and embedded Python rules.
-
-    This function extends load_json_schema to also extract and prepare validation rules
+    This function loads schema files and extracts field definitions and validation rules
     for dynamic model generation.
 
     Args:

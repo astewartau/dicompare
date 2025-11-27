@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 
 from dicompare.validation import check_acquisition_compliance
-from dicompare.io import load_json_schema
+from dicompare.io import load_schema
 from dicompare.validation.helpers import ComplianceStatus
 from dicompare.validation import BaseValidationModel
 
@@ -94,7 +94,7 @@ def dummy_ref_models():
 
 # -------------------- Helper for legacy test format --------------------
 # This helper maintains the test structure but uses the new API internally
-def check_session_compliance_with_json_schema(in_session, ref_session, session_map):
+def check_compliance(in_session, ref_session, session_map):
     """Temporary helper to convert old test format to new API calls."""
     # For these tests, we just validate the first mapped acquisition
     for ref_acq_name, input_acq_name in session_map.items():
@@ -108,22 +108,22 @@ def check_session_compliance_with_json_schema(in_session, ref_session, session_m
 
 # -------------------- Tests for JSON Reference Compliance --------------------
 
-def test_check_session_compliance_with_json_schema_pass(dummy_in_session, dummy_ref_session_pass, dummy_session_map_pass):
-    compliance = check_session_compliance_with_json_schema(
+def test_check_compliance_pass(dummy_in_session, dummy_ref_session_pass, dummy_session_map_pass):
+    compliance = check_compliance(
         dummy_in_session, dummy_ref_session_pass, dummy_session_map_pass
     )
-    assert all(record["passed"] for record in compliance)
+    assert all(record["status"] == "ok" for record in compliance)
 
 
-def test_check_session_compliance_with_json_schema_missing_and_unmapped(dummy_in_session, dummy_ref_session_fail, dummy_session_map_fail):
-    compliance = check_session_compliance_with_json_schema(
+def test_check_compliance_missing_and_unmapped(dummy_in_session, dummy_ref_session_fail, dummy_session_map_fail):
+    compliance = check_compliance(
         dummy_in_session, dummy_ref_session_fail, dummy_session_map_fail
     )
     messages = [rec.get("message", "") for rec in compliance]
     assert any("not found" in msg.lower() for msg in messages)
 
 
-def test_check_session_compliance_with_json_schema_series_fail(dummy_in_session):
+def test_check_compliance_series_fail(dummy_in_session):
     ref_session = {
         "acquisitions": {
             "ref1": {
@@ -134,12 +134,12 @@ def test_check_session_compliance_with_json_schema_series_fail(dummy_in_session)
         }
     }
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(dummy_in_session, ref_session, session_map)
-    assert any(rec.get("series") is not None and "not found" in rec.get("message", "") for rec in compliance)
+    compliance = check_compliance(dummy_in_session, ref_session, session_map)
+    assert any(rec.get("status") == "error" and "not found" in rec.get("message", "") for rec in compliance)
 
 # -------------------- Tests for JSON Session Loaders --------------------
 
-def test_load_json_schema_and_fields(tmp_path):
+def test_load_schema_and_fields(tmp_path):
     ref = {
         "version": "1.0",
         "name": "Test Schema",
@@ -162,9 +162,10 @@ def test_load_json_schema_and_fields(tmp_path):
     file = tmp_path / "ref.json"
     file.write_text(json.dumps(ref))
 
-    fields, data = load_json_schema(str(file))
+    fields, data, validation_rules = load_schema(str(file))
     assert "F1" in fields
     assert "test_acq" in data["acquisitions"]
+    assert isinstance(validation_rules, dict)
 
 
 # -------------------- Tests for QSM Compliance --------------------
@@ -214,10 +215,10 @@ def test_json_compliance_contains_validation():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should pass - both fields contain the required substrings
-    assert all(rec["passed"] for rec in compliance)
+    assert all(rec["status"] == "ok" for rec in compliance)
 
 
 def test_json_compliance_contains_validation_failure():
@@ -240,11 +241,11 @@ def test_json_compliance_contains_validation_failure():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should fail - ProtocolName values don't contain "BOLD"
-    assert any(not rec["passed"] for rec in compliance)
-    failed_records = [r for r in compliance if not r["passed"]]
+    assert any(rec["status"] == "error" for rec in compliance)
+    failed_records = [r for r in compliance if r["status"] == "error"]
     assert any("Expected to contain 'BOLD'" in r["message"] for r in failed_records)
 
 
@@ -269,10 +270,10 @@ def test_json_compliance_tolerance_validation():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should pass - values are within tolerance
-    assert all(rec["passed"] for rec in compliance)
+    assert all(rec["status"] == "ok" for rec in compliance)
 
 
 def test_json_compliance_tolerance_validation_failure():
@@ -295,11 +296,11 @@ def test_json_compliance_tolerance_validation_failure():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should fail - RepetitionTime is outside tolerance
-    assert any(not rec["passed"] for rec in compliance)
-    failed_records = [r for r in compliance if not r["passed"]]
+    assert any(rec["status"] == "error" for rec in compliance)
+    failed_records = [r for r in compliance if r["status"] == "error"]
     assert any("Expected 2000" in r["message"] and "2100" in r["message"] for r in failed_records)
 
 
@@ -322,11 +323,11 @@ def test_json_compliance_non_numeric_tolerance():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should fail - non-numeric values can't use tolerance
-    assert any(not rec["passed"] for rec in compliance)
-    failed_records = [r for r in compliance if not r["passed"]]
+    assert any(rec["status"] == "error" for rec in compliance)
+    failed_records = [r for r in compliance if r["status"] == "error"]
     assert any("Field must be numeric" in r["message"] for r in failed_records)
 
 
@@ -359,10 +360,10 @@ def test_json_compliance_list_value_matching_fixed():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should now pass - the bug has been fixed in the refactoring
-    assert all(rec["passed"] for rec in compliance)
+    assert all(rec["status"] == "ok" for rec in compliance)
 
 
 def test_json_compliance_case_insensitive_matching():
@@ -386,10 +387,10 @@ def test_json_compliance_case_insensitive_matching():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should pass - case-insensitive matching with whitespace trimming
-    assert all(rec["passed"] for rec in compliance)
+    assert all(rec["status"] == "ok" for rec in compliance)
 
 
 def test_json_compliance_single_element_list_unwrapping():
@@ -413,10 +414,10 @@ def test_json_compliance_single_element_list_unwrapping():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should pass - string values match exactly
-    assert all(rec["passed"] for rec in compliance)
+    assert all(rec["status"] == "ok" for rec in compliance)
 
 
 def test_json_compliance_series_validation_complex():
@@ -428,7 +429,7 @@ def test_json_compliance_series_validation_complex():
         "RepetitionTime": [2000, 2000, 500],
         "FlipAngle": [90, 90, 10]
     })
-    
+
     ref_session = {
         "acquisitions": {
             "ref1": {
@@ -446,12 +447,12 @@ def test_json_compliance_series_validation_complex():
             }
         }
     }
-    
+
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should pass - series validation finds matching rows
-    assert all(rec["passed"] for rec in compliance)
+    assert all(rec["status"] == "ok" for rec in compliance)
 
 
 def test_json_compliance_series_not_found():
@@ -462,7 +463,7 @@ def test_json_compliance_series_not_found():
         "EchoTime": [0, 100],
         "RepetitionTime": [500, 5000]
     })
-    
+
     ref_session = {
         "acquisitions": {
             "ref1": {
@@ -479,14 +480,14 @@ def test_json_compliance_series_not_found():
             }
         }
     }
-    
+
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should fail - no series matches the constraints
-    assert any(not rec["passed"] for rec in compliance)
-    failed_records = [r for r in compliance if not r["passed"]]
-    assert any("not found with constraints" in r["message"] for r in failed_records)
+    assert any(rec["status"] == "error" for rec in compliance)
+    failed_records = [r for r in compliance if r["status"] == "error"]
+    assert any("not found" in r["message"] for r in failed_records)
 
 
 def test_json_compliance_missing_series_field():
@@ -497,7 +498,7 @@ def test_json_compliance_missing_series_field():
         "RepetitionTime": [2000]
         # Missing EchoTime field
     })
-    
+
     ref_session = {
         "acquisitions": {
             "ref1": {
@@ -514,14 +515,14 @@ def test_json_compliance_missing_series_field():
             }
         }
     }
-    
+
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should fail - EchoTime field is missing
-    assert any(not rec["passed"] for rec in compliance)
-    failed_records = [r for r in compliance if not r["passed"]]
-    assert any("missing required fields" in r["message"] for r in failed_records)
+    assert any(rec["status"] in ["error", "na"] for rec in compliance)
+    failed_records = [r for r in compliance if r["status"] in ["error", "na"]]
+    assert any("missing" in r["message"].lower() or "not found" in r["message"].lower() for r in failed_records)
 
 
 def test_json_compliance_empty_input_session():
@@ -538,7 +539,7 @@ def test_json_compliance_empty_input_session():
     }
 
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    compliance = check_compliance(in_session, ref_session, session_map)
 
     # Should handle empty session gracefully and report acquisition not found
     assert isinstance(compliance, list)
@@ -567,14 +568,14 @@ def test_json_compliance_contains_any_string():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    compliance = check_compliance(in_session, ref_session, session_map)
     
     # Both constraints should pass (all values contain at least one required substring)
     protocol_result = [r for r in compliance if r["field"] == "ProtocolName"][0]
     series_result = [r for r in compliance if r["field"] == "SeriesDescription"][0]
-    
-    assert protocol_result["passed"], f"ProtocolName should pass: {protocol_result['message']}"
-    assert series_result["passed"], f"SeriesDescription should pass: {series_result['message']}"
+
+    assert protocol_result["status"] == "ok", f"ProtocolName should pass: {protocol_result['message']}"
+    assert series_result["status"] == "ok", f"SeriesDescription should pass: {series_result['message']}"
 
 
 def test_json_compliance_contains_any_string_failure():
@@ -595,10 +596,10 @@ def test_json_compliance_contains_any_string_failure():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    compliance = check_compliance(in_session, ref_session, session_map)
     
     protocol_result = [r for r in compliance if r["field"] == "ProtocolName"][0]
-    assert not protocol_result["passed"]
+    assert protocol_result["status"] == "error"
     assert "contain any of" in protocol_result["message"]
 
 
@@ -626,11 +627,11 @@ def test_json_compliance_contains_any_list():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    compliance = check_compliance(in_session, ref_session, session_map)
     
     # Should pass because both rows contain ORIGINAL
     image_type_result = [r for r in compliance if r["field"] == "ImageType"][0]
-    assert image_type_result["passed"], f"ImageType should pass: {image_type_result['message']}"
+    assert image_type_result["status"] == "ok", f"ImageType should pass: {image_type_result['message']}"
 
 
 def test_json_compliance_contains_any_list_failure():
@@ -657,10 +658,10 @@ def test_json_compliance_contains_any_list_failure():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    compliance = check_compliance(in_session, ref_session, session_map)
     
     image_type_result = [r for r in compliance if r["field"] == "ImageType"][0]
-    assert not image_type_result["passed"]
+    assert image_type_result["status"] == "error"
     assert "contain any of" in image_type_result["message"]
 
 
@@ -688,11 +689,11 @@ def test_json_compliance_contains_all_list():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    compliance = check_compliance(in_session, ref_session, session_map)
     
     # Should pass because both rows contain both ORIGINAL and PRIMARY
     image_type_result = [r for r in compliance if r["field"] == "ImageType"][0]
-    assert image_type_result["passed"], f"ImageType should pass: {image_type_result['message']}"
+    assert image_type_result["status"] == "ok", f"ImageType should pass: {image_type_result['message']}"
 
 
 def test_json_compliance_contains_all_list_failure():
@@ -719,11 +720,11 @@ def test_json_compliance_contains_all_list_failure():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    compliance = check_compliance(in_session, ref_session, session_map)
     
     # Should fail because no single row contains both ORIGINAL and PRIMARY
     image_type_result = [r for r in compliance if r["field"] == "ImageType"][0]
-    assert not image_type_result["passed"]
+    assert image_type_result["status"] == "error"
     assert "contain all of" in image_type_result["message"]
 
 
@@ -745,33 +746,33 @@ def test_json_compliance_contains_all_string_invalid():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
+    compliance = check_compliance(in_session, ref_session, session_map)
     
     # contains_all on strings should fail validation
     protocol_result = [r for r in compliance if r["field"] == "ProtocolName"][0]
-    assert not protocol_result["passed"]
+    assert protocol_result["status"] == "error"
 
 
 def test_json_compliance_series_contains_any():
     """Test contains_any constraint in series-level validation."""
     from dicompare.utils import make_hashable
-    
+
     in_session = pd.DataFrame({
         "Acquisition": ["acq1", "acq1", "acq1"],
         "ImageType": [["ORIGINAL", "PRIMARY", "M"], ["DERIVED", "SECONDARY"], ["ORIGINAL", "SECONDARY", "ND"]],
         "SeriesDescription": ["T1w_MPR_original", "T1w_MPR_derived", "T1w_MPR_norm"]
     })
-    
+
     # Apply make_hashable to simulate real processing
     for col in in_session.columns:
         in_session[col] = in_session[col].apply(make_hashable)
-    
+
     ref_session = {
         "acquisitions": {
             "ref1": {
                 "series": [
                     {
-                        "name": "Original_Images", 
+                        "name": "Original_Images",
                         "fields": [
                             {"field": "ImageType", "contains_any": ["ORIGINAL"]},
                             {"field": "SeriesDescription", "contains_any": ["original", "norm"]}
@@ -781,14 +782,13 @@ def test_json_compliance_series_contains_any():
             }
         }
     }
-    
+
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should find matching series and pass validation
-    series_results = [r for r in compliance if r["series"] == "Original_Images"]
-    assert len(series_results) > 0
-    assert all(r["passed"] for r in series_results)
+    assert len(compliance) > 0
+    assert all(r["status"] == "ok" for r in compliance)
 
 
 def test_constraint_precedence():
@@ -820,12 +820,12 @@ def test_constraint_precedence():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # Should pass because contains_any is checked first and passes
     test_result = [r for r in compliance if r["field"] == "TestField"][0]
-    assert test_result["passed"]
-    assert test_result["contains_any"] == ["A"]  # Check the constraint was applied
+    assert test_result["status"] == "ok"
+    assert "contains_any" in test_result.get("expected", "")  # Check the constraint was applied
 
 
 def test_backward_compatibility_existing_constraints():
@@ -858,7 +858,7 @@ def test_backward_compatibility_existing_constraints():
     }
     
     session_map = {"ref1": "acq1"}
-    compliance = check_session_compliance_with_json_schema(in_session, ref_session, session_map)
-    
+    compliance = check_compliance(in_session, ref_session, session_map)
+
     # All existing constraint types should pass
-    assert all(r["passed"] for r in compliance), f"Some constraints failed: {[r for r in compliance if not r['passed']]}"
+    assert all(r["status"] == "ok" for r in compliance), f"Some constraints failed: {[r for r in compliance if r['status'] != 'ok']}"

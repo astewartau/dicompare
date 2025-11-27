@@ -64,8 +64,7 @@ DEFAULT_SETTINGS_FIELDS = [
 DEFAULT_SERIES_FIELDS = [
     "SeriesDescription",
     "ImageType",
-    "EchoTime",
-    "DiffusionBValue",
+    # "DiffusionBValue",  # Excluded - handled by parameter set grouping in acquisition assignment
     #"DiffusionGradientDirectionSequence", # Too many unique values - should be handled by validation rules
     "InversionTime"
 ]

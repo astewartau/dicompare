@@ -272,7 +272,7 @@ def _generate_series_combinations(series_params: Dict[str, List]) -> List[Dict[s
     series_list = []
     for i, combination in enumerate(combinations, 1):
         series = {
-            "name": f"Series {i}",
+            "name": f"Series {i:02d}",
             "fields": []
         }
         
