@@ -65,7 +65,9 @@ def build_schema(session_df: pd.DataFrame, reference_fields: List[str] = None) -
         # Group by varying fields to create series
         # Each unique combination of varying field values becomes a series
         if varying_fields:
-            series_groups = acq_group.groupby(varying_fields, dropna=False)
+            # Use scalar for single field to avoid pandas returning tuple keys
+            groupby_key = varying_fields[0] if len(varying_fields) == 1 else varying_fields
+            series_groups = acq_group.groupby(groupby_key, dropna=False)
 
             for i, (series_key, series_group) in enumerate(series_groups, start=1):
                 # Handle single field vs multiple fields

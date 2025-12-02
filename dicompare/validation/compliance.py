@@ -201,9 +201,10 @@ def check_acquisition_compliance(
                 field_map[schema_field] = matched_field
 
         if missing_fields:
+            field_word = "field" if len(missing_fields) == 1 else "fields"
             compliance_summary.append(create_compliance_record(
                 field=", ".join([f["field"] for f in series_fields]),
-                message=f"Series '{series_name}' missing required fields: {', '.join(missing_fields)}",
+                message=f"Series not found (required {field_word} '{', '.join(missing_fields)}' not in data)",
                 status=ComplianceStatus.NA,
                 series=series_name
             ))
