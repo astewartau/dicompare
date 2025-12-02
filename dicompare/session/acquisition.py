@@ -102,6 +102,11 @@ def assign_acquisition_and_run_numbers(
 
     logger.debug("Starting assign_acquisition_and_run_numbers")
 
+    # Check if 'Acquisition' column already exists
+    if 'Acquisition' in session_df.columns:
+        logger.debug("  'Acquisition' column already exists, returning original DataFrame")
+        return session_df.copy()
+
     # Suppress DataFrame fragmentation warnings
     warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 

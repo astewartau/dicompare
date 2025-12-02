@@ -247,7 +247,12 @@ async def analyze_dicom_files_for_web(
         print(f"Using {len(available_fields)} available fields out of {len(reference_fields)} requested")
         print(f"Available fields: {available_fields}")
 
-        # Cache DataFrame immediately for reuse across API calls
+        # Assign acquisition and run numbers ONCE here, so the same names are used
+        # for both the schema result AND the cached DataFrame for validation
+        session_df = assign_acquisition_and_run_numbers(session_df)
+        print(f"Assigned acquisitions: {session_df['Acquisition'].unique().tolist()}")
+
+        # Cache DataFrame with Acquisition column for reuse across API calls
         metadata = {
             'total_files': len(dicom_files),
             'reference_fields': reference_fields,
@@ -256,6 +261,7 @@ async def analyze_dicom_files_for_web(
         _cache_session(session_df, metadata, None)
 
         # Create schema from session with only available fields
+        # build_schema will use existing Acquisition column instead of re-computing
         schema_result = build_schema(session_df, available_fields)
 
         # Format for web
