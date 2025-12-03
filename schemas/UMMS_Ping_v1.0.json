@@ -1,0 +1,2837 @@
+{
+  "name": "UMMS PING",
+  "description": "",
+  "version": "1.0",
+  "authors": [
+    "Christian Haselgrove"
+  ],
+  "acquisitions": {
+    "Localizer": {
+      "description": "Survey/localizer scan",
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "Survey"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "MP"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "GR"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M_FFE",
+            "M",
+            "FFE"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "Philips Medical Systems"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Achieva"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 10
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            0.48828,
+            0.48828
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 512
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 512
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            0,
+            256,
+            128,
+            0
+          ]
+        },
+        {
+          "field": "ReconstructionDiameter",
+          "tag": "0018,1100",
+          "value": 250
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 10.5199
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 4
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 10
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 64
+        },
+        {
+          "field": "GradientEchoTrainLength",
+          "tag": "0018,9241",
+          "value": 64
+        },
+        {
+          "field": "NumberOfTemporalPositions",
+          "tag": "0020,0105",
+          "value": 1
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 0
+        },
+        {
+          "field": "ParallelReductionFactorInPlane",
+          "tag": "0018,9069",
+          "value": 1
+        },
+        {
+          "field": "PartialFourier",
+          "tag": "0018,9081",
+          "value": "YES"
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 124,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "ROW"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 128
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 127.79007,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "B"
+        },
+        {
+          "field": "ReceiveCoilName",
+          "tag": "0018,1250",
+          "value": "SENSE-Head-8"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.24764
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 15.61114
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 50
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "PFF"
+        },
+        {
+          "field": "LowRRValue",
+          "tag": "0018,1081",
+          "value": 0
+        },
+        {
+          "field": "HighRRValue",
+          "tag": "0018,1082",
+          "value": 0
+        },
+        {
+          "field": "SpectrallySelectedExcitation",
+          "tag": "0018,9026",
+          "value": "WATER"
+        },
+        {
+          "field": "SaturationRecovery",
+          "tag": "0018,9024",
+          "value": "NO"
+        },
+        {
+          "field": "SpectrallySelectedSuppression",
+          "tag": "0018,9025",
+          "value": "NONE"
+        },
+        {
+          "field": "TimeOfFlightContrast",
+          "tag": "0018,9015",
+          "value": "NO"
+        },
+        {
+          "field": "SteadyStatePulseSequence",
+          "tag": "0018,9017",
+          "value": "LONGITUDINAL"
+        },
+        {
+          "field": "PartialFourierDirection",
+          "tag": "0018,9036",
+          "value": "FREQUENCY"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "T2w-TSE": {
+      "description": "T2-weighted turbo spin echo structural image",
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "T2W_TSE"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "SE"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M_SE",
+            "M",
+            "SE"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "Philips Medical Systems"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Achieva"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 3
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            0.44643,
+            0.44643
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 560
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 560
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            0,
+            436,
+            334,
+            0
+          ]
+        },
+        {
+          "field": "ReconstructionDiameter",
+          "tag": "0018,1100",
+          "value": 250
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 3000
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 80
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 15
+        },
+        {
+          "field": "GradientEchoTrainLength",
+          "tag": "0018,9241",
+          "value": 0
+        },
+        {
+          "field": "NumberOfTemporalPositions",
+          "tag": "0020,0105",
+          "value": 1
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 0
+        },
+        {
+          "field": "ParallelReductionFactorInPlane",
+          "tag": "0018,9069",
+          "value": 1
+        },
+        {
+          "field": "PartialFourier",
+          "tag": "0018,9081",
+          "value": "NO"
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 203,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "ROW"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 334
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 127.79009,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "B"
+        },
+        {
+          "field": "ReceiveCoilName",
+          "tag": "0018,1250",
+          "value": "SENSE-Head-8"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 3.00503
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 27.11196
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 79.54546
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 80.73394
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "SP"
+        },
+        {
+          "field": "LowRRValue",
+          "tag": "0018,1081",
+          "value": 0
+        },
+        {
+          "field": "HighRRValue",
+          "tag": "0018,1082",
+          "value": 0
+        },
+        {
+          "field": "SpectrallySelectedExcitation",
+          "tag": "0018,9026",
+          "value": "WATER"
+        },
+        {
+          "field": "SaturationRecovery",
+          "tag": "0018,9024",
+          "value": "NO"
+        },
+        {
+          "field": "SpectrallySelectedSuppression",
+          "tag": "0018,9025",
+          "value": "NONE"
+        },
+        {
+          "field": "TimeOfFlightContrast",
+          "tag": "0018,9015",
+          "value": "NO"
+        },
+        {
+          "field": "SteadyStatePulseSequence",
+          "tag": "0018,9017",
+          "value": "NONE"
+        },
+        {
+          "field": "PartialFourierDirection",
+          "tag": "0018,9036",
+          "value": "FREQUENCY"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "T1w-MPRAGE": {
+      "description": "T1-weighted MPRAGE structural image",
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "MPRAGE"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "MP"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "GR"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M_FFE",
+            "M",
+            "FFE"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "Philips Medical Systems"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Achieva"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1.2
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            1,
+            1
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 256
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 256
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            0,
+            256,
+            256,
+            0
+          ]
+        },
+        {
+          "field": "ReconstructionDiameter",
+          "tag": "0018,1100",
+          "value": 256
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 6.7661
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 3.133
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 8
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 240
+        },
+        {
+          "field": "GradientEchoTrainLength",
+          "tag": "0018,9241",
+          "value": 240
+        },
+        {
+          "field": "NumberOfTemporalPositions",
+          "tag": "0020,0105",
+          "value": 1
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 0
+        },
+        {
+          "field": "ParallelAcquisitionTechnique",
+          "tag": "0018,9078",
+          "value": "SENSE"
+        },
+        {
+          "field": "ParallelReductionFactorInPlane",
+          "tag": "0018,9069",
+          "value": 1
+        },
+        {
+          "field": "PartialFourier",
+          "tag": "0018,9081",
+          "value": "NO"
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 241,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "ROW"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 256
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 127.79001,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "B"
+        },
+        {
+          "field": "ReceiveCoilName",
+          "tag": "0018,1250",
+          "value": "SENSE-Head-8"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.22665
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 59.95616
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 93.75
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "OTHER"
+        },
+        {
+          "field": "LowRRValue",
+          "tag": "0018,1081",
+          "value": 0
+        },
+        {
+          "field": "HighRRValue",
+          "tag": "0018,1082",
+          "value": 0
+        },
+        {
+          "field": "SpectrallySelectedExcitation",
+          "tag": "0018,9026",
+          "value": "WATER"
+        },
+        {
+          "field": "SaturationRecovery",
+          "tag": "0018,9024",
+          "value": "NO"
+        },
+        {
+          "field": "SpectrallySelectedSuppression",
+          "tag": "0018,9025",
+          "value": "NONE"
+        },
+        {
+          "field": "TimeOfFlightContrast",
+          "tag": "0018,9015",
+          "value": "NO"
+        },
+        {
+          "field": "SteadyStatePulseSequence",
+          "tag": "0018,9017",
+          "value": "LONGITUDINAL"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "DWI-ADC": {
+      "description": "Apparent diffusion coefficient map",
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "dReg - DiffHR2.5NoSense CLEAR"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "RM"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "ADC_UNSPECIFIED",
+            "ADC",
+            "UNSPECIFIED"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "Philips Medical Systems"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Achieva"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.5
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.5,
+            2.5
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 96
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 96
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            96,
+            0,
+            0,
+            95
+          ]
+        },
+        {
+          "field": "ReconstructionDiameter",
+          "tag": "0018,1100",
+          "value": 240
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 9000
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 91.14
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 95
+        },
+        {
+          "field": "GradientEchoTrainLength",
+          "tag": "0018,9241",
+          "value": 95
+        },
+        {
+          "field": "NumberOfTemporalPositions",
+          "tag": "0020,0105",
+          "value": 1
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 0
+        },
+        {
+          "field": "ParallelReductionFactorInPlane",
+          "tag": "0018,9069",
+          "value": 1
+        },
+        {
+          "field": "PartialFourier",
+          "tag": "0018,9081",
+          "value": "NO"
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 3327,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 95
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 127.78994,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "B"
+        },
+        {
+          "field": "ReceiveCoilName",
+          "tag": "0018,1250",
+          "value": "SENSE-Head-8"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.77858
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 78.97713
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "LowRRValue",
+          "tag": "0018,1081",
+          "value": 0
+        },
+        {
+          "field": "HighRRValue",
+          "tag": "0018,1082",
+          "value": 0
+        },
+        {
+          "field": "SpectrallySelectedExcitation",
+          "tag": "0018,9026",
+          "value": "WATER"
+        },
+        {
+          "field": "SaturationRecovery",
+          "tag": "0018,9024",
+          "value": "NO"
+        },
+        {
+          "field": "SpectrallySelectedSuppression",
+          "tag": "0018,9025",
+          "value": "FAT"
+        },
+        {
+          "field": "TimeOfFlightContrast",
+          "tag": "0018,9015",
+          "value": "NO"
+        },
+        {
+          "field": "SteadyStatePulseSequence",
+          "tag": "0018,9017",
+          "value": "NONE"
+        },
+        {
+          "field": "PartialFourierDirection",
+          "tag": "0018,9036",
+          "value": "FREQUENCY"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "DWI-EADC": {
+      "description": "Exponential apparent diffusion coefficient map",
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "eReg - DiffHR2.5NoSense CLEAR"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "RM"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "EADC_UNSPECIFIE",
+            "EADC",
+            "UNSPECIFIED"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "Philips Medical Systems"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Achieva"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.5
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.5,
+            2.5
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 96
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 96
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            96,
+            0,
+            0,
+            95
+          ]
+        },
+        {
+          "field": "ReconstructionDiameter",
+          "tag": "0018,1100",
+          "value": 240
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 9000
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 91.14
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 95
+        },
+        {
+          "field": "GradientEchoTrainLength",
+          "tag": "0018,9241",
+          "value": 95
+        },
+        {
+          "field": "NumberOfTemporalPositions",
+          "tag": "0020,0105",
+          "value": 1
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 1000
+        },
+        {
+          "field": "ParallelReductionFactorInPlane",
+          "tag": "0018,9069",
+          "value": 1
+        },
+        {
+          "field": "PartialFourier",
+          "tag": "0018,9081",
+          "value": "NO"
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 3327,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 95
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 127.78994,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "B"
+        },
+        {
+          "field": "ReceiveCoilName",
+          "tag": "0018,1250",
+          "value": "SENSE-Head-8"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.77858
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 78.97713
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "LowRRValue",
+          "tag": "0018,1081",
+          "value": 0
+        },
+        {
+          "field": "HighRRValue",
+          "tag": "0018,1082",
+          "value": 0
+        },
+        {
+          "field": "SpectrallySelectedExcitation",
+          "tag": "0018,9026",
+          "value": "WATER"
+        },
+        {
+          "field": "SaturationRecovery",
+          "tag": "0018,9024",
+          "value": "NO"
+        },
+        {
+          "field": "SpectrallySelectedSuppression",
+          "tag": "0018,9025",
+          "value": "FAT"
+        },
+        {
+          "field": "TimeOfFlightContrast",
+          "tag": "0018,9015",
+          "value": "NO"
+        },
+        {
+          "field": "SteadyStatePulseSequence",
+          "tag": "0018,9017",
+          "value": "NONE"
+        },
+        {
+          "field": "PartialFourierDirection",
+          "tag": "0018,9036",
+          "value": "FREQUENCY"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "DWI-FA": {
+      "description": "Fractional anisotropy map",
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "faReg - DiffHR2.5NoSense CLEAR"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "RM"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "FA_UNSPECIFIED",
+            "FA",
+            "UNSPECIFIED"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "Philips Medical Systems"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Achieva"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.5
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.5,
+            2.5
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 96
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 96
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            96,
+            0,
+            0,
+            95
+          ]
+        },
+        {
+          "field": "ReconstructionDiameter",
+          "tag": "0018,1100",
+          "value": 240
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 9000
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 91.14
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 95
+        },
+        {
+          "field": "GradientEchoTrainLength",
+          "tag": "0018,9241",
+          "value": 95
+        },
+        {
+          "field": "NumberOfTemporalPositions",
+          "tag": "0020,0105",
+          "value": 1
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 0
+        },
+        {
+          "field": "ParallelReductionFactorInPlane",
+          "tag": "0018,9069",
+          "value": 1
+        },
+        {
+          "field": "PartialFourier",
+          "tag": "0018,9081",
+          "value": "NO"
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 3327,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 95
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 127.78994,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "B"
+        },
+        {
+          "field": "ReceiveCoilName",
+          "tag": "0018,1250",
+          "value": "SENSE-Head-8"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.77858
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 78.97713
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "LowRRValue",
+          "tag": "0018,1081",
+          "value": 0
+        },
+        {
+          "field": "HighRRValue",
+          "tag": "0018,1082",
+          "value": 0
+        },
+        {
+          "field": "SpectrallySelectedExcitation",
+          "tag": "0018,9026",
+          "value": "WATER"
+        },
+        {
+          "field": "SaturationRecovery",
+          "tag": "0018,9024",
+          "value": "NO"
+        },
+        {
+          "field": "SpectrallySelectedSuppression",
+          "tag": "0018,9025",
+          "value": "FAT"
+        },
+        {
+          "field": "TimeOfFlightContrast",
+          "tag": "0018,9015",
+          "value": "NO"
+        },
+        {
+          "field": "SteadyStatePulseSequence",
+          "tag": "0018,9017",
+          "value": "NONE"
+        },
+        {
+          "field": "PartialFourierDirection",
+          "tag": "0018,9036",
+          "value": "FREQUENCY"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "fMRI-RestingState": {
+      "description": "Resting-state functional MRI",
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "RestState_V1"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "GR"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M_FFE",
+            "M",
+            "FFE"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "Philips Medical Systems"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Achieva"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 3
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.66667,
+            2.66667
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 96
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 96
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            84,
+            0,
+            0,
+            81
+          ]
+        },
+        {
+          "field": "ReconstructionDiameter",
+          "tag": "0018,1100",
+          "value": 256.00001
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 2500
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 30
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 75
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 29
+        },
+        {
+          "field": "GradientEchoTrainLength",
+          "tag": "0018,9241",
+          "value": 29
+        },
+        {
+          "field": "NumberOfTemporalPositions",
+          "tag": "0020,0105",
+          "value": 156
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 0
+        },
+        {
+          "field": "ParallelAcquisitionTechnique",
+          "tag": "0018,9078",
+          "value": "SENSE"
+        },
+        {
+          "field": "ParallelReductionFactorInPlane",
+          "tag": "0018,9069",
+          "value": 3
+        },
+        {
+          "field": "PartialFourier",
+          "tag": "0018,9081",
+          "value": "NO"
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 2694,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 81
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 127.79009,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "B"
+        },
+        {
+          "field": "ReceiveCoilName",
+          "tag": "0018,1250",
+          "value": "SENSE-Head-8"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 1.06586
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 63.01329
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 101.19048
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "LowRRValue",
+          "tag": "0018,1081",
+          "value": 0
+        },
+        {
+          "field": "HighRRValue",
+          "tag": "0018,1082",
+          "value": 0
+        },
+        {
+          "field": "SpectrallySelectedExcitation",
+          "tag": "0018,9026",
+          "value": "WATER"
+        },
+        {
+          "field": "SaturationRecovery",
+          "tag": "0018,9024",
+          "value": "NO"
+        },
+        {
+          "field": "SpectrallySelectedSuppression",
+          "tag": "0018,9025",
+          "value": "FAT"
+        },
+        {
+          "field": "TimeOfFlightContrast",
+          "tag": "0018,9015",
+          "value": "NO"
+        },
+        {
+          "field": "SteadyStatePulseSequence",
+          "tag": "0018,9017",
+          "value": "NONE"
+        },
+        {
+          "field": "PartialFourierDirection",
+          "tag": "0018,9036",
+          "value": "FREQUENCY"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_temporal_volumes",
+          "name": "Temporal Volume Count",
+          "description": "Validates that the fMRI acquisition has exactly 156 temporal volumes (unique TriggerTime values).",
+          "implementation": "trigger_times = value[\"TriggerTime\"].dropna().unique()\nexpected_volumes = 156\n\nif len(trigger_times) != expected_volumes:\n    raise ValidationError(f\"Expected {expected_volumes} temporal volumes, but found {len(trigger_times)}.\")",
+          "fields": [
+            "TriggerTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_temporal_volumes_pass",
+              "name": "Correct volume count",
+              "data": {
+                "TriggerTime": [
+                  0,
+                  2500,
+                  5000,
+                  7500,
+                  10000,
+                  12500,
+                  15000,
+                  17500,
+                  20000,
+                  22500,
+                  25000,
+                  27500,
+                  30000,
+                  32500,
+                  35000,
+                  37500,
+                  40000,
+                  42500,
+                  45000,
+                  47500,
+                  50000,
+                  52500,
+                  55000,
+                  57500,
+                  60000,
+                  62500,
+                  65000,
+                  67500,
+                  70000,
+                  72500,
+                  75000,
+                  77500,
+                  80000,
+                  82500,
+                  85000,
+                  87500,
+                  90000,
+                  92500,
+                  95000,
+                  97500,
+                  100000,
+                  102500,
+                  105000,
+                  107500,
+                  110000,
+                  112500,
+                  115000,
+                  117500,
+                  120000,
+                  122500,
+                  125000,
+                  127500,
+                  130000,
+                  132500,
+                  135000,
+                  137500,
+                  140000,
+                  142500,
+                  145000,
+                  147500,
+                  150000,
+                  152500,
+                  155000,
+                  157500,
+                  160000,
+                  162500,
+                  165000,
+                  167500,
+                  170000,
+                  172500,
+                  175000,
+                  177500,
+                  180000,
+                  182500,
+                  185000,
+                  187500,
+                  190000,
+                  192500,
+                  195000,
+                  197500,
+                  200000,
+                  202500,
+                  205000,
+                  207500,
+                  210000,
+                  212500,
+                  215000,
+                  217500,
+                  220000,
+                  222500,
+                  225000,
+                  227500,
+                  230000,
+                  232500,
+                  235000,
+                  237500,
+                  240000,
+                  242500,
+                  245000,
+                  247500,
+                  250000,
+                  252500,
+                  255000,
+                  257500,
+                  260000,
+                  262500,
+                  265000,
+                  267500,
+                  270000,
+                  272500,
+                  275000,
+                  277500,
+                  280000,
+                  282500,
+                  285000,
+                  287500,
+                  290000,
+                  292500,
+                  295000,
+                  297500,
+                  300000,
+                  302500,
+                  305000,
+                  307500,
+                  310000,
+                  312500,
+                  315000,
+                  317500,
+                  320000,
+                  322500,
+                  325000,
+                  327500,
+                  330000,
+                  332500,
+                  335000,
+                  337500,
+                  340000,
+                  342500,
+                  345000,
+                  347500,
+                  350000,
+                  352500,
+                  355000,
+                  357500,
+                  360000,
+                  362500,
+                  365000,
+                  367500,
+                  370000,
+                  372500,
+                  375000,
+                  377500,
+                  380000,
+                  382500,
+                  385000,
+                  387500
+                ]
+              },
+              "expectedResult": "pass",
+              "description": "156 volumes with correct timing"
+            },
+            {
+              "id": "test_temporal_volumes_fail",
+              "name": "Missing volumes",
+              "data": {
+                "TriggerTime": [
+                  0,
+                  2500,
+                  5000,
+                  7500,
+                  10000,
+                  12500,
+                  15000,
+                  17500,
+                  20000,
+                  22500,
+                  25000,
+                  27500,
+                  30000,
+                  32500,
+                  35000,
+                  37500,
+                  40000,
+                  42500,
+                  45000,
+                  47500,
+                  50000,
+                  52500,
+                  55000,
+                  57500,
+                  60000,
+                  62500,
+                  65000,
+                  67500,
+                  70000,
+                  72500,
+                  75000,
+                  77500,
+                  80000,
+                  82500,
+                  85000,
+                  87500,
+                  90000,
+                  92500,
+                  95000,
+                  97500,
+                  100000,
+                  102500,
+                  105000,
+                  107500,
+                  110000,
+                  112500,
+                  115000,
+                  117500,
+                  120000,
+                  122500,
+                  125000,
+                  127500,
+                  130000,
+                  132500,
+                  135000,
+                  137500,
+                  140000,
+                  142500,
+                  145000,
+                  147500,
+                  150000,
+                  152500,
+                  155000,
+                  157500,
+                  160000,
+                  162500,
+                  165000,
+                  167500,
+                  170000,
+                  172500,
+                  175000,
+                  177500,
+                  180000,
+                  182500,
+                  185000,
+                  187500,
+                  190000,
+                  192500,
+                  195000,
+                  197500,
+                  200000,
+                  202500,
+                  205000,
+                  207500,
+                  210000,
+                  212500,
+                  215000,
+                  217500,
+                  220000,
+                  222500,
+                  225000,
+                  227500,
+                  230000,
+                  232500,
+                  235000,
+                  237500,
+                  240000,
+                  242500,
+                  245000,
+                  247500
+                ]
+              },
+              "expectedResult": "fail",
+              "description": "Only 100 volumes instead of 156"
+            }
+          ]
+        },
+        {
+          "id": "validate_trigger_time_spacing",
+          "name": "Uniform Temporal Spacing",
+          "description": "Validates that TriggerTime values are uniformly spaced according to the RepetitionTime (TR).",
+          "implementation": "trigger_times = value[\"TriggerTime\"].dropna().sort_values()\ntr = value[\"RepetitionTime\"].iloc[0]\n\n# Calculate spacing between consecutive trigger times\nspacings = trigger_times.diff().dropna()\n\n# Check if all spacings match TR (within small tolerance for floating point)\ntolerance = 1  # 1ms tolerance\nnon_uniform = spacings[abs(spacings - tr) > tolerance]\n\nif len(non_uniform) > 0:\n    raise ValidationError(f\"TriggerTime spacing should be {tr}ms (TR), but found non-uniform gaps: {non_uniform.values[:5]}...\")",
+          "fields": [
+            "TriggerTime",
+            "RepetitionTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_spacing_pass",
+              "name": "Uniform spacing",
+              "data": {
+                "TriggerTime": [
+                  0,
+                  2500,
+                  5000,
+                  7500,
+                  10000
+                ],
+                "RepetitionTime": [
+                  2500,
+                  2500,
+                  2500,
+                  2500,
+                  2500
+                ]
+              },
+              "expectedResult": "pass",
+              "description": "Evenly spaced at TR=2500ms"
+            },
+            {
+              "id": "test_spacing_fail",
+              "name": "Non-uniform spacing",
+              "data": {
+                "TriggerTime": [
+                  0,
+                  2500,
+                  5000,
+                  8000,
+                  10000
+                ],
+                "RepetitionTime": [
+                  2500,
+                  2500,
+                  2500,
+                  2500,
+                  2500
+                ]
+              },
+              "expectedResult": "fail",
+              "description": "Gap of 3000ms instead of 2500ms"
+            }
+          ]
+        }
+      ]
+    },
+    "B0-FieldMap-HighRes": {
+      "description": "B0 field map for distortion correction (high resolution)",
+      "fields": [
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "SE"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M_SE",
+            "M",
+            "SE"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "Philips Medical Systems"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Achieva"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.5
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.5,
+            2.5
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 96
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 96
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            96,
+            0,
+            0,
+            95
+          ]
+        },
+        {
+          "field": "ReconstructionDiameter",
+          "tag": "0018,1100",
+          "value": 240
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 9000
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 91
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 95
+        },
+        {
+          "field": "GradientEchoTrainLength",
+          "tag": "0018,9241",
+          "value": 95
+        },
+        {
+          "field": "NumberOfTemporalPositions",
+          "tag": "0020,0105",
+          "value": 1
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 1
+        },
+        {
+          "field": "ParallelReductionFactorInPlane",
+          "tag": "0018,9069",
+          "value": 1
+        },
+        {
+          "field": "PartialFourier",
+          "tag": "0018,9081",
+          "value": "NO"
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 3327,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 95
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 127.78994,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "B"
+        },
+        {
+          "field": "ReceiveCoilName",
+          "tag": "0018,1250",
+          "value": "SENSE-Head-8"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.7893
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 78.97715
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "LowRRValue",
+          "tag": "0018,1081",
+          "value": 0
+        },
+        {
+          "field": "HighRRValue",
+          "tag": "0018,1082",
+          "value": 0
+        },
+        {
+          "field": "SpectrallySelectedExcitation",
+          "tag": "0018,9026",
+          "value": "WATER"
+        },
+        {
+          "field": "SaturationRecovery",
+          "tag": "0018,9024",
+          "value": "NO"
+        },
+        {
+          "field": "SpectrallySelectedSuppression",
+          "tag": "0018,9025",
+          "value": "FAT"
+        },
+        {
+          "field": "TimeOfFlightContrast",
+          "tag": "0018,9015",
+          "value": "NO"
+        },
+        {
+          "field": "SteadyStatePulseSequence",
+          "tag": "0018,9017",
+          "value": "NONE"
+        },
+        {
+          "field": "PartialFourierDirection",
+          "tag": "0018,9036",
+          "value": "FREQUENCY"
+        }
+      ],
+      "series": [
+        {
+          "name": "B0_AD",
+          "fields": []
+        },
+        {
+          "name": "B0_PD",
+          "fields": []
+        }
+      ],
+      "rules": []
+    },
+    "B0-FieldMap-SENSE": {
+      "description": "B0 field map for distortion correction (SENSE accelerated)",
+      "fields": [
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "SE"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M_SE",
+            "M",
+            "SE"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "Philips Medical Systems"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Achieva"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 3
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.66667,
+            2.66667
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 96
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 96
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            84,
+            0,
+            0,
+            81
+          ]
+        },
+        {
+          "field": "ReconstructionDiameter",
+          "tag": "0018,1100",
+          "value": 256.00001
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 10000
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 100
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 75
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 29
+        },
+        {
+          "field": "GradientEchoTrainLength",
+          "tag": "0018,9241",
+          "value": 29
+        },
+        {
+          "field": "NumberOfTemporalPositions",
+          "tag": "0020,0105",
+          "value": 1
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 0
+        },
+        {
+          "field": "ParallelAcquisitionTechnique",
+          "tag": "0018,9078",
+          "value": "SENSE"
+        },
+        {
+          "field": "ParallelReductionFactorInPlane",
+          "tag": "0018,9069",
+          "value": 3
+        },
+        {
+          "field": "PartialFourier",
+          "tag": "0018,9081",
+          "value": "NO"
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 2720,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 81
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 127.79008,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "B"
+        },
+        {
+          "field": "ReceiveCoilName",
+          "tag": "0018,1250",
+          "value": "SENSE-Head-8"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.57169
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 63.62748
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 101.19048
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "LowRRValue",
+          "tag": "0018,1081",
+          "value": 0
+        },
+        {
+          "field": "HighRRValue",
+          "tag": "0018,1082",
+          "value": 0
+        },
+        {
+          "field": "SpectrallySelectedExcitation",
+          "tag": "0018,9026",
+          "value": "WATER"
+        },
+        {
+          "field": "SaturationRecovery",
+          "tag": "0018,9024",
+          "value": "NO"
+        },
+        {
+          "field": "SpectrallySelectedSuppression",
+          "tag": "0018,9025",
+          "value": "FAT"
+        },
+        {
+          "field": "TimeOfFlightContrast",
+          "tag": "0018,9015",
+          "value": "NO"
+        },
+        {
+          "field": "SteadyStatePulseSequence",
+          "tag": "0018,9017",
+          "value": "NONE"
+        },
+        {
+          "field": "PartialFourierDirection",
+          "tag": "0018,9036",
+          "value": "FREQUENCY"
+        }
+      ],
+      "series": [
+        {
+          "name": "BO_AF",
+          "fields": []
+        },
+        {
+          "name": "BO_PF",
+          "fields": []
+        }
+      ],
+      "rules": []
+    },
+    "DWI": {
+      "description": "Diffusion-weighted imaging",
+      "fields": [
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "SE"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M_SE",
+            "M",
+            "SE"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "Philips Medical Systems"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Achieva"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.5
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.5,
+            2.5
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 96
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 96
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            96,
+            0,
+            0,
+            95
+          ]
+        },
+        {
+          "field": "ReconstructionDiameter",
+          "tag": "0018,1100",
+          "value": 240
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 9000
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 91.14
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 95
+        },
+        {
+          "field": "GradientEchoTrainLength",
+          "tag": "0018,9241",
+          "value": 95
+        },
+        {
+          "field": "NumberOfTemporalPositions",
+          "tag": "0020,0105",
+          "value": 1
+        },
+        {
+          "field": "ParallelReductionFactorInPlane",
+          "tag": "0018,9069",
+          "value": 1
+        },
+        {
+          "field": "PartialFourier",
+          "tag": "0018,9081",
+          "value": "NO"
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 3327,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 95
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 127.78994,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "B"
+        },
+        {
+          "field": "ReceiveCoilName",
+          "tag": "0018,1250",
+          "value": "SENSE-Head-8"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.77858
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 78.97713
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "LowRRValue",
+          "tag": "0018,1081",
+          "value": 0
+        },
+        {
+          "field": "HighRRValue",
+          "tag": "0018,1082",
+          "value": 0
+        },
+        {
+          "field": "SpectrallySelectedExcitation",
+          "tag": "0018,9026",
+          "value": "WATER"
+        },
+        {
+          "field": "SaturationRecovery",
+          "tag": "0018,9024",
+          "value": "NO"
+        },
+        {
+          "field": "SpectrallySelectedSuppression",
+          "tag": "0018,9025",
+          "value": "FAT"
+        },
+        {
+          "field": "TimeOfFlightContrast",
+          "tag": "0018,9015",
+          "value": "NO"
+        },
+        {
+          "field": "SteadyStatePulseSequence",
+          "tag": "0018,9017",
+          "value": "NONE"
+        },
+        {
+          "field": "PartialFourierDirection",
+          "tag": "0018,9036",
+          "value": "FREQUENCY"
+        }
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "fields": [
+            {
+              "field": "DiffusionBValue",
+              "tag": "0018,9087",
+              "value": {
+                "value": 0,
+                "field": "DiffusionBValue",
+                "dataType": "number",
+                "validationRule": {
+                  "type": "exact"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Series 2",
+          "fields": [
+            {
+              "field": "DiffusionBValue",
+              "tag": "0018,9087",
+              "value": {
+                "value": 1000,
+                "field": "DiffusionBValue",
+                "dataType": "number",
+                "validationRule": {
+                  "type": "exact"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "rules": []
+    }
+  }
+}
