@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dicompare.org/metaschema/v1",
+  "title": "DiCompare Schema Format",
+  "description": "JSON Schema for validating DiCompare protocol schema files",
+  "type": "object",
+  "required": ["name", "acquisitions"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the protocol"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the protocol"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version identifier for the schema"
+    },
+    "authors": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of authors/contributors"
+    },
+    "acquisitions": {
+      "type": "object",
+      "description": "Dictionary of acquisition definitions",
+      "additionalProperties": { "$ref": "#/$defs/acquisition" }
+    },
+    "rules": {
+      "type": "array",
+      "description": "Protocol-level validation rules (apply across all acquisitions)",
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "acquisition": {
+      "type": "object",
+      "description": "Definition of a single acquisition/sequence type",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Brief description of the acquisition"
+        },
+        "detailed_description": {
+          "type": "string",
+          "description": "Extended description with markdown formatting"
+        },
+        "fields": {
+          "type": "array",
+          "description": "List of DICOM field constraints for this acquisition",
+          "items": { "$ref": "#/$defs/field" }
+        },
+        "series": {
+          "type": "array",
+          "description": "Series-level field constraints",
+          "items": { "$ref": "#/$defs/series" }
+        },
+        "rules": {
+          "type": "array",
+          "description": "Acquisition-specific validation rules",
+          "items": { "$ref": "#/$defs/rule" }
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "description": "DICOM field constraint definition",
+      "required": ["field"],
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "DICOM field name/keyword (e.g., 'EchoTime', 'FlipAngle')"
+        },
+        "tag": {
+          "type": "string",
+          "pattern": "^([0-9A-Fa-f]{4},[0-9A-Fa-f]{4}|unknown_.+)$",
+          "description": "DICOM tag in format 'XXXX,XXXX' (e.g., '0018,0081') or 'unknown_FieldName' for vendor-specific fields"
+        },
+        "vr": {
+          "type": "string",
+          "description": "DICOM Value Representation (e.g., 'DS', 'CS', 'IS')"
+        },
+        "dataType": {
+          "type": "string",
+          "enum": ["string", "number", "list_string", "list_number", "json"],
+          "description": "Data type for validation"
+        },
+        "value": {
+          "description": "Expected exact value (string, number, or array)"
+        },
+        "tolerance": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Allowed deviation from expected value (for numeric fields)"
+        },
+        "contains": {
+          "type": "string",
+          "description": "Substring that must be present in the field value"
+        },
+        "contains_any": {
+          "type": "array",
+          "items": {},
+          "description": "List of values/substrings where at least one must match"
+        },
+        "contains_all": {
+          "type": "array",
+          "items": {},
+          "description": "List of values that must all be present (for list fields)"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "tolerance": { "type": "number" } },
+            "required": ["tolerance"]
+          },
+          "then": {
+            "required": ["value"],
+            "properties": {
+              "value": { "type": "number" }
+            }
+          }
+        }
+      ]
+    },
+    "series": {
+      "type": "object",
+      "description": "Series-level constraint definition",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Series identifier/name"
+        },
+        "fields": {
+          "type": "array",
+          "description": "Field constraints specific to this series",
+          "items": { "$ref": "#/$defs/field" }
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "description": "Custom Python validation rule",
+      "required": ["id", "name", "implementation", "fields"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Unique identifier for the rule (snake_case)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for the rule"
+        },
+        "description": {
+          "type": "string",
+          "description": "Explanation of what the rule validates"
+        },
+        "implementation": {
+          "type": "string",
+          "description": "Python code implementing the validation logic"
+        },
+        "fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of DICOM fields used by this rule"
+        },
+        "testCases": {
+          "type": "array",
+          "description": "Test cases to validate the rule implementation",
+          "items": { "$ref": "#/$defs/testCase" }
+        }
+      }
+    },
+    "testCase": {
+      "type": "object",
+      "description": "Test case for validating a rule",
+      "required": ["id", "name", "data", "expectedResult"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the test case"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for the test case"
+        },
+        "description": {
+          "type": "string",
+          "description": "Explanation of what this test case validates"
+        },
+        "data": {
+          "type": "object",
+          "description": "Mock DICOM data for testing",
+          "additionalProperties": {
+            "type": "array"
+          }
+        },
+        "expectedResult": {
+          "type": "string",
+          "enum": ["pass", "fail", "warning"],
+          "description": "Expected outcome of the rule validation"
+        }
+      }
+    }
+  }
+}

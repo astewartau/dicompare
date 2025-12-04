@@ -29,7 +29,8 @@ setup(
         "scipy",
         "tqdm",
         "nibabel",
-        "twixtools"
+        "twixtools",
+        "jsonschema"
     ],
     extras_require={
         "interactive": ["curses"],
@@ -43,6 +44,9 @@ setup(
     ],
     keywords="DICOM compliance validation medical imaging",
     include_package_data=True,
+    package_data={
+        "dicompare": ["metaschema.json"],
+    },
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
 )

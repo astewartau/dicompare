@@ -5,17 +5,48 @@ This module contains functions for:
 - Loading and parsing JSON schema files
 - Hybrid schema support (JSON + Python rules)
 - JSON serialization utilities for numpy/pandas types
+- Schema validation against the DiCompare metaschema
 """
 
 import json
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from typing import Any, List, Dict, Tuple
+
+from jsonschema import validate
 
 from ..utils import normalize_numeric_values
 
 
-def load_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any], Dict[str, Any]]:
+# Cache the metaschema to avoid reloading it on every validation
+_metaschema_cache = None
+
+
+def _get_metaschema() -> Dict[str, Any]:
+    """Load and cache the DiCompare metaschema."""
+    global _metaschema_cache
+    if _metaschema_cache is None:
+        metaschema_path = Path(__file__).parent.parent / "metaschema.json"
+        with open(metaschema_path, "r") as f:
+            _metaschema_cache = json.load(f)
+    return _metaschema_cache
+
+
+def validate_schema(schema_data: Dict[str, Any]) -> None:
+    """
+    Validate a schema dictionary against the DiCompare metaschema.
+
+    Args:
+        schema_data: The schema data to validate.
+
+    Raises:
+        jsonschema.ValidationError: If the schema is invalid.
+    """
+    validate(instance=schema_data, schema=_get_metaschema())
+
+
+def load_schema(json_schema_path: str, validate_schema: bool = True) -> Tuple[List[str], Dict[str, Any], Dict[str, Any]]:
     """
     Load a JSON schema file with support for both field validation and embedded Python rules.
 
@@ -24,6 +55,8 @@ def load_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any], Dict[
 
     Args:
         json_schema_path (str): Path to the JSON schema file.
+        validate_schema (bool): Whether to validate the schema against the DiCompare
+            metaschema. Defaults to True.
 
     Returns:
         Tuple[List[str], Dict[str, Any], Dict[str, Any]]:
@@ -34,9 +67,13 @@ def load_schema(json_schema_path: str) -> Tuple[List[str], Dict[str, Any], Dict[
     Raises:
         FileNotFoundError: If the specified JSON file path does not exist.
         JSONDecodeError: If the file is not a valid JSON file.
+        jsonschema.ValidationError: If validate_schema is True and the schema is invalid.
     """
     with open(json_schema_path, "r") as f:
         schema_data = json.load(f)
+
+    if validate_schema:
+        validate(instance=schema_data, schema=_get_metaschema())
 
     schema_data = normalize_numeric_values(schema_data)
 

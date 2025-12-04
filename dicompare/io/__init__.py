@@ -24,6 +24,7 @@ from .dicom import (
 # JSON/Schema I/O functions
 from .json import (
     load_schema,
+    validate_schema,
     make_json_serializable,
 )
 
@@ -68,6 +69,7 @@ __all__ = [
     "get_field_categorization_summary",
     # JSON/Schema I/O
     "load_schema",
+    "validate_schema",
     "make_json_serializable",
     # PRO file support
     "load_pro_file",

@@ -68,10 +68,9 @@
         {
           "field": "ScanOptions",
           "tag": "0018,0022",
-          "value": "IR",
           "vr": "CS",
           "dataType": "string",
-          "contains": true
+          "contains": "IR"
         },
         {
           "field": "EchoTime",
@@ -153,17 +152,17 @@
           ]
         },
         {
-          "id": "validate_t1w_siemens_tr",
-          "name": "T1w Siemens TR Check",
-          "description": "For Siemens MPRAGE, TR should be approximately 2000ms.",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nif 'SIEMENS' in manufacturer and 'RepetitionTime' in value.columns:\n    tr = value['RepetitionTime'].iloc[0]\n    if abs(tr - 2000) > 200:\n        raise ValidationError(f\"Siemens MPRAGE TR should be ~2000ms. Found: {tr}ms\")",
+          "id": "validate_t1w_vendor_tr",
+          "name": "T1w Vendor-Specific TR",
+          "description": "Validates TR is within expected range for each vendor. TR varies significantly due to different sequence implementations: Siemens MPRAGE ~2000ms, Philips T1TFE ~8ms, GE BRAVO ~4-8ms.",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\ntr = value['RepetitionTime'].iloc[0] if 'RepetitionTime' in value.columns else None\n\nif tr is None:\n    pass\nelif 'SIEMENS' in manufacturer:\n    if abs(tr - 2000) > 200:\n        raise ValidationError(f\"Siemens MPRAGE TR should be ~2000ms. Found: {tr}ms\")\nelif 'GE' in manufacturer:\n    if tr < 3 or tr > 12:\n        raise ValidationError(f\"GE BRAVO TR should be ~4-8ms. Found: {tr}ms\")\nelif 'PHILIPS' in manufacturer:\n    if tr < 5 or tr > 12:\n        raise ValidationError(f\"Philips T1TFE TR should be ~8ms. Found: {tr}ms\")",
           "fields": [
             "Manufacturer",
             "RepetitionTime"
           ],
           "testCases": [
             {
-              "id": "test_siemens_tr_pass",
+              "id": "test_t1w_siemens_tr_pass",
               "name": "Siemens TR ~2000ms",
               "data": {
                 "Manufacturer": [
@@ -177,7 +176,7 @@
               "description": ""
             },
             {
-              "id": "test_siemens_tr_warning",
+              "id": "test_t1w_siemens_tr_fail",
               "name": "Siemens TR too low",
               "data": {
                 "Manufacturer": [
@@ -191,18 +190,60 @@
               "description": ""
             },
             {
-              "id": "test_ge_tr_any",
-              "name": "GE TR not checked",
+              "id": "test_t1w_ge_tr_pass",
+              "name": "GE TR ~4-8ms",
               "data": {
                 "Manufacturer": [
                   "GE MEDICAL SYSTEMS"
+                ],
+                "RepetitionTime": [
+                  6
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_t1w_ge_tr_fail",
+              "name": "GE TR too high",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "RepetitionTime": [
+                  2000
+                ]
+              },
+              "expectedResult": "fail",
+              "description": "GE uses different TR definition than Siemens"
+            },
+            {
+              "id": "test_t1w_philips_tr_pass",
+              "name": "Philips TR ~8ms",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
                 ],
                 "RepetitionTime": [
                   8
                 ]
               },
               "expectedResult": "pass",
-              "description": "GE uses different TR definition"
+              "description": ""
+            },
+            {
+              "id": "test_t1w_philips_tr_fail",
+              "name": "Philips TR too high",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "RepetitionTime": [
+                  2000
+                ]
+              },
+              "expectedResult": "fail",
+              "description": "Philips uses different TR definition than Siemens"
             }
           ]
         }
@@ -926,10 +967,9 @@
         {
           "field": "ScanOptions",
           "tag": "0018,0022",
-          "value": "MT",
           "vr": "CS",
           "dataType": "string",
-          "contains": true
+          "contains": "MT"
         }
       ],
       "series": [],
