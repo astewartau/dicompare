@@ -19,6 +19,10 @@ PRIVATE_TAGS = {
     "(0043,102F)": {
         "name": "GEImageType",  # GE private
         "type": "number"
+    },
+    "(0021,111C)": {
+        "name": "PhaseEncodingDirectionPositiveSiemens",  # Siemens XA private (enhanced DICOM)
+        "type": "number"  # 0 = negative/reversed, 1 = positive/normal
     }
 }
 

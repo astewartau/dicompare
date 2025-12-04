@@ -147,6 +147,9 @@ def extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
     csa_metadata["GradientMode"] = get_csa_value("GradientMode")
     csa_metadata["B_matrix"] = get_csa_value("B_matrix", scalar=False)
 
+    # Phase encoding polarity (0 = negative/reversed, 1 = positive/normal)
+    csa_metadata["PhaseEncodingDirectionPositive"] = get_csa_value("PhaseEncodingDirectionPositive")
+
     return csa_metadata
 
 
@@ -485,6 +488,21 @@ def load_dicom(
             _set_metadata_value(metadata, 'ImageType', new_image_type)
         else:
             _set_metadata_value(metadata, 'ImageType', [mapped_type])
+
+    # Extract Siemens XA PhaseEncodingDirectionPositive from private tag (0021,111C)
+    # This is used for enhanced DICOM (Siemens XA series) where CSA header is not available
+    siemens_xa_pe_tag = "(0021,111C)"
+    if _key_in_metadata(metadata, siemens_xa_pe_tag):
+        siemens_xa_pe_value = _get_metadata_value(metadata, siemens_xa_pe_tag)
+        if siemens_xa_pe_value is not None:
+            try:
+                # Value is 0 (negative/reversed) or 1 (positive/normal)
+                pe_positive = int(siemens_xa_pe_value)
+                # Only set if not already set from CSA header
+                if not _key_in_metadata(metadata, 'PhaseEncodingDirectionPositive'):
+                    _set_metadata_value(metadata, 'PhaseEncodingDirectionPositive', pe_positive)
+            except (ValueError, TypeError):
+                logger.debug(f"Could not parse Siemens XA PhaseEncodingDirectionPositive: {siemens_xa_pe_value}")
 
     # Add AcquisitionPlane based on ImageOrientationPatient
     if _key_in_metadata(metadata, 'ImageOrientationPatient'):

@@ -2299,16 +2299,7 @@
           "value": "FREQUENCY"
         }
       ],
-      "series": [
-        {
-          "name": "B0_AD",
-          "fields": []
-        },
-        {
-          "name": "B0_PD",
-          "fields": []
-        }
-      ],
+      "series": [],
       "rules": []
     },
     "B0-FieldMap-SENSE": {
@@ -2552,16 +2543,7 @@
           "value": "FREQUENCY"
         }
       ],
-      "series": [
-        {
-          "name": "BO_AF",
-          "fields": []
-        },
-        {
-          "name": "BO_PF",
-          "fields": []
-        }
-      ],
+      "series": [],
       "rules": []
     },
     "DWI": {

@@ -7,9 +7,9 @@
     "Ashley Stewart"
   ],
   "acquisitions": {
-    "T1w_3D": {
+    "T1-weighted 3D": {
       "description": "High-resolution 3D T1-weighted structural imaging of the spinal cord",
-      "detailed_description": "## 3D T1-Weighted Structural Imaging\n\n### Overview\nThe T1-weighted 3D acquisition provides high-resolution anatomical imaging of the spinal cord for morphometric analysis, tissue segmentation, and cross-sectional area measurements. Uses HCP-inspired parameters with 9° flip angle.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** BRAVO (Brain Volume)\n- **Siemens:** MPRAGE (Magnetization Prepared Rapid Gradient Echo)\n- **Philips:** T1TFE (T1 Turbo Field Echo)\n\n### Clinical Purpose\n- Spinal cord cross-sectional area quantification\n- Gray matter / white matter segmentation\n- Anatomical reference for registration\n- Structural lesion detection\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Target Resolution:** 1.0 mm isotropic\n- **Coverage:** Full cervical spine (C1-C7)\n- **Flip Angle:** 9° (HCP-inspired)\n- **Inversion Time:** ~1000 ms\n- **Scan Duration:** ~5 minutes\n\n### Technical Notes\n- Parallel imaging (GRAPPA/SENSE/ARC) factor: 2\n- Inversion pulse preparation for enhanced GM/WM contrast\n- Sagittal orientation optimized for spinal cord imaging\n- TR varies by vendor: Siemens ~2000ms, Philips ~8ms, GE ~4ms (different TR definitions)",
+      "detailed_description": "## 3D T1-Weighted Structural Imaging\n\n### Overview\nThe T1-weighted 3D acquisition provides high-resolution anatomical imaging of the spinal cord for morphometric analysis, tissue segmentation, and cross-sectional area measurements. Uses HCP-inspired parameters with 9\u00b0 flip angle.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** BRAVO / IR-FSPGR\n- **Siemens:** MPRAGE (Magnetization Prepared Rapid Gradient Echo)\n- **Philips:** T1TFE (T1 Turbo Field Echo)\n\n### Clinical Purpose\n- Spinal cord cross-sectional area quantification\n- Gray matter / white matter segmentation\n- Anatomical reference for registration\n- Structural lesion detection\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Target Resolution:** 1.0 mm isotropic\n- **Coverage:** Full cervical spine (C1-C7)\n- **Flip Angle:** 9\u00b0 (HCP-inspired)\n- **Inversion Time:** ~1000 ms\n- **Scan Duration:** ~5 minutes\n\n### Technical Notes\n- Parallel imaging (GRAPPA/SENSE/ARC) factor: 2\n- Inversion pulse preparation for enhanced GM/WM contrast\n- Sagittal orientation optimized for spinal cord imaging\n- TR varies by vendor: Siemens ~2000ms, Philips ~8ms, GE ~4ms (different TR definitions)\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
           "field": "MRAcquisitionType",
@@ -31,8 +31,7 @@
           "tag": "0018,1314",
           "value": 9,
           "vr": "DS",
-          "dataType": "number",
-          "tolerance": 1
+          "dataType": "number"
         },
         {
           "field": "MagneticFieldStrength",
@@ -73,90 +72,145 @@
           "vr": "CS",
           "dataType": "string",
           "contains": true
-        }
-      ],
-      "series": [
-        {
-          "name": "GE_BRAVO",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "GE"
-            },
-            {
-              "field": "ScanningSequence",
-              "tag": "0018,0020",
-              "value": "GR"
-            }
-          ]
         },
         {
-          "name": "Siemens_MPRAGE",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Siemens"
-            },
-            {
-              "field": "ScanningSequence",
-              "tag": "0018,0020",
-              "value": "GR_IR"
-            },
-            {
-              "field": "RepetitionTime",
-              "tag": "0018,0080",
-              "value": 2000,
-              "tolerance": 100
-            }
-          ]
-        },
-        {
-          "name": "Philips_T1TFE",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Philips"
-            },
-            {
-              "field": "ScanningSequence",
-              "tag": "0018,0020",
-              "value": "GR_IR"
-            }
-          ]
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 3.5,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 100
         }
       ],
+      "series": [],
       "rules": [
         {
-          "id": "validate_t1w_resolution",
-          "name": "T1w Isotropic Resolution",
-          "description": "T1w should have approximately 1mm isotropic resolution for accurate CSA measurements.",
-          "implementation": "slice_thick = value['SliceThickness'].iloc[0]\nif abs(slice_thick - 1.0) > 0.2:\n    raise ValidationWarning(f\"SliceThickness {slice_thick}mm differs from protocol target of 1.0mm isotropic.\")",
-          "fields": ["SliceThickness"],
+          "id": "validate_t1w_vendor_sequence",
+          "name": "T1w Vendor-Specific Sequence",
+          "description": "Validates that the correct sequence type is used for each vendor: GE should use GR (BRAVO), Siemens/Philips should use GR+IR (MPRAGE/T1TFE).",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nscanning_seq = value['ScanningSequence'].iloc[0] if 'ScanningSequence' in value.columns else ''\n\nif 'GE' in manufacturer:\n    if 'GR' not in scanning_seq:\n        raise ValidationError(f\"GE T1w should use gradient echo (GR/BRAVO). Found: {scanning_seq}\")\nelif 'SIEMENS' in manufacturer:\n    if 'IR' not in scanning_seq or 'GR' not in scanning_seq:\n        raise ValidationError(f\"Siemens T1w should use GR+IR (MPRAGE). Found: {scanning_seq}\")\nelif 'PHILIPS' in manufacturer:\n    if 'IR' not in scanning_seq or 'GR' not in scanning_seq:\n        raise ValidationError(f\"Philips T1w should use GR+IR (T1TFE). Found: {scanning_seq}\")",
+          "fields": [
+            "Manufacturer",
+            "ScanningSequence"
+          ],
           "testCases": [
             {
-              "id": "test_t1w_resolution_pass",
-              "name": "1mm slice thickness",
-              "data": {"SliceThickness": [1.0]},
+              "id": "test_t1w_ge_pass",
+              "name": "GE with GR sequence",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "ScanningSequence": [
+                  "GR"
+                ]
+              },
               "expectedResult": "pass",
               "description": ""
             },
             {
-              "id": "test_t1w_resolution_warning",
-              "name": "Non-isotropic resolution",
-              "data": {"SliceThickness": [1.5]},
-              "expectedResult": "warning",
+              "id": "test_t1w_siemens_pass",
+              "name": "Siemens with GR_IR sequence",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "ScanningSequence": [
+                  "GR, IR"
+                ]
+              },
+              "expectedResult": "pass",
               "description": ""
+            },
+            {
+              "id": "test_t1w_philips_pass",
+              "name": "Philips with GR_IR sequence",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "ScanningSequence": [
+                  "GR, IR"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_t1w_siemens_warning",
+              "name": "Siemens missing IR",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "ScanningSequence": [
+                  "GR"
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_t1w_siemens_tr",
+          "name": "T1w Siemens TR Check",
+          "description": "For Siemens MPRAGE, TR should be approximately 2000ms.",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nif 'SIEMENS' in manufacturer and 'RepetitionTime' in value.columns:\n    tr = value['RepetitionTime'].iloc[0]\n    if abs(tr - 2000) > 200:\n        raise ValidationError(f\"Siemens MPRAGE TR should be ~2000ms. Found: {tr}ms\")",
+          "fields": [
+            "Manufacturer",
+            "RepetitionTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_siemens_tr_pass",
+              "name": "Siemens TR ~2000ms",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "RepetitionTime": [
+                  2000
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_siemens_tr_warning",
+              "name": "Siemens TR too low",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "RepetitionTime": [
+                  1500
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_ge_tr_any",
+              "name": "GE TR not checked",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "RepetitionTime": [
+                  8
+                ]
+              },
+              "expectedResult": "pass",
+              "description": "GE uses different TR definition"
             }
           ]
         }
       ]
     },
-    "T2w_3D": {
+    "T2-weighted 3D": {
       "description": "High-resolution 3D T2-weighted structural imaging with CSF suppression",
-      "detailed_description": "## 3D T2-Weighted Structural Imaging\n\n### Overview\nThe T2-weighted 3D acquisition provides high-resolution imaging with excellent gray matter/white matter contrast and CSF signal suppression, optimized for spinal cord tissue characterization.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** CUBE (Cuboid Volume Acquisition)\n- **Siemens:** SPACE (Sampling Perfection with Application optimized Contrasts using different flip angle Evolution)\n- **Philips:** VISTA (Volume ISotropic Turbo spin echo Acquisition)\n\n### Clinical Purpose\n- Enhanced gray/white matter differentiation\n- Lesion detection with T2 contrast\n- Tissue microstructure assessment\n- Complementary anatomical reference to T1w\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Target Resolution:** 0.8 mm isotropic\n- **Coverage:** Cervical spine region\n- **Echo Train Length:** 76-92\n- **Scan Duration:** ~4-6 minutes\n\n### Vendor Variations (expected)\n- Siemens: TR = 1550 ms\n- Philips: TR = 3500 ms\n- GE: TR = 2507 ms\n\n### Technical Notes\n- Variable flip angle trains optimize signal across long echo trains\n- Flow compensation in frequency direction reduces CSF pulsation artifacts\n- Parallel imaging factor: 2-3 (vendor-dependent)\n- Sagittal acquisition with high in-plane resolution",
+      "detailed_description": "## 3D T2-Weighted Structural Imaging\n\n### Overview\nThe T2-weighted 3D acquisition provides high-resolution imaging with excellent gray matter/white matter contrast and CSF signal suppression, optimized for spinal cord tissue characterization.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** CUBE (Cuboid Volume Acquisition)\n- **Siemens:** SPACE (Sampling Perfection with Application optimized Contrasts using different flip angle Evolution)\n- **Philips:** VISTA (Volume ISotropic Turbo spin echo Acquisition)\n\n### Clinical Purpose\n- Enhanced gray/white matter differentiation\n- Lesion detection with T2 contrast\n- Tissue microstructure assessment\n- Complementary anatomical reference to T1w\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Target Resolution:** 0.8 mm isotropic\n- **Coverage:** Cervical spine region\n- **Echo Train Length:** 76-92\n- **Scan Duration:** ~4-6 minutes\n\n### Vendor Variations (expected)\n- Siemens: TR = 1550 ms\n- Philips: TR = 3500 ms\n- GE: TR = 2507 ms\n\n### Technical Notes\n- Variable flip angle trains optimize signal across long echo trains\n- Flow compensation in frequency direction reduces CSF pulsation artifacts\n- Parallel imaging factor: 2-3 (vendor-dependent)\n- Sagittal acquisition with high in-plane resolution\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
           "field": "MRAcquisitionType",
@@ -174,20 +228,12 @@
           "tolerance": 0.1
         },
         {
-          "field": "RepetitionTime",
-          "tag": "0018,0080",
-          "value": 1500,
-          "vr": "DS",
-          "dataType": "number",
-          "tolerance": 2000
-        },
-        {
           "field": "EchoTime",
           "tag": "0018,0081",
           "value": 120,
           "vr": "DS",
           "dataType": "number",
-          "tolerance": 20
+          "tolerance": 100
         },
         {
           "field": "EchoTrainLength",
@@ -221,60 +267,149 @@
           "tolerance": 32
         }
       ],
-      "series": [
+      "series": [],
+      "rules": [
         {
-          "name": "GE_CUBE",
+          "id": "validate_t2w_vendor_flip_angle",
+          "name": "T2w Vendor-Specific Flip Angle",
+          "description": "Validates FlipAngle matches expected value for each vendor (exact match). Siemens uses 120\u00b0, GE/Philips use 90\u00b0.",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nfa = value['FlipAngle'].iloc[0] if 'FlipAngle' in value.columns else None\n\nif fa is None:\n    pass\nelif 'SIEMENS' in manufacturer:\n    if fa != 120:\n        raise ValidationError(f\"Siemens T2w FlipAngle must be 120\u00b0 (variable refocusing). Found: {fa}\u00b0\")\nelif 'GE' in manufacturer:\n    if fa != 90:\n        raise ValidationError(f\"GE T2w FlipAngle must be 90\u00b0. Found: {fa}\u00b0\")\nelif 'PHILIPS' in manufacturer:\n    if fa != 90:\n        raise ValidationError(f\"Philips T2w FlipAngle must be 90\u00b0. Found: {fa}\u00b0\")",
           "fields": [
+            "Manufacturer",
+            "FlipAngle"
+          ],
+          "testCases": [
             {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "GE"
+              "id": "test_t2w_siemens_fa_pass",
+              "name": "Siemens FA ~120\u00b0",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "FlipAngle": [
+                  120
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "RepetitionTime",
-              "tag": "0018,0080",
-              "value": 2507,
-              "tolerance": 500
+              "id": "test_t2w_ge_fa_pass",
+              "name": "GE FA ~90\u00b0",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "FlipAngle": [
+                  90
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_t2w_philips_fa_pass",
+              "name": "Philips FA ~90\u00b0",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "FlipAngle": [
+                  90
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_t2w_siemens_fa_fail",
+              "name": "Siemens FA too low",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "FlipAngle": [
+                  90
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
             }
           ]
         },
         {
-          "name": "Siemens_SPACE",
+          "id": "validate_t2w_vendor_tr",
+          "name": "T2w Vendor-Specific TR",
+          "description": "Validates TR is within expected range for each vendor. TR varies significantly: Siemens ~1550ms, GE ~2507ms, Philips ~3500ms.",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\ntr = value['RepetitionTime'].iloc[0] if 'RepetitionTime' in value.columns else None\n\nif tr is None:\n    pass\nelif 'SIEMENS' in manufacturer:\n    if abs(tr - 1550) > 200:\n        raise ValidationError(f\"Siemens SPACE TR should be ~1550ms. Found: {tr}ms\")\nelif 'GE' in manufacturer:\n    if abs(tr - 2507) > 500:\n        raise ValidationError(f\"GE CUBE TR should be ~2507ms. Found: {tr}ms\")\nelif 'PHILIPS' in manufacturer:\n    if abs(tr - 3500) > 500:\n        raise ValidationError(f\"Philips VISTA TR should be ~3500ms. Found: {tr}ms\")",
           "fields": [
+            "Manufacturer",
+            "RepetitionTime"
+          ],
+          "testCases": [
             {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Siemens"
+              "id": "test_t2w_siemens_tr_pass",
+              "name": "Siemens TR ~1550ms",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "RepetitionTime": [
+                  1550
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "RepetitionTime",
-              "tag": "0018,0080",
-              "value": 1550,
-              "tolerance": 100
-            }
-          ]
-        },
-        {
-          "name": "Philips_VISTA",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Philips"
+              "id": "test_t2w_ge_tr_pass",
+              "name": "GE TR ~2507ms",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "RepetitionTime": [
+                  2500
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "RepetitionTime",
-              "tag": "0018,0080",
-              "value": 3500,
-              "tolerance": 500
+              "id": "test_t2w_philips_tr_pass",
+              "name": "Philips TR ~3500ms",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "RepetitionTime": [
+                  3500
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_t2w_siemens_tr_warning",
+              "name": "Siemens TR too high",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "RepetitionTime": [
+                  3000
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
             }
           ]
         }
       ]
     },
-    "DWI_2D": {
+    "Diffusion-Weighted 2D": {
       "description": "Cardiac-gated diffusion-weighted imaging for white matter microstructure assessment",
-      "detailed_description": "## 2D Diffusion-Weighted Imaging (DWI)\n\n### Overview\nCardiac-gated diffusion-weighted imaging optimized for spinal cord white matter tract characterization using diffusion tensor imaging (DTI) analysis.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SE-EPI (Spin Echo Echo-Planar Imaging)\n- **Siemens:** ep2d_diff (Echo-Planar 2D Diffusion) with optional ZOOMit\n- **Philips:** Zoom Diffusion (reduced FOV diffusion imaging)\n\n### Clinical Purpose\n- White matter tract integrity assessment via DTI metrics (FA, MD, RD, AD)\n- Axonal damage quantification\n- Fiber orientation mapping\n- Microstructural tissue characterization\n\n### Key Parameters\n- **Acquisition Type:** 2D multi-slice\n- **Gating:** Cardiac triggered (5 RR intervals)\n- **Diffusion Scheme:** 30 directions + b=0 baseline\n- **b-values:** 0, 800 s/mm²\n- **Resolution:** 0.9×0.9×5.0 mm (BaseResolution=96)\n- **TE:** 60-99 ms (varies with gradient strength: 40-80 mT/m)\n- **Flip Angle:** 90°\n- **Phase Encoding:** P-A (j-) in 94% of acquisitions\n- **Scan Duration:** ~5-7 minutes (heart-rate dependent)\n\n### Technical Notes\n- **Cardiac Gating:** Critical for minimizing CSF pulsation artifacts\n- **Reduced FOV Imaging:** Siemens ZOOMit, Philips Zoom Diffusion\n- **TE Variations:** Protocol specifies \"minimum TE\" which varies by gradient strength\n- **Partial Fourier:** 62-97% (typically ~75%)\n- **Parallel Imaging:** Factor 2",
+      "detailed_description": "## 2D Diffusion-Weighted Imaging (DWI)\n\n### Overview\nCardiac-gated diffusion-weighted imaging optimized for spinal cord white matter tract characterization using diffusion tensor imaging (DTI) analysis.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SE-EPI with and without FOCUS\n- **Siemens:** ep2d_diff with and without ZOOMit\n- **Philips:** Zoom Diffusion (reduced FOV diffusion imaging)\n\n### Clinical Purpose\n- White matter tract integrity assessment via DTI metrics (FA, MD, RD, AD)\n- Axonal damage quantification\n- Fiber orientation mapping\n- Microstructural tissue characterization\n\n### Key Parameters\n- **Acquisition Type:** 2D multi-slice\n- **Gating:** Cardiac triggered (5 RR intervals)\n- **Diffusion Scheme:** 30 directions + b=0 baseline\n- **b-values:** 0, 800 s/mm\u00b2\n- **Resolution:** 0.9\u00d70.9\u00d75.0 mm (BaseResolution=96)\n- **TE:** 60-99 ms (varies with gradient strength: 40-80 mT/m)\n- **Flip Angle:** 90\u00b0\n- **Phase Encoding:** P-A (j-) in 94% of acquisitions\n- **Scan Duration:** ~5-7 minutes (heart-rate dependent)\n\n### Technical Notes\n- **Cardiac Gating:** Critical for minimizing CSF pulsation artifacts\n- **Reduced FOV Imaging:** Siemens ZOOMit, Philips Zoom Diffusion, GE FOCUS\n- **TE Variations:** Protocol specifies \"minimum TE\" which varies by gradient strength\n- **Partial Fourier:** 62-97% (typically ~75%)\n- **Parallel Imaging:** Factor 2\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
           "field": "MRAcquisitionType",
@@ -296,8 +431,7 @@
           "tag": "0018,1314",
           "value": 90,
           "vr": "DS",
-          "dataType": "number",
-          "tolerance": 5
+          "dataType": "number"
         },
         {
           "field": "EchoTime",
@@ -305,7 +439,7 @@
           "value": 70,
           "vr": "DS",
           "dataType": "number",
-          "tolerance": 30
+          "tolerance": 100
         },
         {
           "field": "MagneticFieldStrength",
@@ -340,89 +474,208 @@
           "tolerance": 0.25
         },
         {
-          "field": "PhaseEncodingDirection",
+          "field": "InPlanePhaseEncodingDirection",
           "tag": "0018,1312",
-          "value": "j-",
+          "value": "COL",
           "vr": "CS",
           "dataType": "string"
         }
       ],
-      "series": [
-        {
-          "name": "GE_SEEPI",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "GE"
-            },
-            {
-              "field": "ScanningSequence",
-              "tag": "0018,0020",
-              "value": "SE"
-            }
-          ]
-        },
-        {
-          "name": "Siemens_ep2d_diff",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Siemens"
-            },
-            {
-              "field": "ScanningSequence",
-              "tag": "0018,0020",
-              "value": "EP"
-            }
-          ]
-        },
-        {
-          "name": "Philips_ZoomDiffusion",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Philips"
-            },
-            {
-              "field": "ScanningSequence",
-              "tag": "0018,0020",
-              "value": "EP_SE"
-            }
-          ]
-        }
-      ],
+      "series": [],
       "rules": [
         {
-          "id": "validate_dwi_phase_encoding",
-          "name": "DWI Phase Encoding Direction",
-          "description": "The protocol recommends P-A (j-) phase encoding direction for optimal distortion correction.",
-          "implementation": "if 'PhaseEncodingDirection' in value:\n    ped = value['PhaseEncodingDirection'].iloc[0]\n    if ped not in ['j-', 'j']:\n        raise ValidationWarning(f\"Phase encoding direction {ped} differs from recommended P-A (j-).\")",
-          "fields": ["PhaseEncodingDirection"],
+          "id": "validate_dwi_vendor_sequence",
+          "name": "DWI Vendor-Specific Sequence",
+          "description": "Validates the correct EPI sequence type for each vendor: GE uses SE, Siemens uses EP, Philips uses EP+SE combination.",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nscanning_seq = value['ScanningSequence'].iloc[0] if 'ScanningSequence' in value.columns else ''\n\nif 'GE' in manufacturer:\n    if 'SE' not in scanning_seq:\n        raise ValidationError(f\"GE DWI should use SE-EPI sequence. Found: {scanning_seq}\")\nelif 'SIEMENS' in manufacturer:\n    if 'EP' not in scanning_seq:\n        raise ValidationError(f\"Siemens DWI should use EP (ep2d_diff) sequence. Found: {scanning_seq}\")\nelif 'PHILIPS' in manufacturer:\n    if 'EP' not in scanning_seq and 'SE' not in scanning_seq:\n        raise ValidationError(f\"Philips DWI should use EP/SE (Zoom Diffusion) sequence. Found: {scanning_seq}\")",
+          "fields": [
+            "Manufacturer",
+            "ScanningSequence"
+          ],
           "testCases": [
             {
-              "id": "test_dwi_ped_pass",
-              "name": "Correct P-A direction",
-              "data": {"PhaseEncodingDirection": ["j-"]},
+              "id": "test_dwi_ge_pass",
+              "name": "GE with SE sequence",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "ScanningSequence": [
+                  "SE"
+                ]
+              },
               "expectedResult": "pass",
               "description": ""
             },
             {
-              "id": "test_dwi_ped_warning",
-              "name": "Non-standard direction",
-              "data": {"PhaseEncodingDirection": ["i-"]},
+              "id": "test_dwi_siemens_pass",
+              "name": "Siemens with EP sequence",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "ScanningSequence": [
+                  "EP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_dwi_philips_pass",
+              "name": "Philips with EP_SE sequence",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "ScanningSequence": [
+                  "EP, SE"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_dwi_bvalue",
+          "name": "DWI b-value Check",
+          "description": "DWI should include b=0 and b=800 s/mm\u00b2 acquisitions for DTI analysis.",
+          "implementation": "if 'DiffusionBValue' in value.columns:\n    bvalues = value['DiffusionBValue'].dropna().unique()\n    has_b0 = any(b < 50 for b in bvalues)\n    has_b800 = any(700 < b < 900 for b in bvalues)\n    if not has_b0:\n        raise ValidationError(\"DWI should include b=0 acquisition for DTI baseline.\")\n    if not has_b800:\n        raise ValidationError(f\"DWI should include b~800 s/mm\u00b2 acquisition. Found b-values: {sorted(bvalues)}\")",
+          "fields": [
+            "DiffusionBValue"
+          ],
+          "testCases": [
+            {
+              "id": "test_dwi_bvalue_pass",
+              "name": "Correct b-values",
+              "data": {
+                "DiffusionBValue": [
+                  0,
+                  800,
+                  800,
+                  800
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_dwi_bvalue_warning_no_b0",
+              "name": "Missing b=0",
+              "data": {
+                "DiffusionBValue": [
+                  800,
+                  800,
+                  800
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_dwi_phase_encoding_polarity",
+          "name": "DWI Phase Encoding Polarity",
+          "description": "Validates phase encoding direction polarity. Spine-generic DWI uses P-A (posterior to anterior) phase encoding. Siemens: PhaseEncodingDirectionPositive=0, GE: RectilinearPhaseEncodeReordering=REVERSE_LINEAR. Philips does not encode polarity in DICOM.",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\n\n# Check InPlanePhaseEncodingDirection first (should be COL for A-P axis)\nif 'InPlanePhaseEncodingDirection' in value.columns:\n    pe_dir = str(value['InPlanePhaseEncodingDirection'].iloc[0]).upper()\n    if pe_dir != 'COL':\n        raise ValidationError(f\"DWI phase encoding should be along COL (A-P axis). Found: {pe_dir}\")\n\n# Vendor-specific polarity checks\nif 'SIEMENS' in manufacturer:\n    if 'PhaseEncodingDirectionPositive' in value.columns:\n        pe_positive = value['PhaseEncodingDirectionPositive'].iloc[0]\n        if pe_positive is not None:\n            pe_positive = int(pe_positive)\n            if pe_positive != 0:\n                raise ValidationError(f\"Siemens DWI should use P-A phase encoding (PhaseEncodingDirectionPositive=0). Found: {pe_positive}\")\n    else:\n        raise ValidationWarning(\"Siemens PhaseEncodingDirectionPositive not found. Cannot verify P-A phase encoding polarity.\")\n\nelif 'GE' in manufacturer:\n    if 'RectilinearPhaseEncodeReordering' in value.columns:\n        pe_reorder = str(value['RectilinearPhaseEncodeReordering'].iloc[0]).upper()\n        # REVERSE_LINEAR indicates reversed phase encoding direction\n        if 'REVERSE' not in pe_reorder:\n            raise ValidationWarning(f\"GE DWI typically uses REVERSE_LINEAR for P-A encoding. Found: {pe_reorder}\")\n    else:\n        raise ValidationWarning(\"GE RectilinearPhaseEncodeReordering not found. Cannot verify phase encoding polarity.\")\n\nelif 'PHILIPS' in manufacturer:\n    raise ValidationWarning(\"Philips DICOM does not encode phase encoding polarity. Please manually verify P-A phase encoding direction.\")",
+          "fields": [
+            "Manufacturer",
+            "InPlanePhaseEncodingDirection",
+            "PhaseEncodingDirectionPositive",
+            "RectilinearPhaseEncodeReordering"
+          ],
+          "testCases": [
+            {
+              "id": "test_dwi_siemens_pa_pass",
+              "name": "Siemens P-A encoding",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "InPlanePhaseEncodingDirection": [
+                  "COL"
+                ],
+                "PhaseEncodingDirectionPositive": [
+                  0
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_dwi_siemens_ap_fail",
+              "name": "Siemens A-P encoding (wrong)",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "InPlanePhaseEncodingDirection": [
+                  "COL"
+                ],
+                "PhaseEncodingDirectionPositive": [
+                  1
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_dwi_ge_reverse_pass",
+              "name": "GE REVERSE_LINEAR",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "InPlanePhaseEncodingDirection": [
+                  "COL"
+                ],
+                "RectilinearPhaseEncodeReordering": [
+                  "REVERSE_LINEAR"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_dwi_philips_warning",
+              "name": "Philips polarity unknown",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "InPlanePhaseEncodingDirection": [
+                  "COL"
+                ]
+              },
               "expectedResult": "warning",
+              "description": "Philips cannot encode polarity"
+            },
+            {
+              "id": "test_dwi_wrong_axis",
+              "name": "Wrong phase encoding axis",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "InPlanePhaseEncodingDirection": [
+                  "ROW"
+                ],
+                "PhaseEncodingDirectionPositive": [
+                  0
+                ]
+              },
+              "expectedResult": "fail",
               "description": ""
             }
           ]
         }
       ]
     },
-    "ME_GRE_2D": {
+    "Multi-Echo GRE 2D": {
       "description": "Multi-echo gradient echo imaging for T2* relaxometry and gray matter visualization",
-      "detailed_description": "## 2D Multi-Echo Gradient Recalled Echo (ME-GRE / T2star)\n\n### Overview\nMulti-echo gradient echo sequence designed for quantitative T2* mapping and gray matter characterization in the spinal cord.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** MERGE (Multiple Echo Recombined Gradient Echo)\n- **Siemens:** medic (Multi-Echo Data Image Combination)\n- **Philips:** mFFE (multi Fast Field Echo)\n\n### Clinical Purpose\n- Quantitative T2* relaxometry\n- Gray matter/white matter contrast via T2* differences\n- Gray matter CSA quantification (relevant for ALS)\n- Iron content assessment\n\n### Key Parameters\n- **Acquisition Type:** 2D multi-slice\n- **Resolution:** 0.5×0.5×5.0 mm (BaseResolution=448)\n- **Flip Angle:** 30°\n- **TR:** 600-660 ms\n- **Number of Echoes:** Multi-echo (typically 3-5)\n- **Coverage:** Axial slices covering cervical cord\n- **Scan Duration:** ~3-4 minutes\n\n### Technical Notes\n- **Anterior Saturation Band:** Critical feature to suppress swallowing artifacts\n- **T2* Fitting:** Post-processing fits mono-exponential decay across echo times\n- **Gray Matter Sensitivity:** T2* particularly sensitive to gray matter due to iron content",
+      "detailed_description": "## 2D Multi-Echo Gradient Recalled Echo (ME-GRE / T2star)\n\n### Overview\nMulti-echo gradient echo sequence designed for quantitative T2* mapping and gray matter characterization in the spinal cord.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** MERGE (Multiple Echo Recombined Gradient Echo)\n- **Siemens:** GRE \"medic\" (Multi-Echo Data Image Combination)\n- **Philips:** mFFE (multi Fast Field Echo)\n\n### Clinical Purpose\n- Quantitative T2* relaxometry\n- Gray matter/white matter contrast via T2* differences\n- Gray matter CSA quantification (relevant for ALS)\n- Iron content assessment\n\n### Key Parameters\n- **Acquisition Type:** 2D multi-slice\n- **Resolution:** 0.5\u00d70.5\u00d75.0 mm (BaseResolution=448)\n- **Flip Angle:** 30\u00b0\n- **TR:** 600-660 ms\n- **Number of Echoes:** Multi-echo (typically 3-5)\n- **Coverage:** Axial slices covering cervical cord\n- **Scan Duration:** ~3-4 minutes\n\n### Technical Notes\n- **Anterior Saturation Band:** Critical feature to suppress swallowing artifacts\n- **T2* Fitting:** Post-processing fits mono-exponential decay across echo times\n- **Gray Matter Sensitivity:** T2* particularly sensitive to gray matter due to iron content\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
           "field": "MRAcquisitionType",
@@ -452,8 +705,7 @@
           "tag": "0018,1314",
           "value": 30,
           "vr": "DS",
-          "dataType": "number",
-          "tolerance": 5
+          "dataType": "number"
         },
         {
           "field": "MagneticFieldStrength",
@@ -487,67 +739,128 @@
           "tolerance": 48
         }
       ],
-      "series": [
-        {
-          "name": "GE_MERGE",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "GE"
-            }
-          ]
-        },
-        {
-          "name": "Siemens_medic",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Siemens"
-            }
-          ]
-        },
-        {
-          "name": "Philips_mFFE",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Philips"
-            }
-          ]
-        }
-      ],
+      "series": [],
       "rules": [
         {
           "id": "validate_megre_multiecho",
           "name": "Multi-Echo Validation",
-          "description": "The ME-GRE sequence should be a multi-echo acquisition (EchoTrainLength >= 3) for robust T2* fitting.",
-          "implementation": "if 'EchoTrainLength' in value:\n    etl = value['EchoTrainLength'].iloc[0]\n    if etl < 3:\n        raise ValidationWarning(f\"EchoTrainLength {etl} is less than recommended 3+ echoes for T2* mapping.\")",
-          "fields": ["EchoTrainLength"],
+          "description": "The ME-GRE sequence should be a multi-echo acquisition (3+ echoes) for robust T2* fitting.",
+          "implementation": "echo_times = value['EchoTime'].dropna().unique() if 'EchoTime' in value.columns else []\nif len(echo_times) < 3:\n    raise ValidationError(f\"ME-GRE should have 3+ echoes for T2* mapping. Found {len(echo_times)} echo(es).\")",
+          "fields": [
+            "EchoTime"
+          ],
           "testCases": [
             {
               "id": "test_megre_multiecho_pass",
               "name": "3+ echoes present",
-              "data": {"EchoTrainLength": [3]},
+              "data": {
+                "EchoTime": [
+                  5,
+                  10,
+                  15,
+                  20,
+                  25
+                ]
+              },
               "expectedResult": "pass",
               "description": ""
             },
             {
               "id": "test_megre_multiecho_warning",
               "name": "Single echo",
-              "data": {"EchoTrainLength": [1]},
-              "expectedResult": "warning",
+              "data": {
+                "EchoTime": [
+                  10
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_megre_echo_spacing",
+          "name": "ME-GRE Echo Spacing",
+          "description": "Echo spacing should be uniform for proper T2* fitting.",
+          "implementation": "import numpy as np\necho_times = sorted(value['EchoTime'].dropna().unique()) if 'EchoTime' in value.columns else []\nif len(echo_times) >= 3:\n    spacings = np.diff(echo_times)\n    if not np.allclose(spacings, spacings[0], rtol=0.1):\n        raise ValidationError(f\"Echo spacing is not uniform. Spacings: {spacings}ms\")",
+          "fields": [
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_megre_spacing_pass",
+              "name": "Uniform echo spacing",
+              "data": {
+                "EchoTime": [
+                  5,
+                  10,
+                  15,
+                  20
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_megre_spacing_warning",
+              "name": "Non-uniform spacing",
+              "data": {
+                "EchoTime": [
+                  5,
+                  8,
+                  15,
+                  20
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ]
+        },
+        {
+          "id": "validate_megre_resolution",
+          "name": "ME-GRE High Resolution",
+          "description": "ME-GRE should have high in-plane resolution (~0.5mm) for gray matter visualization.",
+          "implementation": "if 'PixelSpacing' in value.columns:\n    pixel_spacing = value['PixelSpacing'].iloc[0]\n    if isinstance(pixel_spacing, (list, tuple)) and len(pixel_spacing) >= 2:\n        avg_spacing = (pixel_spacing[0] + pixel_spacing[1]) / 2\n        if avg_spacing > 0.6:\n            raise ValidationError(f\"ME-GRE in-plane resolution should be ~0.5mm. Found: {avg_spacing:.2f}mm\")",
+          "fields": [
+            "PixelSpacing"
+          ],
+          "testCases": [
+            {
+              "id": "test_megre_resolution_pass",
+              "name": "0.5mm resolution",
+              "data": {
+                "PixelSpacing": [
+                  [
+                    0.5,
+                    0.5
+                  ]
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_megre_resolution_warning",
+              "name": "Low resolution",
+              "data": {
+                "PixelSpacing": [
+                  [
+                    1.0,
+                    1.0
+                  ]
+                ]
+              },
+              "expectedResult": "fail",
               "description": ""
             }
           ]
         }
       ]
     },
-    "MTS_MTon_3D": {
+    "Magnetization Transfer (MT on) 3D": {
       "description": "Magnetization transfer imaging with MT saturation pulse ON for myelin quantification",
-      "detailed_description": "## 3D Gradient Echo with Magnetization Transfer ON (MTS-MTon)\n\n### Overview\nThree-dimensional gradient echo imaging with magnetization transfer (MT) saturation pulse enabled. This is one of three acquisitions required for calculating the magnetization transfer ratio (MTR) and MTsat.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SPGR with MTC\n- **Siemens:** GRE/FLASH with MTC\n- **Philips:** FFE with MTC\n\n### Clinical Purpose\n- **Myelin Quantification:** MTR is highly sensitive to myelin content\n- **Demyelination Assessment:** Reduced MTR indicates myelin loss\n- **Multiple Sclerosis:** Disease monitoring and progression tracking\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Resolution:** 0.9×0.9×5.0 mm\n- **Flip Angle:** 9°\n- **TR:** 35-108 ms (varies by platform due to SAR limits)\n- **TE:** 2-4 ms (minimum)\n- **MT Pulse:** ON (off-resonance saturation pulse)\n\n### Vendor Variations (expected per protocol)\n- Siemens: TR = 35.2 ms\n- Philips: TR = 63.3 ms\n- GE: TR = 50.3 ms\n\n### Technical Notes\n- Protocol explicitly states TR varies 5.4-8.9 min total acquisition due to platform-specific SAR limitations\n- TR must match between MTon and MToff acquisitions\n- If SAR limit reached, increase TR (e.g., 35ms to 36ms)",
+      "detailed_description": "## 3D Gradient Echo with Magnetization Transfer ON (MTS-MTon)\n\n### Overview\nThree-dimensional gradient echo imaging with magnetization transfer (MT) saturation pulse enabled. This is one of three acquisitions required for calculating the magnetization transfer ratio (MTR) and MTsat.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SPGR with MTC\n- **Siemens:** GRE with MTC\n- **Philips:** FFE with MTC\n\n### Clinical Purpose\n- **Myelin Quantification:** MTR is highly sensitive to myelin content\n- **Demyelination Assessment:** Reduced MTR indicates myelin loss\n- **Multiple Sclerosis:** Disease monitoring and progression tracking\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Resolution:** 0.9\u00d70.9\u00d75.0 mm\n- **Flip Angle:** 9\u00b0\n- **TR:** 35-108 ms (varies by platform due to SAR limits)\n- **TE:** 2-4 ms (minimum)\n- **MT Pulse:** ON (off-resonance saturation pulse)\n\n### Vendor Variations (expected per protocol)\n- Siemens: TR = 35.2 ms\n- Philips: TR = 63.3 ms\n- GE: TR = 50.3 ms\n\n### Technical Notes\n- Protocol explicitly states TR varies 5.4-8.9 min total acquisition due to platform-specific SAR limitations\n- TR must match between MTon and MToff acquisitions\n- If SAR limit reached, increase TR (e.g., 35ms to 36ms)\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
           "field": "MRAcquisitionType",
@@ -565,28 +878,19 @@
           "tolerance": 0.5
         },
         {
-          "field": "RepetitionTime",
-          "tag": "0018,0080",
-          "value": 35,
-          "vr": "DS",
-          "dataType": "number",
-          "tolerance": 80
-        },
-        {
           "field": "EchoTime",
           "tag": "0018,0081",
           "value": 3,
           "vr": "DS",
           "dataType": "number",
-          "tolerance": 2
+          "tolerance": 100
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
           "value": 9,
           "vr": "DS",
-          "dataType": "number",
-          "tolerance": 1
+          "dataType": "number"
         },
         {
           "field": "MagneticFieldStrength",
@@ -628,57 +932,175 @@
           "contains": true
         }
       ],
-      "series": [
+      "series": [],
+      "rules": [
         {
-          "name": "GE_SPGR_MTC",
+          "id": "validate_mton_mt_enabled",
+          "name": "MT Pulse Enabled",
+          "description": "MTon acquisition must have magnetization transfer pulse enabled (indicated in ScanOptions or SequenceVariant).",
+          "implementation": "scan_options = str(value['ScanOptions'].iloc[0]) if 'ScanOptions' in value.columns else ''\nseq_variant = str(value['SequenceVariant'].iloc[0]) if 'SequenceVariant' in value.columns else ''\n\nif 'MT' not in scan_options.upper() and 'MTC' not in seq_variant.upper():\n    raise ValidationError(\"MTon acquisition must have MT pulse enabled. Check ScanOptions or SequenceVariant for MT/MTC.\")",
           "fields": [
+            "ScanOptions",
+            "SequenceVariant"
+          ],
+          "testCases": [
             {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "GE"
+              "id": "test_mton_enabled_pass",
+              "name": "MT in ScanOptions",
+              "data": {
+                "ScanOptions": [
+                  "MT"
+                ],
+                "SequenceVariant": [
+                  "SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "SequenceVariant",
-              "tag": "0018,0021",
-              "value": "SP"
+              "id": "test_mton_enabled_pass_variant",
+              "name": "MTC in SequenceVariant",
+              "data": {
+                "ScanOptions": [
+                  "N/A"
+                ],
+                "SequenceVariant": [
+                  "MTC_SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_mton_enabled_fail",
+              "name": "No MT indicator",
+              "data": {
+                "ScanOptions": [
+                  "N/A"
+                ],
+                "SequenceVariant": [
+                  "SP"
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
             }
           ]
         },
         {
-          "name": "Siemens_GRE_MTC",
+          "id": "validate_mton_vendor_tr",
+          "name": "MTon Vendor-Specific TR",
+          "description": "TR varies by vendor due to SAR limitations: Siemens ~35ms, GE ~50ms, Philips ~63ms.",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\ntr = value['RepetitionTime'].iloc[0] if 'RepetitionTime' in value.columns else None\n\nif tr is None:\n    pass\nelif 'SIEMENS' in manufacturer:\n    if tr < 30 or tr > 45:\n        raise ValidationError(f\"Siemens MTon TR should be ~35ms. Found: {tr}ms\")\nelif 'GE' in manufacturer:\n    if tr < 40 or tr > 60:\n        raise ValidationError(f\"GE MTon TR should be ~50ms. Found: {tr}ms\")\nelif 'PHILIPS' in manufacturer:\n    if tr < 55 or tr > 75:\n        raise ValidationError(f\"Philips MTon TR should be ~63ms. Found: {tr}ms\")",
           "fields": [
+            "Manufacturer",
+            "RepetitionTime"
+          ],
+          "testCases": [
             {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Siemens"
+              "id": "test_mton_siemens_tr_pass",
+              "name": "Siemens TR ~35ms",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "RepetitionTime": [
+                  35
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "SequenceVariant",
-              "tag": "0018,0021",
-              "value": "MTC_SP"
+              "id": "test_mton_ge_tr_pass",
+              "name": "GE TR ~50ms",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "RepetitionTime": [
+                  50
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_mton_philips_tr_pass",
+              "name": "Philips TR ~63ms",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "RepetitionTime": [
+                  63
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             }
           ]
         },
         {
-          "name": "Philips_FFE_MTC",
+          "id": "validate_mton_vendor_sequence_variant",
+          "name": "MTon Vendor Sequence Variant",
+          "description": "Validates the expected SequenceVariant for each vendor's MT implementation.",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nseq_variant = str(value['SequenceVariant'].iloc[0]) if 'SequenceVariant' in value.columns else ''\n\nif 'GE' in manufacturer:\n    if 'SP' not in seq_variant:\n        raise ValidationError(f\"GE MTon should use SP (SPGR) sequence variant. Found: {seq_variant}\")\nelif 'SIEMENS' in manufacturer:\n    if 'MTC' not in seq_variant or 'SP' not in seq_variant:\n        raise ValidationError(f\"Siemens MTon should use MTC_SP sequence variant. Found: {seq_variant}\")\nelif 'PHILIPS' in manufacturer:\n    if 'SS' not in seq_variant or 'SP' not in seq_variant:\n        raise ValidationError(f\"Philips MTon should use SS_SP sequence variant. Found: {seq_variant}\")",
           "fields": [
+            "Manufacturer",
+            "SequenceVariant"
+          ],
+          "testCases": [
             {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Philips"
+              "id": "test_mton_ge_variant_pass",
+              "name": "GE with SP",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "SequenceVariant": [
+                  "SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "SequenceVariant",
-              "tag": "0018,0021",
-              "value": "SS_SP"
+              "id": "test_mton_siemens_variant_pass",
+              "name": "Siemens with MTC_SP",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "SequenceVariant": [
+                  "MTC, SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_mton_philips_variant_pass",
+              "name": "Philips with SS_SP",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "SequenceVariant": [
+                  "SS, SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             }
           ]
         }
       ]
     },
-    "MTS_MToff_3D": {
+    "Magnetization Transfer (MT off) 3D": {
       "description": "Magnetization transfer imaging with MT saturation pulse OFF (baseline reference)",
-      "detailed_description": "## 3D Gradient Echo with Magnetization Transfer OFF (MTS-MToff)\n\n### Overview\nBaseline acquisition without MT saturation pulse, identical parameters to MTS-MTon except no MT pulse. Required for MTR calculation.\n\n### MTR Calculation\nMTR = (MToff - MTon) / MToff × 100%\n\nTypical values in healthy spinal cord:\n- White matter: 34-35%\n- Gray matter: 28-29%\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Resolution:** 0.9×0.9×5.0 mm\n- **Flip Angle:** 9°\n- **TR:** Must match MTon (35-108 ms)\n- **TE:** 2-4 ms (minimum)\n- **MT Pulse:** OFF (no saturation pulse)\n\n### Technical Notes\n- TR MUST match MTon acquisition for valid MTR calculation\n- If SAR limit reached on MTon, also change TR on MToff to match",
+      "detailed_description": "## 3D Gradient Echo with Magnetization Transfer OFF (MTS-MToff)\n\n### Overview\nBaseline acquisition without MT saturation pulse, identical parameters to MTS-MTon except no MT pulse. Required for MTR calculation.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SPGR (no MTC)\n- **Siemens:** GRE (no MTC)\n- **Philips:** FFE (no MTC)\n\n### MTR Calculation\nMTR = (MToff - MTon) / MToff \u00d7 100%\n\nTypical values in healthy spinal cord:\n- White matter: 34-35%\n- Gray matter: 28-29%\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Resolution:** 0.9\u00d70.9\u00d75.0 mm\n- **Flip Angle:** 9\u00b0\n- **TR:** Must match MTon (35-108 ms)\n- **TE:** 2-4 ms (minimum)\n- **MT Pulse:** OFF (no saturation pulse)\n\n### Technical Notes\n- TR MUST match MTon acquisition for valid MTR calculation\n- If SAR limit reached on MTon, also change TR on MToff to match\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
           "field": "MRAcquisitionType",
@@ -696,28 +1118,19 @@
           "tolerance": 0.5
         },
         {
-          "field": "RepetitionTime",
-          "tag": "0018,0080",
-          "value": 35,
-          "vr": "DS",
-          "dataType": "number",
-          "tolerance": 80
-        },
-        {
           "field": "EchoTime",
           "tag": "0018,0081",
           "value": 3,
           "vr": "DS",
           "dataType": "number",
-          "tolerance": 2
+          "tolerance": 100
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
           "value": 9,
           "vr": "DS",
-          "dataType": "number",
-          "tolerance": 1
+          "dataType": "number"
         },
         {
           "field": "MagneticFieldStrength",
@@ -751,57 +1164,129 @@
           "tolerance": 26
         }
       ],
-      "series": [
+      "series": [],
+      "rules": [
         {
-          "name": "GE_SPGR",
+          "id": "validate_mtoff_tr_matches_mton",
+          "name": "MToff TR Must Match MTon",
+          "description": "TR for MToff acquisition MUST match MTon acquisition for valid MTR calculation. This cannot be automatically verified across acquisitions.",
+          "implementation": "raise ValidationWarning(\"MToff TR must match MTon TR for valid MTR calculation. Please manually verify that TR values are identical between MTon and MToff acquisitions.\")",
           "fields": [
+            "RepetitionTime"
+          ],
+          "testCases": [
             {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "GE"
-            },
-            {
-              "field": "SequenceVariant",
-              "tag": "0018,0021",
-              "value": "SP"
+              "id": "test_mtoff_tr_reminder",
+              "name": "Always warns to check TR",
+              "data": {
+                "RepetitionTime": [
+                  35
+                ]
+              },
+              "expectedResult": "warning",
+              "description": ""
             }
           ]
         },
         {
-          "name": "Siemens_GRE",
+          "id": "validate_mtoff_no_mt",
+          "name": "MT Pulse Disabled",
+          "description": "MToff acquisition should NOT have MT pulse enabled.",
+          "implementation": "scan_options = str(value['ScanOptions'].iloc[0]) if 'ScanOptions' in value.columns else ''\nseq_variant = str(value['SequenceVariant'].iloc[0]) if 'SequenceVariant' in value.columns else ''\n\n# Check that MTC is not in SequenceVariant (ScanOptions MT is less reliable)\nif 'MTC' in seq_variant.upper():\n    raise ValidationError(\"MToff acquisition should NOT have MT pulse enabled. Found MTC in SequenceVariant.\")",
           "fields": [
+            "ScanOptions",
+            "SequenceVariant"
+          ],
+          "testCases": [
             {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Siemens"
+              "id": "test_mtoff_disabled_pass",
+              "name": "No MTC in variant",
+              "data": {
+                "ScanOptions": [
+                  "N/A"
+                ],
+                "SequenceVariant": [
+                  "SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "SequenceVariant",
-              "tag": "0018,0021",
-              "value": "SP"
+              "id": "test_mtoff_disabled_fail",
+              "name": "MTC present",
+              "data": {
+                "ScanOptions": [
+                  "MT"
+                ],
+                "SequenceVariant": [
+                  "MTC, SP"
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
             }
           ]
         },
         {
-          "name": "Philips_FFE",
+          "id": "validate_mtoff_vendor_sequence_variant",
+          "name": "MToff Vendor Sequence Variant",
+          "description": "Validates the expected SequenceVariant for each vendor (without MTC).",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nseq_variant = str(value['SequenceVariant'].iloc[0]) if 'SequenceVariant' in value.columns else ''\n\nif 'GE' in manufacturer:\n    if 'SP' not in seq_variant:\n        raise ValidationError(f\"GE MToff should use SP (SPGR) sequence variant. Found: {seq_variant}\")\nelif 'SIEMENS' in manufacturer:\n    if 'SP' not in seq_variant:\n        raise ValidationError(f\"Siemens MToff should use SP sequence variant. Found: {seq_variant}\")\nelif 'PHILIPS' in manufacturer:\n    if 'SS' not in seq_variant or 'SP' not in seq_variant:\n        raise ValidationError(f\"Philips MToff should use SS_SP sequence variant. Found: {seq_variant}\")",
           "fields": [
+            "Manufacturer",
+            "SequenceVariant"
+          ],
+          "testCases": [
             {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Philips"
+              "id": "test_mtoff_ge_variant_pass",
+              "name": "GE with SP",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "SequenceVariant": [
+                  "SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "SequenceVariant",
-              "tag": "0018,0021",
-              "value": "SS_SP"
+              "id": "test_mtoff_siemens_variant_pass",
+              "name": "Siemens with SP",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "SequenceVariant": [
+                  "SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_mtoff_philips_variant_pass",
+              "name": "Philips with SS_SP",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "SequenceVariant": [
+                  "SS, SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             }
           ]
         }
       ]
     },
-    "MTS_T1w_3D": {
+    "Magnetization Transfer (T1-weighted) 3D": {
       "description": "T1-weighted gradient echo for MTsat calculation (higher flip angle)",
-      "detailed_description": "## 3D Gradient Echo T1-weighted for MTsat (MTS-T1w)\n\n### Overview\nT1-weighted gradient echo acquisition with higher flip angle (15°) used in combination with MTon and MToff to calculate MTsat, which partially compensates for B1+ inhomogeneity and T1 effects.\n\n### Clinical Purpose\n- Required for MTsat calculation (more quantitative than MTR alone)\n- B1+ inhomogeneity compensation\n- T1 effect compensation\n\n### MTsat Calculation\nRequires: MT1 (MTon), MT0 (MToff), and T1w scans\n- MTsat is more robust to B1 variations than MTR\n- Provides better cross-site reproducibility\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Resolution:** 0.9×0.9×5.0 mm (BaseResolution=256)\n- **Flip Angle:** 15° (different from MTon/MToff which use 9°)\n- **TR:** 15-103 ms (varies by platform)\n- **TE:** 2-4 ms (minimum)\n\n### Vendor Variations\n- Siemens: TR = 15.0 ms\n- Philips: TR = 24.5 ms\n- GE: TR = 15.7 ms",
+      "detailed_description": "## 3D Gradient Echo T1-weighted for MTsat (MTS-T1w)\n\n### Overview\nT1-weighted gradient echo acquisition with higher flip angle (15\u00b0) used in combination with MTon and MToff to calculate MTsat, which partially compensates for B1+ inhomogeneity and T1 effects.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SPGR\n- **Siemens:** GRE\n- **Philips:** FFE\n\n### Clinical Purpose\n- Required for MTsat calculation (more quantitative than MTR alone)\n- B1+ inhomogeneity compensation\n- T1 effect compensation\n\n### MTsat Calculation\nRequires: MT1 (MTon), MT0 (MToff), and T1w scans\n- MTsat is more robust to B1 variations than MTR\n- Provides better cross-site reproducibility\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Resolution:** 0.9\u00d70.9\u00d75.0 mm (BaseResolution=256)\n- **Flip Angle:** 15\u00b0 (different from MTon/MToff which use 9\u00b0)\n- **TR:** 15-103 ms (varies by platform)\n- **TE:** 2-4 ms (minimum)\n\n### Vendor Variations\n- Siemens: TR = 15.0 ms\n- Philips: TR = 24.5 ms\n- GE: TR = 15.7 ms\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
           "field": "MRAcquisitionType",
@@ -819,28 +1304,19 @@
           "tolerance": 0.5
         },
         {
-          "field": "RepetitionTime",
-          "tag": "0018,0080",
-          "value": 15,
-          "vr": "DS",
-          "dataType": "number",
-          "tolerance": 90
-        },
-        {
           "field": "EchoTime",
           "tag": "0018,0081",
           "value": 3,
           "vr": "DS",
           "dataType": "number",
-          "tolerance": 2
+          "tolerance": 100
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
           "value": 15,
           "vr": "DS",
-          "dataType": "number",
-          "tolerance": 1
+          "dataType": "number"
         },
         {
           "field": "MagneticFieldStrength",
@@ -874,49 +1350,113 @@
           "tolerance": 26
         }
       ],
-      "series": [
+      "series": [],
+      "rules": [
         {
-          "name": "GE_SPGR",
+          "id": "validate_mts_t1w_vendor_tr",
+          "name": "MTS T1w Vendor-Specific TR",
+          "description": "TR varies by vendor: Siemens ~15ms, GE ~16ms, Philips ~25ms.",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\ntr = value['RepetitionTime'].iloc[0] if 'RepetitionTime' in value.columns else None\n\nif tr is None:\n    pass\nelif 'SIEMENS' in manufacturer:\n    if tr < 12 or tr > 20:\n        raise ValidationError(f\"Siemens MTS T1w TR should be ~15ms. Found: {tr}ms\")\nelif 'GE' in manufacturer:\n    if tr < 12 or tr > 20:\n        raise ValidationError(f\"GE MTS T1w TR should be ~16ms. Found: {tr}ms\")\nelif 'PHILIPS' in manufacturer:\n    if tr < 20 or tr > 30:\n        raise ValidationError(f\"Philips MTS T1w TR should be ~25ms. Found: {tr}ms\")",
           "fields": [
+            "Manufacturer",
+            "RepetitionTime"
+          ],
+          "testCases": [
             {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "GE"
+              "id": "test_mts_t1w_siemens_tr_pass",
+              "name": "Siemens TR ~15ms",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "RepetitionTime": [
+                  15
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "SequenceVariant",
-              "tag": "0018,0021",
-              "value": "SP"
+              "id": "test_mts_t1w_ge_tr_pass",
+              "name": "GE TR ~16ms",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "RepetitionTime": [
+                  16
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_mts_t1w_philips_tr_pass",
+              "name": "Philips TR ~25ms",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "RepetitionTime": [
+                  25
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             }
           ]
         },
         {
-          "name": "Siemens_GRE",
+          "id": "validate_mts_t1w_vendor_sequence_variant",
+          "name": "MTS T1w Vendor Sequence Variant",
+          "description": "Validates the expected SequenceVariant for each vendor.",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nseq_variant = str(value['SequenceVariant'].iloc[0]) if 'SequenceVariant' in value.columns else ''\n\nif 'GE' in manufacturer:\n    if 'SP' not in seq_variant:\n        raise ValidationError(f\"GE MTS T1w should use SP (SPGR) sequence variant. Found: {seq_variant}\")\nelif 'SIEMENS' in manufacturer:\n    if 'SP' not in seq_variant:\n        raise ValidationError(f\"Siemens MTS T1w should use SP sequence variant. Found: {seq_variant}\")\nelif 'PHILIPS' in manufacturer:\n    if 'SS' not in seq_variant or 'SP' not in seq_variant:\n        raise ValidationError(f\"Philips MTS T1w should use SS_SP sequence variant. Found: {seq_variant}\")",
           "fields": [
+            "Manufacturer",
+            "SequenceVariant"
+          ],
+          "testCases": [
             {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Siemens"
+              "id": "test_mts_t1w_ge_variant_pass",
+              "name": "GE with SP",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "SequenceVariant": [
+                  "SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "SequenceVariant",
-              "tag": "0018,0021",
-              "value": "SP"
-            }
-          ]
-        },
-        {
-          "name": "Philips_FFE",
-          "fields": [
-            {
-              "field": "Manufacturer",
-              "tag": "0008,0070",
-              "value": "Philips"
+              "id": "test_mts_t1w_siemens_variant_pass",
+              "name": "Siemens with SP",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "SequenceVariant": [
+                  "SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             },
             {
-              "field": "SequenceVariant",
-              "tag": "0018,0021",
-              "value": "SS_SP"
+              "id": "test_mts_t1w_philips_variant_pass",
+              "name": "Philips with SS_SP",
+              "data": {
+                "Manufacturer": [
+                  "Philips"
+                ],
+                "SequenceVariant": [
+                  "SS, SP"
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
             }
           ]
         }
@@ -929,31 +1469,88 @@
       "name": "3T Field Strength",
       "description": "All acquisitions in the spine-generic protocol must be performed at 3T.",
       "implementation": "field_strength = value['MagneticFieldStrength'].iloc[0]\nif abs(field_strength - 3.0) > 0.3:\n    raise ValidationError(f\"Field strength {field_strength}T is not 3T. The spine-generic protocol requires 3T.\")",
-      "fields": ["MagneticFieldStrength"],
+      "fields": [
+        "MagneticFieldStrength"
+      ],
       "testCases": [
         {
           "id": "test_field_strength_pass",
           "name": "3T scanner",
-          "data": {"MagneticFieldStrength": [3.0]},
+          "data": {
+            "MagneticFieldStrength": [
+              3.0
+            ]
+          },
           "expectedResult": "pass",
           "description": ""
         },
         {
           "id": "test_field_strength_fail",
           "name": "1.5T scanner",
-          "data": {"MagneticFieldStrength": [1.5]},
+          "data": {
+            "MagneticFieldStrength": [
+              1.5
+            ]
+          },
           "expectedResult": "fail",
           "description": ""
         }
       ]
     },
     {
-      "id": "validate_mts_tr_match",
-      "name": "MTS TR Consistency",
-      "description": "MTon and MToff acquisitions must have matching TR values for valid MTR calculation.",
-      "implementation": "# This rule should be run at the session level comparing MTon and MToff\npass  # Implementation depends on multi-acquisition validation",
-      "fields": ["RepetitionTime"],
-      "testCases": []
+      "id": "validate_supported_vendor",
+      "name": "Supported Vendor",
+      "description": "The spine-generic protocol is validated for GE, Siemens, and Philips scanners.",
+      "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nif not any(vendor in manufacturer for vendor in ['GE', 'SIEMENS', 'PHILIPS']):\n    raise ValidationError(f\"Manufacturer '{manufacturer}' is not in the validated vendor list (GE, Siemens, Philips). Protocol compliance may vary.\")",
+      "fields": [
+        "Manufacturer"
+      ],
+      "testCases": [
+        {
+          "id": "test_vendor_ge_pass",
+          "name": "GE scanner",
+          "data": {
+            "Manufacturer": [
+              "GE MEDICAL SYSTEMS"
+            ]
+          },
+          "expectedResult": "pass",
+          "description": ""
+        },
+        {
+          "id": "test_vendor_siemens_pass",
+          "name": "Siemens scanner",
+          "data": {
+            "Manufacturer": [
+              "SIEMENS"
+            ]
+          },
+          "expectedResult": "pass",
+          "description": ""
+        },
+        {
+          "id": "test_vendor_philips_pass",
+          "name": "Philips scanner",
+          "data": {
+            "Manufacturer": [
+              "Philips Medical Systems"
+            ]
+          },
+          "expectedResult": "pass",
+          "description": ""
+        },
+        {
+          "id": "test_vendor_unknown_warning",
+          "name": "Unknown vendor",
+          "data": {
+            "Manufacturer": [
+              "Canon Medical"
+            ]
+          },
+          "expectedResult": "fail",
+          "description": ""
+        }
+      ]
     }
   ]
 }

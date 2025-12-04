@@ -148,6 +148,8 @@ DEFAULT_DICOM_FIELDS = [
     # Phase encoding
     'InPlanePhaseEncodingDirection',
     'NumberOfPhaseEncodingSteps',
+    'PhaseEncodingDirectionPositive',  # Siemens: 0=negative/P-A, 1=positive/A-P
+    'RectilinearPhaseEncodeReordering',  # GE: LINEAR, REVERSE_LINEAR, etc.
 
     # Scanner hardware
     'MagneticFieldStrength',
