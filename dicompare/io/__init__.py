@@ -13,6 +13,8 @@ This module contains functions for loading and processing various data formats:
 from .dicom import (
     extract_inferred_metadata,
     extract_csa_metadata,
+    extract_ascconv,
+    get_ascconv_value,
     get_dicom_values,
     load_dicom,
     load_dicom_session,
@@ -53,6 +55,8 @@ __all__ = [
     # DICOM I/O
     "extract_inferred_metadata",
     "extract_csa_metadata",
+    "extract_ascconv",
+    "get_ascconv_value",
     "get_dicom_values",
     "load_dicom",
     "load_dicom_session",

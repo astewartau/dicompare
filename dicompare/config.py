@@ -30,10 +30,12 @@ DEFAULT_SETTINGS_FIELDS = [
     # Coil and hardware parameters
     "ReceiveCoilName",
     "TransmitCoilName",
+    "CoilCombinationMethod",  # Siemens: Sum of Squares, Adaptive Combine
     "ReconstructionDiameter",
     "InPlanePhaseEncodingDirection",
     "ParallelReductionFactorInPlane",
     "ParallelAcquisitionTechnique",
+    "AccelerationFactorPE",  # Siemens: from sPat.lAccelFactPE (GRAPPA/SENSE)
 
     # Timing and triggering
     "TriggerTime",
@@ -137,6 +139,7 @@ DEFAULT_DICOM_FIELDS = [
     # Parallel Imaging / Multiband
     'ParallelAcquisitionTechnique',
     'ParallelReductionFactorInPlane',
+    'AccelerationFactorPE',  # Siemens: from sPat.lAccelFactPE (GRAPPA/SENSE)
     'PartialFourier',
     'SliceAccelerationFactor',
     'MultibandFactor',
@@ -157,6 +160,7 @@ DEFAULT_DICOM_FIELDS = [
     'ImagedNucleus',
     'TransmitCoilName',
     'ReceiveCoilName',
+    'CoilCombinationMethod',  # Siemens: Sum of Squares, Adaptive Combine (from ucCoilCombineMode)
     'SAR', # MISSING
     'dBdt',
     'NumberOfAverages',

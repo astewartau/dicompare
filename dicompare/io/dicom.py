@@ -153,6 +153,130 @@ def extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
     return csa_metadata
 
 
+def extract_ascconv(ds: pydicom.Dataset) -> Dict[str, Any]:
+    """
+    Extract and parse the ASCCONV protocol section from Siemens DICOM CSA series header.
+
+    The ASCCONV section contains detailed MRI protocol parameters that are not available
+    in standard DICOM tags or the structured CSA header fields. This includes parameters
+    like ucCoilCombineMode, detailed k-space settings, and sequence-specific options.
+
+    Supports both Siemens V-series (VB/VD/VE using tag 0029,1020) and XA-series
+    (using tag 0021,1019) scanners.
+
+    Args:
+        ds (pydicom.Dataset): The DICOM dataset.
+
+    Returns:
+        Dict[str, Any]: A dictionary of parsed ASCCONV parameters with their native types
+                        (int, float, str). Returns empty dict if ASCCONV not found.
+
+    Example:
+        >>> ds = pydicom.dcmread("siemens_scan.dcm")
+        >>> ascconv = extract_ascconv(ds)
+        >>> print(ascconv.get('ucCoilCombineMode'))  # e.g., 1
+        >>> print(ascconv.get('tProtocolName'))  # e.g., 'T1_MPRAGE'
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # import twixtools for parsing
+    from twixtools.twixprot import parse_buffer
+
+    # Siemens CSA series header locations:
+    # V-series (VB, VD, VE): (0029, 1020)
+    # XA-series: (0021, 1019)
+    csa_tags = [
+        (0x0029, 0x1020),  # V-series CSA Series Header
+        (0x0021, 0x1019),  # XA-series CSA Header
+    ]
+
+    raw_csa_data = None
+    for tag in csa_tags:
+        if tag in ds:
+            raw_csa_data = ds[tag].value
+            if isinstance(raw_csa_data, bytes) and len(raw_csa_data) > 0:
+                logger.debug(f"Found CSA series header at tag {tag}")
+                break
+            raw_csa_data = None
+
+    if raw_csa_data is None:
+        logger.debug("No CSA series header found for ASCCONV extraction")
+        return {}
+
+    # Find ASCCONV section boundaries
+    start_marker = b'### ASCCONV BEGIN'
+    end_marker = b'### ASCCONV END ###'
+
+    start_idx = raw_csa_data.find(start_marker)
+    end_idx = raw_csa_data.find(end_marker)
+
+    if start_idx == -1 or end_idx == -1:
+        logger.debug("ASCCONV section not found in CSA header")
+        return {}
+
+    # Extract and decode the ASCCONV text (include end marker for complete section)
+    ascconv_bytes = raw_csa_data[start_idx:end_idx + len(end_marker)]
+    ascconv_text = ascconv_bytes.decode('latin-1', errors='ignore')
+
+    # Parse using twixtools
+    try:
+        parsed = parse_buffer(ascconv_text)
+        logger.debug(f"Successfully parsed ASCCONV with {len(parsed)} parameters")
+        return parsed
+    except Exception as e:
+        logger.warning(f"Failed to parse ASCCONV section: {e}")
+        return {}
+
+
+def get_ascconv_value(ascconv: Dict[str, Any], key: str, default: Any = None) -> Any:
+    """
+    Get a value from parsed ASCCONV data with support for nested paths and arrays.
+
+    Supports dot-notation for nested access (e.g., 'sPat.lAccelFactPE') and
+    automatically collects array elements when the key points to a list.
+
+    Args:
+        ascconv: Parsed ASCCONV dictionary from extract_ascconv()
+        key: Parameter name or dot-notation path to look up
+        default: Value to return if key not found
+
+    Returns:
+        The parameter value, a list of values for arrays, or the default
+
+    Example:
+        >>> ascconv = extract_ascconv(ds)
+        >>> get_ascconv_value(ascconv, 'ucCoilCombineMode')  # Returns int
+        >>> get_ascconv_value(ascconv, 'alTR')  # Returns list of TR values
+        >>> get_ascconv_value(ascconv, 'sPat.lAccelFactPE')  # Nested access
+    """
+    # Handle dot-notation paths for nested dictionaries
+    if '.' in key:
+        keys = key.split('.')
+        current = ascconv
+        for k in keys:
+            if current is None:
+                return default
+            # Handle array indices like "0", "1" in path
+            if k.isdigit():
+                index = int(k)
+                if isinstance(current, list) and index < len(current):
+                    current = current[index]
+                else:
+                    return default
+            elif isinstance(current, dict) and k in current:
+                current = current[k]
+            else:
+                return default
+        return current if current is not None else default
+
+    # Direct lookup for non-nested keys
+    if key in ascconv:
+        return ascconv[key]
+
+    return default
+
+
 def _process_dicom_element(element, recurses=0, skip_pixel_data=True):
     """
     Process a single DICOM element and convert its value to Python types.
@@ -212,14 +336,69 @@ def _process_dicom_element(element, recurses=0, skip_pixel_data=True):
     return convert_value(element.value, recurses)
 
 
+def _extract_shared_functional_groups(shared_seq) -> Dict[str, Any]:
+    """
+    Extract metadata from SharedFunctionalGroupsSequence.
+
+    This includes coil information from MRReceiveCoilSequence which is needed
+    to determine CoilType (Combined vs Uncombined) for Enhanced DICOM files.
+
+    Args:
+        shared_seq: The first item of SharedFunctionalGroupsSequence
+
+    Returns:
+        Dictionary with extracted metadata including coil element count
+    """
+    result = {}
+
+    # Extract MRReceiveCoilSequence for coil information
+    if hasattr(shared_seq, 'MRReceiveCoilSequence') and shared_seq.MRReceiveCoilSequence:
+        coil_seq = shared_seq.MRReceiveCoilSequence[0]
+
+        # Get ReceiveCoilName
+        if hasattr(coil_seq, 'ReceiveCoilName'):
+            result['ReceiveCoilName'] = str(coil_seq.ReceiveCoilName)
+
+        # Get ReceiveCoilType (MULTICOIL, SINGLE, etc.)
+        if hasattr(coil_seq, 'ReceiveCoilType'):
+            result['ReceiveCoilType'] = str(coil_seq.ReceiveCoilType)
+
+        # Count coil elements from MultiCoilDefinitionSequence
+        # This is the key for determining Combined vs Uncombined:
+        # - Multiple elements = Combined (coil data has been combined)
+        # - Single element = Uncombined (individual coil element data)
+        if hasattr(coil_seq, 'MultiCoilDefinitionSequence'):
+            num_elements = len(coil_seq.MultiCoilDefinitionSequence)
+            result['MultiCoilElementCount'] = num_elements
+
+            # Also extract element names for reference
+            element_names = []
+            for elem in coil_seq.MultiCoilDefinitionSequence:
+                if hasattr(elem, 'MultiCoilElementName'):
+                    element_names.append(str(elem.MultiCoilElementName))
+            if element_names:
+                result['MultiCoilElementNames'] = element_names
+
+    # Extract MRTransmitCoilSequence if present
+    if hasattr(shared_seq, 'MRTransmitCoilSequence') and shared_seq.MRTransmitCoilSequence:
+        tx_coil_seq = shared_seq.MRTransmitCoilSequence[0]
+        if hasattr(tx_coil_seq, 'TransmitCoilName'):
+            result['TransmitCoilName'] = str(tx_coil_seq.TransmitCoilName)
+
+    return result
+
+
 def _process_enhanced_dicom(ds, skip_pixel_data=True):
     """
     Process enhanced DICOM files with PerFrameFunctionalGroupsSequence.
+    Also extracts SharedFunctionalGroupsSequence for common metadata like coil info.
     """
     common = {}
     for element in ds:
         if element.keyword == "PerFrameFunctionalGroupsSequence":
             continue
+        if element.keyword == "SharedFunctionalGroupsSequence":
+            continue  # Process separately below
         if element.tag == 0x7FE00010 and skip_pixel_data:
             continue
         value = _process_dicom_element(
@@ -232,6 +411,11 @@ def _process_enhanced_dicom(ds, skip_pixel_data=True):
                 else f"({element.tag.group:04X},{element.tag.element:04X})"
             )
             common[key] = value
+
+    # Process SharedFunctionalGroupsSequence for common metadata
+    if hasattr(ds, 'SharedFunctionalGroupsSequence') and ds.SharedFunctionalGroupsSequence:
+        shared_data = _extract_shared_functional_groups(ds.SharedFunctionalGroupsSequence[0])
+        common.update(shared_data)
 
     enhanced_rows = []
     for frame_index, frame in enumerate(ds.PerFrameFunctionalGroupsSequence):
@@ -444,24 +628,76 @@ def load_dicom(
         logger.warning(f"Unexpected format of inferred metadata extracted from DICOM file {dicom_file}")
 
     # Add CoilType as a regular metadata field
+    # Combined = multiple coil elements combined (e.g., HC1-6, HEA;HEP)
+    # Uncombined = individual coil element (e.g., H1, H15, A32)
+    #
+    # Two methods to determine CoilType:
+    # 1. Classic DICOM: Siemens private tag (0051,100F) with coil element string
+    # 2. Enhanced DICOM: _MultiCoilElementCount from MRReceiveCoilSequence
     coil_field = "(0051,100F)"
     coil_value = _get_metadata_value(metadata, coil_field)
 
-    def contains_number(value):
-        if pd.isna(value) or value is None or value == "":
-            return False
-        return any(char.isdigit() for char in str(value))
+    def is_combined_coil_from_string(value):
+        """Check if the coil value string indicates combined coil data.
 
-    def is_non_numeric_special(value):
+        Combined indicators:
+        - Range notation with hyphen between numbers (e.g., HC1-6, 1-32)
+        - Semicolon notation (e.g., HEA;HEP)
+        - No numbers at all (e.g., HEA, HEP)
+        """
         if pd.isna(value) or value is None or value == "":
-            return False
+            return None  # Unknown
         val_str = str(value)
-        return val_str == "HEA;HEP" or not any(char.isdigit() for char in val_str)
 
-    if contains_number(coil_value):
-        _set_metadata_value(metadata, "CoilType", "Uncombined")
-    elif is_non_numeric_special(coil_value):
+        # Semicolon indicates combined coil groups
+        if ';' in val_str:
+            return True
+
+        # Check for range notation (hyphen between numbers, e.g., 1-6 in HC1-6)
+        # Pattern: digit(s) followed by hyphen followed by digit(s)
+        if re.search(r'\d+-\d+', val_str):
+            return True
+
+        # No numbers at all = combined
+        if not any(char.isdigit() for char in val_str):
+            return True
+
+        # Has number but no range/semicolon = single coil element = uncombined
+        return False
+
+    def is_combined_coil_from_element_count(count):
+        """Check if coil is combined based on MultiCoilElementCount.
+
+        For Enhanced DICOM, the _MultiCoilElementCount field indicates
+        how many coil elements were used:
+        - Multiple elements (>1) = Combined (data from multiple coils combined)
+        - Single element (1) = Uncombined (individual coil element data)
+        """
+        if count is None:
+            return None
+        try:
+            count_int = int(count)
+            if count_int > 1:
+                return True  # Combined
+            elif count_int == 1:
+                return False  # Uncombined
+            return None  # Unknown (0 or invalid)
+        except (ValueError, TypeError):
+            return None
+
+    # Try classic DICOM method first (private tag)
+    coil_combined = is_combined_coil_from_string(coil_value)
+
+    # If classic method didn't work, try Enhanced DICOM method
+    # Note: Key is 'MultiCoilElementCount' (not '_MultiCoilElementCount') after key reduction
+    if coil_combined is None:
+        multi_coil_count = _get_metadata_value(metadata, 'MultiCoilElementCount')
+        coil_combined = is_combined_coil_from_element_count(multi_coil_count)
+
+    if coil_combined is True:
         _set_metadata_value(metadata, "CoilType", "Combined")
+    elif coil_combined is False:
+        _set_metadata_value(metadata, "CoilType", "Uncombined")
 
     # Add GE ImageType mapping based on private tag (0043,102F)
     ge_private_tag = "(0043,102F)"
@@ -503,6 +739,27 @@ def load_dicom(
                     _set_metadata_value(metadata, 'PhaseEncodingDirectionPositive', pe_positive)
             except (ValueError, TypeError):
                 logger.debug(f"Could not parse Siemens XA PhaseEncodingDirectionPositive: {siemens_xa_pe_value}")
+
+    # Extract additional Siemens-specific fields from ASCCONV protocol section
+    # Only for Siemens scanners where ASCCONV is available
+    if 'SIEMENS' in manufacturer:
+        ascconv = extract_ascconv(ds_raw)
+        if ascconv:
+            # CoilCombinationMethod from ucCoilCombineMode
+            coil_combine_mode = get_ascconv_value(ascconv, 'ucCoilCombineMode')
+            if coil_combine_mode is not None:
+                # Map Siemens ucCoilCombineMode values to human-readable strings
+                coil_combine_method_map = {
+                    1: 'Sum of Squares',
+                    2: 'Adaptive Combine',
+                }
+                method_name = coil_combine_method_map.get(coil_combine_mode, f'Unknown ({coil_combine_mode})')
+                _set_metadata_value(metadata, 'CoilCombinationMethod', method_name)
+
+            # AccelerationFactorPE from sPat.lAccelFactPE (GRAPPA/SENSE acceleration factor)
+            accel_factor_pe = get_ascconv_value(ascconv, 'sPat.lAccelFactPE')
+            if accel_factor_pe is not None and accel_factor_pe > 1:
+                _set_metadata_value(metadata, 'AccelerationFactorPE', accel_factor_pe)
 
     # Add AcquisitionPlane based on ImageOrientationPatient
     if _key_in_metadata(metadata, 'ImageOrientationPatient'):

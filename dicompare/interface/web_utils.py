@@ -151,8 +151,51 @@ async def analyze_dicom_files_for_web(
         # This fixes the PyodideTask error when JS objects are passed from the browser
         if hasattr(dicom_files, 'to_py'):
             print(f"Converting dicom_files from JSProxy to Python dict")
-            dicom_files = dicom_files.to_py()
-            print(f"Converted dicom_files: type={type(dicom_files)}, keys={list(dicom_files.keys()) if isinstance(dicom_files, dict) else 'not dict'}")
+            try:
+                dicom_files = dicom_files.to_py()
+                print(f"Converted dicom_files: type={type(dicom_files)}, keys={list(dicom_files.keys()) if isinstance(dicom_files, dict) else 'not dict'}")
+            except Exception as e:
+                print(f"Failed to convert dicom_files with to_py(): {e}")
+                # Try batched conversion as fallback - convert in chunks to avoid buffer overflow
+                # while still being faster than one-by-one conversion
+                print("Attempting batched conversion...")
+                try:
+                    # Get keys by iterating directly - JSProxy supports iter()
+                    js_keys = list(dicom_files)
+                    total_files = len(js_keys)
+                    print(f"Found {total_files} files to convert in batches")
+
+                    converted_files = {}
+                    BATCH_SIZE = 200  # Convert 200 files at a time
+
+                    for batch_start in range(0, total_files, BATCH_SIZE):
+                        batch_end = min(batch_start + BATCH_SIZE, total_files)
+                        batch_keys = js_keys[batch_start:batch_end]
+
+                        # Convert this batch
+                        for key in batch_keys:
+                            try:
+                                js_content = dicom_files.get(key)
+                                if js_content is None:
+                                    js_content = getattr(dicom_files, key, None)
+
+                                if js_content is not None:
+                                    if hasattr(js_content, 'to_py'):
+                                        converted_files[key] = bytes(js_content.to_py())
+                                    else:
+                                        converted_files[key] = bytes(js_content)
+                            except Exception as file_error:
+                                print(f"Warning: Failed to convert file {key}: {file_error}")
+                                continue
+
+                        # Progress logging per batch
+                        print(f"Converted {batch_end}/{total_files} files...")
+
+                    dicom_files = converted_files
+                    print(f"Batched conversion complete: {len(dicom_files)} files converted")
+                except Exception as incremental_error:
+                    print(f"Batched conversion also failed: {incremental_error}")
+                    raise RuntimeError(f"Cannot convert DICOM files from JavaScript: {e}")
 
         if hasattr(reference_fields, 'to_py'):
             print(f"Converting reference_fields from JSProxy to Python list")
