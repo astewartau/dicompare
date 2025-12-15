@@ -4,4 +4,5 @@ skip = '.git*,*.css,conftest.py'
 check-hidden = true
 # some special typo-close "words"
 ignore-regex = '\b(adRes)\b'
-ignore-words-list = 'nd,te'
+# ALS = Amyotrophic Lateral Sclerosis (medical term, not typo for "also")
+ignore-words-list = 'nd,te,ALS'
