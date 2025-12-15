@@ -75,8 +75,8 @@
         },
         "tag": {
           "type": "string",
-          "pattern": "^([0-9A-Fa-f]{4},[0-9A-Fa-f]{4}|unknown_.+)$",
-          "description": "DICOM tag in format 'XXXX,XXXX' (e.g., '0018,0081') or 'unknown_FieldName' for vendor-specific fields"
+          "pattern": "^([0-9A-Fa-f]{4},[0-9A-Fa-f]{4}|private|derived|custom)$",
+          "description": "DICOM tag in format 'XXXX,XXXX' (e.g., '0018,0081'), or 'private'/'derived'/'custom' for non-standard fields"
         },
         "vr": {
           "type": "string",

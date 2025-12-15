@@ -97,7 +97,7 @@ class TestSchemaValidation:
                     "fields": [
                         {
                             "field": "EchoTime",
-                            "tag": "invalid_tag_format"  # Should be XXXX,XXXX or unknown_*
+                            "tag": "invalid_tag_format"  # Should be XXXX,XXXX or private/derived
                         }
                     ]
                 }
@@ -119,7 +119,7 @@ class TestSchemaValidation:
                 "T1": {
                     "fields": [
                         {"field": "EchoTime", "tag": "0018,0081"},
-                        {"field": "CustomField", "tag": "unknown_CustomField"}
+                        {"field": "CustomField", "tag": "derived"}
                     ]
                 }
             }

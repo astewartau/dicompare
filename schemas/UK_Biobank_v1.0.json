@@ -295,7 +295,7 @@
         },
         {
           "field": "MultibandFactor",
-          "tag": "unknown_MultibandFactor",
+          "tag": "derived",
           "value": 8
         },
         {
@@ -490,7 +490,7 @@
         },
         {
           "field": "MultibandFactor",
-          "tag": "unknown_MultibandFactor",
+          "tag": "derived",
           "value": 3
         },
         {
@@ -1754,7 +1754,7 @@
         },
         {
           "field": "MultibandFactor",
-          "tag": "unknown_MultibandFactor",
+          "tag": "derived",
           "value": 8
         },
         {
