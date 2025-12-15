@@ -1,4 +1,4 @@
-__version__ = "0.1.40"
+__version__ = "0.1.41"
 
 # Import core functionalities
 from .io import get_dicom_values, load_dicom, load_schema, validate_schema, load_dicom_session, async_load_dicom_session, load_nifti_session, load_pro_file, load_pro_session, generate_test_dicoms_from_schema, generate_test_dicoms_from_schema_json, load_pro_file_schema_format
