@@ -59,7 +59,8 @@ def build_schema(session_df: pd.DataFrame, reference_fields: List[str] = None) -
                 acquisition_entry["fields"].append({
                     "field": field,
                     "tag": tag_info["tag"].strip("()") if tag_info["tag"] else None,
-                    "value": unique_values[0]
+                    "value": unique_values[0],
+                    "fieldType": tag_info["fieldType"]
                 })
             elif len(unique_values) > 1:
                 # Varying field - will be added to series
@@ -89,7 +90,8 @@ def build_schema(session_df: pd.DataFrame, reference_fields: List[str] = None) -
                     fields_with_tags.append({
                         "field": field,
                         "tag": tag_info["tag"].strip("()") if tag_info["tag"] else None,
-                        "value": value
+                        "value": value,
+                        "fieldType": tag_info["fieldType"]
                     })
 
                 series_entry = {
