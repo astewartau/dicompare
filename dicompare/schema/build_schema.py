@@ -39,7 +39,10 @@ def build_schema(session_df: pd.DataFrame, reference_fields: List[str] = None) -
     # Filter reference fields to only those present in the DataFrame
     available_fields = [f for f in reference_fields if f in df.columns]
 
-    json_schema = {"acquisitions": {}}
+    json_schema = {
+        "name": "Generated Schema",
+        "acquisitions": {}
+    }
 
     # Group by acquisition
     for acquisition_name, acq_group in df.groupby("Acquisition"):

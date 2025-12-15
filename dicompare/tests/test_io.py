@@ -60,9 +60,8 @@ def create_temp_json(tmp_dir, filename="dummy.json"):
                 "fields": [
                     {
                         "field": "TestField",
-                        "value": [1, 2],
-                        "tolerance": 5,
-                        "contains": "abc"
+                        "value": 10,
+                        "tolerance": 5
                     }
                 ],
                 "series": [
@@ -667,12 +666,11 @@ def test_load_schema(json_file):
     assert isinstance(acq["series"], list)
     assert acq["series"][0]["name"] == "series1"
     
-    # Verify the field structure  
+    # Verify the field structure
     test_field = acq["fields"][0]
     assert test_field["field"] == "TestField"
-    assert test_field["value"] == [1, 2]  # Value as-is from JSON
+    assert test_field["value"] == 10  # Numeric value
     assert test_field["tolerance"] == 5
-    assert test_field["contains"] == "abc"
     
     # Verify series field structure conversion
     series_field = acq["series"][0]["fields"][0]
@@ -686,6 +684,7 @@ def test_load_schema(tmp_path):
     """Test loading a hybrid JSON schema with both fields and rules."""
     # Create a hybrid schema with both fields and rules
     hybrid_schema = {
+        "name": "Test Hybrid Schema",
         "version": "1.0",
         "acquisitions": {
             "QSM": {

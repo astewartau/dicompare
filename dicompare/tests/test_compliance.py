@@ -146,7 +146,7 @@ def test_load_schema_and_fields(tmp_path):
         "acquisitions": {
             "test_acq": {
                 "fields": [
-                    {"field": "F1", "value": [1, 2], "tolerance": 0.5}
+                    {"field": "F1", "value": 10, "tolerance": 0.5}
                 ],
                 "series": [
                     {
