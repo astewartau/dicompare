@@ -51,6 +51,13 @@ from .pro import (
     load_pro_session,
 )
 
+# Siemens .exar1 file parsing
+from .pro import (
+    load_exar_file,
+    load_exar_session,
+    extract_protocols_from_exar,
+)
+
 __all__ = [
     # DICOM I/O
     "extract_inferred_metadata",
@@ -79,4 +86,8 @@ __all__ = [
     "load_pro_file",
     "load_pro_file_schema_format",
     "load_pro_session",
+    # EXAR file support
+    "load_exar_file",
+    "load_exar_session",
+    "extract_protocols_from_exar",
 ]
