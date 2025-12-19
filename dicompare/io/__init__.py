@@ -58,6 +58,14 @@ from .pro import (
     extract_protocols_from_exar,
 )
 
+# Philips ExamCard file parsing
+from .examcard import (
+    load_examcard_file,
+    load_examcard_file_all_scans,
+    load_examcard_file_schema_format,
+    load_examcard_session,
+)
+
 __all__ = [
     # DICOM I/O
     "extract_inferred_metadata",
@@ -90,4 +98,9 @@ __all__ = [
     "load_exar_file",
     "load_exar_session",
     "extract_protocols_from_exar",
+    # ExamCard file support
+    "load_examcard_file",
+    "load_examcard_file_all_scans",
+    "load_examcard_file_schema_format",
+    "load_examcard_session",
 ]
