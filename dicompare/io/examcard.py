@@ -14,7 +14,10 @@ import base64
 import struct
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Any, List, Optional, Tuple, Union
+
+if TYPE_CHECKING:
+    import pandas
 import itertools
 
 
