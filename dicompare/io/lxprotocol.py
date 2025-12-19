@@ -46,7 +46,7 @@ def load_lxprotocol_file(lxprotocol_path: str) -> Dict[str, Any]:
     return dicom_fields
 
 
-def load_lxprotocol_session(session_dir: str, show_progress: bool = False) -> "pandas.DataFrame":
+def load_lxprotocol_session(session_dir: str, show_progress: bool = False) -> "pd.DataFrame":
     """
     Load all LxProtocol files from a directory and return as a DataFrame.
 
