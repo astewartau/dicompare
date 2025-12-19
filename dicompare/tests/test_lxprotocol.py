@@ -458,9 +458,100 @@ class TestConstants:
 
     def test_key_fields_in_mapping(self):
         """Test key fields are in mapping."""
-        key_fields = ["TR", "TE", "FLIPANG", "FOV", "SLTHICK"]
+        # Note: FOV is handled in _calculate_derived_fields, not direct mapping
+        key_fields = ["TR", "TE", "FLIPANG", "SLTHICK", "NEX", "ETL"]
         for field in key_fields:
             assert field in GE_TO_DICOM_MAPPING
+
+
+class TestEdgeCases:
+    """Edge case tests for additional coverage."""
+
+    def test_empty_iopt(self):
+        """Test empty IOPT field."""
+        params = {"IOPT": ""}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert result["ParallelAcquisition"] == "NO"
+
+    def test_contrast_yes(self):
+        """Test contrast agent present."""
+        params = {"CONTRAST": "Gadolinium"}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert result["ContrastBolusAgent"] == "Gadolinium"
+
+    def test_contrast_no(self):
+        """Test no contrast agent."""
+        params = {"CONTRAST": "No"}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert "ContrastBolusAgent" not in result
+
+    def test_invalid_bvalue_string(self):
+        """Test invalid b-value string handling."""
+        params = {"MULTIBVALUE": "invalid;"}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        # Should not crash, just skip the field
+        assert "DiffusionBValue" not in result
+
+    def test_empty_multibvalue(self):
+        """Test empty MULTIBVALUE string."""
+        params = {"MULTIBVALUE": ""}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert "DiffusionBValue" not in result
+
+    def test_fov_invalid(self):
+        """Test invalid FOV value."""
+        params = {"FOV": "invalid"}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert "FieldOfView" not in result
+
+    def test_phasefov_invalid(self):
+        """Test invalid PHASEFOV value."""
+        params = {"PHASEFOV": "invalid"}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert "PercentPhaseFieldOfView" not in result
+
+    def test_pixel_spacing_missing_matrix(self):
+        """Test PixelSpacing not calculated when matrix missing."""
+        params = {"FOV": 25.6}  # Missing MATRIXX/MATRIXY
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert "PixelSpacing" not in result
+
+    def test_pixel_spacing_zero_matrix(self):
+        """Test PixelSpacing handles zero matrix gracefully."""
+        params = {"FOV": 25.6, "MATRIXX": 0, "MATRIXY": 256, "PHASEFOV": 1.0}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        # Should not crash due to division by zero
+        assert "PixelSpacing" not in result
+
+    def test_3de_imode(self):
+        """Test 3DE (3D Enhanced) mode mapping."""
+        params = {"IMODE": "3DE"}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert result["MRAcquisitionType"] == "3D"
+
+    def test_oblique_plane(self):
+        """Test oblique plane mapping."""
+        params = {"PLANE": "OBLIQUE"}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert result["ImagePlaneOrientation"] == "OBLIQUE"
+
+    def test_unknown_plane(self):
+        """Test unknown plane not mapped."""
+        params = {"PLANE": "UNKNOWN"}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert "ImagePlaneOrientation" not in result
+
+    def test_unknown_imode(self):
+        """Test unknown IMODE not mapped."""
+        params = {"IMODE": "UNKNOWN"}
+        result = apply_lxprotocol_to_dicom_mapping(params)
+        assert "MRAcquisitionType" not in result
+
+    def test_case_insensitive_sequence(self):
+        """Test sequence mapping is case insensitive."""
+        assert _map_ge_sequence("spgr") == "GR"
+        assert _map_ge_sequence("Spgr") == "GR"
+        assert _map_ge_sequence("SPGR") == "GR"
 
 
 class TestIntegration:

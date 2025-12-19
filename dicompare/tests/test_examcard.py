@@ -380,6 +380,114 @@ class TestConstants:
             assert field in DICOM_FIELD_ORDER
 
 
+class TestEdgeCases:
+    """Edge case tests for additional coverage."""
+
+    def test_empty_scan_data(self):
+        """Test with empty parameters."""
+        scan_data = {
+            "name": "Empty",
+            "parameters": {},
+            "enum_map": {}
+        }
+        result = apply_examcard_to_dicom_mapping(scan_data)
+        assert result["Manufacturer"] == "Philips"
+        assert result["ProtocolName"] == "Empty"
+
+    def test_none_values_skipped(self):
+        """Test that None values are skipped."""
+        scan_data = {
+            "name": "Test",
+            "parameters": {
+                "EX_ACQ_flip_angle": None,
+                "EX_ACQ_se_rep_time": 2000.0,
+            },
+            "enum_map": {}
+        }
+        result = apply_examcard_to_dicom_mapping(scan_data)
+        assert "FlipAngle" not in result
+        assert result["RepetitionTime"] == 2000.0
+
+    def test_empty_string_values_skipped(self):
+        """Test that empty string values are skipped."""
+        scan_data = {
+            "name": "Test",
+            "parameters": {
+                "EX_ACQ_flip_angle": "",
+            },
+            "enum_map": {}
+        }
+        result = apply_examcard_to_dicom_mapping(scan_data)
+        assert "FlipAngle" not in result
+
+    def test_zero_second_echo_ignored(self):
+        """Test that zero second echo time is ignored."""
+        scan_data = {
+            "name": "Test",
+            "parameters": {
+                "EX_ACQ_first_echo_time": 20.0,
+                "EX_ACQ_second_echo_time": 0,
+            },
+            "enum_map": {}
+        }
+        result = apply_examcard_to_dicom_mapping(scan_data)
+        assert result["EchoTime"] == 20.0
+
+    def test_acquisition_duration_invalid_format(self):
+        """Test AcquisitionDuration with invalid format."""
+        dicom_fields = {}
+        params = {"IF_str_total_scan_time": "invalid"}
+        _calculate_derived_fields(dicom_fields, params)
+        assert "AcquisitionDuration" not in dicom_fields
+
+    def test_tr_te_string_invalid(self):
+        """Test TR/TE parsing with invalid format."""
+        dicom_fields = {}
+        params = {"IF_act_rep_time_echo_time": "invalid"}
+        _calculate_derived_fields(dicom_fields, params)
+        assert "RepetitionTime" not in dicom_fields
+
+    def test_percent_fov_zero_fov(self):
+        """Test PercentPhaseFieldOfView with zero FOV."""
+        scan_data = {
+            "name": "Test",
+            "parameters": {
+                "EX_GEO_fov": 0,
+                "EX_GEO_fov_p": 192.0,
+            },
+            "enum_map": {}
+        }
+        result = apply_examcard_to_dicom_mapping(scan_data)
+        # Should not crash or have PercentPhaseFieldOfView
+        assert "PercentPhaseFieldOfView" not in result
+
+    def test_enum_fallback_to_file_map(self):
+        """Test enum value uses file's enum_map as fallback."""
+        scan_data = {
+            "name": "Test",
+            "parameters": {
+                "EX_ACQ_imaging_sequence": 10,  # Not in PHILIPS_ENUM_MAPPINGS
+            },
+            "enum_map": {
+                "EX_ACQ_imaging_sequence": ["SE", "IR", "GR", "EP", "RM", "SS", "OTHER", "X1", "X2", "X3", "CUSTOM"]
+            }
+        }
+        result = apply_examcard_to_dicom_mapping(scan_data)
+        assert result["ScanningSequence"] == "CUSTOM"
+
+    def test_3d_acquisition_mode(self):
+        """Test 3D acquisition mode mapping."""
+        scan_data = {
+            "name": "Test",
+            "parameters": {
+                "EX_ACQ_scan_mode": 1,
+            },
+            "enum_map": {}
+        }
+        result = apply_examcard_to_dicom_mapping(scan_data)
+        assert result["MRAcquisitionType"] == "3D"
+
+
 class TestFileOperations:
     """Tests for file loading operations."""
 
