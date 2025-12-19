@@ -550,18 +550,24 @@ PHILIPS_TO_DICOM_MAPPING = {
     "EX_ACQ_scan_mode": "MRAcquisitionType",
     "EX_ACQ_imaging_sequence": "ScanningSequence",
     "EX_ACQ_fast_imaging_mode": "SequenceVariant",
-    "EX_ACQ_mode": "AcquisitionMode",
     "EX_ACQ_scan_resolution": "AcquisitionMatrix",
     "EX_ACQ_patient_weight": "PatientWeight",
     "EX_ACQ_nucleus": "ImagedNucleus",
     "EX_ACQ_partial_matrix": "PartialFourier",
+    "EX_ACQ_partial_echo": "PartialFourier",
+    "EX_ACQ_flow_compensation": "FlowCompensation",  # (0018,9010)
 
     # Geometry parameters
     # EX_GEO_voxel_size_m and EX_GEO_voxel_size_p combined into PixelSpacing in _calculate_derived_fields
     # EX_GEO_fov and EX_GEO_fov_p used to calculate PercentPhaseFieldOfView in _calculate_derived_fields
+    # EX_GEO_stacks_slices is summed to get NumberOfSlices in _calculate_derived_fields
     "EX_GEO_voxel_size_s": "SliceThickness",
     "EX_GEO_slice_thickness": "SliceThickness",
-    "EX_GEO_stacks_slices": "NumberOfSlices",
+    "EX_GEO_stacks_orientations": "ImagePlaneOrientation",
+
+    # Patient position - combined in _calculate_derived_fields
+    "EX_GEO_patient_body_position": "PatientPosition",  # (0018,5100)
+    "EX_GEO_patient_body_orientation": "PatientPosition",
 
     # Parallel imaging
     "EX_GEO_sense_enable": "ParallelAcquisition",
@@ -570,13 +576,15 @@ PHILIPS_TO_DICOM_MAPPING = {
     # Contrast parameters
     "EX_ACQ_inversion_time": "InversionTime",
     "EX_BBI_type_enum": "InversionRecovery",  # Standard DICOM (0018,9009)
+    "EX_MTC_enable": "MagnetizationTransfer",  # (0018,9020)
 
     # Dynamic scanning
     "EX_DYN_nr_scans": "NumberOfTemporalPositions",
 
-    # Diffusion (DiffusionEnabled removed - redundant with DiffusionBValue presence)
+    # Diffusion
+    "EX_DIFF_enable": "DiffusionDirectionality",  # (0018,9075) - NO/DWI/DTI
     "EX_DIFF_b_value": "DiffusionBValue",
-    "EX_DIFF_nr_directions": "DiffusionDirectionality",
+    "EX_DIFF_nr_directions": "NumberOfDiffusionDirections",
 
     # Processing - map to standard DICOM matrix fields
     "EX_PROC_recon_resolution": "Rows",     # Standard DICOM (0028,0010)
@@ -589,20 +597,214 @@ PHILIPS_TO_DICOM_MAPPING = {
     "EX_ACQ_spectro_bandwidth": "SpectralWidth",
 }
 
-# Enum value mappings for specific parameters
+# Enum value mappings for specific parameters - translate indices to DICOM-compatible values
 PHILIPS_ENUM_MAPPINGS = {
     "EX_ACQ_scan_mode": {
         0: "2D",
         1: "3D",
-        2: "MS",  # Multi-slice
+        2: "MS",   # Multi-slice 2D
+        3: "M2D",  # Multi-2D
     },
     "EX_ACQ_imaging_sequence": {
         0: "SE",   # Spin Echo
         1: "IR",   # Inversion Recovery
-        2: "GR",   # Gradient Recalled
-        3: "EP",   # Echo Planar
-        4: "RM",   # Research Mode
+        2: "SE",   # Mixed -> SE
+        3: "GR",   # FFE -> Gradient Recalled
+        4: "EP",   # Echo -> Echo Planar
+        5: "GR",   # FID -> Gradient
     },
+    "EX_ACQ_fast_imaging_mode": {
+        0: "NONE",
+        1: "OSP",  # TSE
+        2: "SK",   # TFE
+        3: "SK",   # EPI
+        4: "OSP",  # GRASE
+    },
+    "EX_ACQ_nucleus": {
+        0: "1H",
+        1: "31P",
+        2: "13C",
+        3: "23NA",
+        4: "19F",
+    },
+    "EX_GEO_patient_body_position": {
+        0: "HFS",  # Head First Supine
+        1: "FFS",  # Feet First Supine
+    },
+    "EX_GEO_patient_body_orientation": {
+        0: "HFS",  # Supine
+        1: "HFP",  # Prone
+        2: "HFDL", # Left Decubitus
+        3: "HFDR", # Right Decubitus
+    },
+    "EX_CARD_sync": {
+        0: "NONE",
+        1: "PROSPECTIVE",  # Triggered
+        2: "PROSPECTIVE",  # Gated
+        3: "RETROSPECTIVE",
+    },
+    "EX_GEO_sense_enable": {
+        0: "NO",
+        1: "YES",
+    },
+    "EX_DIFF_enable": {
+        0: "NONE",
+        1: "ISOTROPIC",  # DWI
+        2: "BMATRIX",    # DTI
+    },
+    "EX_MTC_enable": {
+        0: "OFF",
+        1: "ON_RESONANCE",
+        2: "OFF_RESONANCE",
+    },
+    "EX_ACQ_flow_compensation": {
+        0: "NONE",
+        1: "OTHER",
+    },
+    "EX_BBI_type_enum": {
+        0: "NO",
+        1: "YES",
+        2: "YES",  # Improved
+    },
+    "EX_GEO_stacks_orientations": {
+        0: "AXIAL",
+        1: "SAGITTAL",
+        2: "CORONAL",
+    },
+    "EX_ACQ_partial_matrix": {
+        0: "NO",
+        1: "YES",
+    },
+    "EX_ACQ_partial_echo": {
+        0: "NO",
+        1: "YES",
+    },
+}
+
+# Field ordering for output - matches DEFAULT_DICOM_FIELDS order from config.py
+# Fields not in this list will be placed at the end alphabetically
+DICOM_FIELD_ORDER = [
+    # Core Identifiers
+    'SeriesDescription',
+    'ProtocolName',
+    'SequenceName',
+    'SequenceVariant',
+    'ScanningSequence',
+    'ImageType',
+    'Manufacturer',
+    'ManufacturerModelName',
+    'SoftwareVersion',
+
+    # Geometry
+    'MRAcquisitionType',
+    'SliceThickness',
+    'PixelSpacing',
+    'Rows',
+    'Columns',
+    'NumberOfSlices',
+    'AcquisitionMatrix',
+    'ReconstructionDiameter',
+    'ImagePlaneOrientation',
+    'PatientPosition',
+
+    # Timing / Contrast
+    'RepetitionTime',
+    'EchoTime',
+    'InversionTime',
+    'FlipAngle',
+    'EchoTrainLength',
+    'GradientEchoTrainLength',
+    'NumberOfTemporalPositions',
+    'AcquisitionDuration',
+
+    # Diffusion-specific
+    'DiffusionDirectionality',
+    'DiffusionBValue',
+    'NumberOfDiffusionDirections',
+
+    # Parallel Imaging / Multiband
+    'ParallelAcquisition',
+    'ParallelAcquisitionTechnique',
+    'ParallelReductionFactorInPlane',
+    'PartialFourier',
+
+    # Bandwidth / Readout
+    'PixelBandwidth',
+    'SpectralWidth',
+
+    # Phase encoding
+    'InPlanePhaseEncodingDirection',
+    'NumberOfPhaseEncodingSteps',
+    'PercentPhaseFieldOfView',
+
+    # Scanner hardware
+    'MagneticFieldStrength',
+    'ImagingFrequency',
+    'ImagedNucleus',
+    'TransmitCoilName',
+    'ReceiveCoilName',
+    'NumberOfAverages',
+    'PatientWeight',
+
+    # Advanced / niche
+    'FlowCompensation',
+    'MagnetizationTransfer',
+    'InversionRecovery',
+    'CardiacSynchronizationTechnique',
+]
+
+
+# Philips-specific parameters that are useful to keep (no direct DICOM equivalent)
+# Use a whitelist approach - only include known useful vendor-specific parameters
+USEFUL_PHILIPS_PARAMETERS = {
+    # Fat/water suppression techniques (Philips-specific)
+    "EX_SPIR_fat_suppression",
+    "EX_SPIR_water_suppression",
+    # Acquisition parameters useful for QA/research
+    "EX_ACQ_gradient_mode",
+    "EX_ACQ_shot_mode",
+    "EX_ACQ_slice_order",
+    "EX_ACQ_water_fat_shift",
+    "EX_ACQ_echoes",       # Number of echoes
+    "EX_ACQ_bandwidth",    # Receiver bandwidth
+    # Geometry settings
+    "EX_GEO_slice_gap_mode",
+    "EX_GEO_stacks",       # Number of stacks/slabs
+    # Respiratory/cardiac gating
+    "EX_RESP_synch",
+    "EX_RNAV_resp_comp",
+    # Processing settings
+    "EX_PROC_geometry_correction",
+    "EX_PROC_reconstruction_mode",
+}
+
+
+# Parameters that are handled in _calculate_derived_fields() or are redundant with standard DICOM fields
+DERIVED_FIELD_SOURCES = {
+    # Used to calculate EchoTime
+    "EX_ACQ_first_echo_time",
+    "EX_ACQ_second_echo_time",
+    # Used to calculate PixelSpacing (reconstruction or acquisition voxel sizes)
+    "EX_GEO_voxel_size_m",
+    "EX_GEO_voxel_size_p",
+    "EX_PROC_recon_voxel_size_m",
+    "EX_PROC_recon_voxel_size_p",
+    # Redundant with SliceThickness
+    "EX_GEO_acq_voxel_size_s",
+    "EX_GEO_acq_slice_thickness",
+    # Redundant with PercentPhaseFieldOfView
+    "EX_GEO_rect_fov_perc",
+    # Internal flag, not useful
+    "EX_GEO_voxel_size_conv_done",
+    # Used to calculate PercentPhaseFieldOfView
+    "EX_GEO_fov",
+    "EX_GEO_fov_p",
+    # Used to calculate AcquisitionDuration
+    "IF_str_total_scan_time",
+    # Used as fallback for TR/TE
+    "IF_act_rep_time_echo_time",
+    # Used to calculate NumberOfSlices (summed from per-stack values)
+    "EX_GEO_stacks_slices",
 }
 
 
@@ -620,6 +822,9 @@ def apply_examcard_to_dicom_mapping(scan_data: Dict[str, Any]) -> Dict[str, Any]
 
     params = scan_data.get("parameters", {})
     enum_map = scan_data.get("enum_map", {})
+
+    # ExamCard files are Philips-specific
+    dicom_fields["Manufacturer"] = "Philips"
 
     # Add scan name as ProtocolName
     if "name" in scan_data:
@@ -651,21 +856,38 @@ def apply_examcard_to_dicom_mapping(scan_data: Dict[str, Any]) -> Dict[str, Any]
 
             dicom_fields[dicom_name] = value
         else:
+            # Skip parameters that are used in _calculate_derived_fields()
+            if philips_name in DERIVED_FIELD_SOURCES:
+                continue
+
+            # Only include parameters in the whitelist of useful Philips-specific parameters
+            if philips_name not in USEFUL_PHILIPS_PARAMETERS:
+                continue
+
+            # For unmapped enum parameters, translate the value using file's enum_map
+            if philips_name in enum_map and isinstance(value, int):
+                enum_list = enum_map[philips_name]
+                if 0 <= value < len(enum_list):
+                    value = enum_list[value]
+
             # Keep unmapped parameters with cleaned names
             clean_name = philips_name
             if clean_name.startswith("EX_"):
                 clean_name = clean_name[3:]
             elif clean_name.startswith("GEX_"):
                 clean_name = clean_name[4:]
+            elif clean_name.startswith("IF_"):
+                clean_name = clean_name[3:]
 
-            # Only include if it looks like a useful parameter
+            # Only include if it has a non-empty value
             if isinstance(value, (int, float, str)) and value != "" and value != 0:
                 dicom_fields[f"Philips_{clean_name}"] = value
 
     # Calculate derived fields
     _calculate_derived_fields(dicom_fields, params)
 
-    return dicom_fields
+    # Sort fields in standard order
+    return _sort_output_fields(dicom_fields)
 
 
 def _calculate_derived_fields(dicom_fields: Dict[str, Any], params: Dict[str, Any]):
@@ -688,9 +910,10 @@ def _calculate_derived_fields(dicom_fields: Dict[str, Any], params: Dict[str, An
             # Single echo
             dicom_fields["EchoTime"] = first_te
 
-    # Calculate PixelSpacing from voxel sizes (standard DICOM format: [row, col])
-    row_spacing = params.get("EX_GEO_voxel_size_m")
-    col_spacing = params.get("EX_GEO_voxel_size_p")
+    # Calculate PixelSpacing from reconstruction voxel sizes (standard DICOM format: [row, col])
+    # Use reconstruction values as these match what the actual DICOM image would contain
+    row_spacing = params.get("EX_PROC_recon_voxel_size_m") or params.get("EX_GEO_voxel_size_m")
+    col_spacing = params.get("EX_PROC_recon_voxel_size_p") or params.get("EX_GEO_voxel_size_p")
     if row_spacing is not None and col_spacing is not None:
         dicom_fields["PixelSpacing"] = [row_spacing, col_spacing]
 
@@ -744,6 +967,59 @@ def _calculate_derived_fields(dicom_fields: Dict[str, Any], params: Dict[str, An
                 dicom_fields["AcquisitionDuration"] = total_seconds
         except (ValueError, IndexError):
             pass
+
+    # Calculate NumberOfSlices from EX_GEO_stacks_slices
+    # Philips stores slice counts per stack as a list; DICOM expects total as single integer
+    stacks_slices = params.get("EX_GEO_stacks_slices")
+    if stacks_slices is not None:
+        if isinstance(stacks_slices, list):
+            # Sum all slice counts across stacks
+            dicom_fields["NumberOfSlices"] = sum(stacks_slices)
+        elif isinstance(stacks_slices, (int, float)):
+            dicom_fields["NumberOfSlices"] = int(stacks_slices)
+
+
+def _sort_output_fields(dicom_fields: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Sort output fields in standard DICOM order.
+
+    Standard DICOM fields are ordered according to DICOM_FIELD_ORDER,
+    followed by any other DICOM fields alphabetically,
+    then Philips-specific fields alphabetically at the end.
+
+    Args:
+        dicom_fields: Dictionary of field names to values
+
+    Returns:
+        Ordered dictionary with fields in standard order
+    """
+    # Create order index for known fields
+    order_index = {field: i for i, field in enumerate(DICOM_FIELD_ORDER)}
+
+    # Separate fields into categories
+    ordered_dicom = []      # Fields in DICOM_FIELD_ORDER
+    other_dicom = []        # Other DICOM fields (not Philips_)
+    philips_fields = []     # Philips_ prefixed fields
+
+    for key in dicom_fields.keys():
+        if key.startswith('Philips_'):
+            philips_fields.append(key)
+        elif key in order_index:
+            ordered_dicom.append(key)
+        else:
+            other_dicom.append(key)
+
+    # Sort each category
+    ordered_dicom.sort(key=lambda k: order_index[k])
+    other_dicom.sort()
+    philips_fields.sort()
+
+    # Build ordered result
+    result = {}
+    for key in ordered_dicom + other_dicom + philips_fields:
+        result[key] = dicom_fields[key]
+
+    return result
 
 
 def _convert_to_schema_format(dicom_fields: Dict[str, Any], raw_data: Dict[str, Any],
