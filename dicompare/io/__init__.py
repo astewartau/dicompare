@@ -66,6 +66,13 @@ from .examcard import (
     load_examcard_session,
 )
 
+# GE LxProtocol file parsing
+from .lxprotocol import (
+    load_lxprotocol_file,
+    load_lxprotocol_file_schema_format,
+    load_lxprotocol_session,
+)
+
 __all__ = [
     # DICOM I/O
     "extract_inferred_metadata",
@@ -103,4 +110,8 @@ __all__ = [
     "load_examcard_file_all_scans",
     "load_examcard_file_schema_format",
     "load_examcard_session",
+    # LxProtocol file support
+    "load_lxprotocol_file",
+    "load_lxprotocol_file_schema_format",
+    "load_lxprotocol_session",
 ]

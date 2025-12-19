@@ -1,7 +1,7 @@
 __version__ = "0.1.43"
 
 # Import core functionalities
-from .io import get_dicom_values, load_dicom, load_schema, validate_schema, load_dicom_session, async_load_dicom_session, load_nifti_session, load_pro_file, load_pro_session, generate_test_dicoms_from_schema, generate_test_dicoms_from_schema_json, load_pro_file_schema_format, load_exar_file, load_exar_session, load_examcard_file, load_examcard_file_all_scans, load_examcard_file_schema_format, load_examcard_session
+from .io import get_dicom_values, load_dicom, load_schema, validate_schema, load_dicom_session, async_load_dicom_session, load_nifti_session, load_pro_file, load_pro_session, generate_test_dicoms_from_schema, generate_test_dicoms_from_schema_json, load_pro_file_schema_format, load_exar_file, load_exar_session, load_examcard_file, load_examcard_file_all_scans, load_examcard_file_schema_format, load_examcard_session, load_lxprotocol_file, load_lxprotocol_file_schema_format, load_lxprotocol_session
 from .validation import check_acquisition_compliance
 from .session import assign_acquisition_and_run_numbers
 from .session import map_to_json_reference, interactive_mapping_to_json_reference
