@@ -839,7 +839,7 @@ def apply_examcard_to_dicom_mapping(scan_data: Dict[str, Any]) -> Dict[str, Any]
 
     # Map parameters to DICOM fields
     for philips_name, value in params.items():
-        if value is None:
+        if value is None or value == "":
             continue
 
         # Check if we have a direct mapping
