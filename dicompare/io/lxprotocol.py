@@ -12,7 +12,10 @@ This module follows the same pattern as the Siemens .pro and Philips ExamCard pa
 
 import re
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, Any, List, Optional, Union
+
+if TYPE_CHECKING:
+    import pandas
 
 
 def load_lxprotocol_file(lxprotocol_path: str) -> Dict[str, Any]:
@@ -46,7 +49,7 @@ def load_lxprotocol_file(lxprotocol_path: str) -> Dict[str, Any]:
     return dicom_fields
 
 
-def load_lxprotocol_session(session_dir: str, show_progress: bool = False) -> "pd.DataFrame":
+def load_lxprotocol_session(session_dir: str, show_progress: bool = False) -> "pandas.DataFrame":
     """
     Load all LxProtocol files from a directory and return as a DataFrame.
 
