@@ -49,7 +49,7 @@ def load_examcard_file(examcard_path: str) -> Dict[str, Any]:
     return dicom_fields
 
 
-def load_examcard_session(session_dir: str, show_progress: bool = False) -> "pd.DataFrame":
+def load_examcard_session(session_dir: str, show_progress: bool = False) -> "pandas.DataFrame":
     """
     Load all ExamCard files from a directory and return as a DataFrame.
 
