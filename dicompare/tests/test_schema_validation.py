@@ -229,3 +229,92 @@ class TestMetaschemaStructure:
         required = metaschema.get("required", [])
         assert "name" in required
         assert "acquisitions" in required
+
+
+class TestTagsValidation:
+    """Tests for tags field validation in schemas (acquisition-level only)."""
+
+    def test_validate_schema_accepts_acquisition_level_tags(self):
+        """Test that validate_schema accepts tags at the acquisition level."""
+        valid_schema = {
+            "name": "Test Schema",
+            "acquisitions": {
+                "T1": {
+                    "tags": ["structural", "T1-weighted"],
+                    "fields": []
+                }
+            }
+        }
+
+        # Should not raise
+        dicompare.validate_schema(valid_schema)
+
+    def test_validate_schema_accepts_multiple_acquisitions_with_tags(self):
+        """Test that validate_schema accepts tags on multiple acquisitions."""
+        valid_schema = {
+            "name": "Test Schema",
+            "acquisitions": {
+                "T1": {
+                    "tags": ["structural", "brain"],
+                    "fields": []
+                },
+                "fMRI": {
+                    "tags": ["fMRI", "resting-state"],
+                    "fields": []
+                }
+            }
+        }
+
+        # Should not raise
+        dicompare.validate_schema(valid_schema)
+
+    def test_validate_schema_accepts_empty_acquisition_tags_array(self):
+        """Test that validate_schema accepts an empty tags array on acquisitions."""
+        valid_schema = {
+            "name": "Test Schema",
+            "acquisitions": {
+                "T1": {
+                    "tags": [],
+                    "fields": []
+                }
+            }
+        }
+
+        # Should not raise
+        dicompare.validate_schema(valid_schema)
+
+    def test_validate_schema_rejects_non_string_acquisition_tags(self):
+        """Test that validate_schema rejects acquisition tags that are not strings."""
+        invalid_schema = {
+            "name": "Test Schema",
+            "acquisitions": {
+                "T1": {
+                    "tags": ["valid", 123, "also_valid"],  # 123 is not a string
+                    "fields": []
+                }
+            }
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            dicompare.validate_schema(invalid_schema)
+
+        error_msg = str(exc_info.value.message).lower()
+        assert "string" in error_msg or "type" in error_msg
+
+    def test_validate_schema_rejects_non_array_acquisition_tags(self):
+        """Test that validate_schema rejects acquisition tags that are not arrays."""
+        invalid_schema = {
+            "name": "Test Schema",
+            "acquisitions": {
+                "T1": {
+                    "tags": "structural",  # Should be an array
+                    "fields": []
+                }
+            }
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            dicompare.validate_schema(invalid_schema)
+
+        error_msg = str(exc_info.value.message).lower()
+        assert "array" in error_msg or "type" in error_msg

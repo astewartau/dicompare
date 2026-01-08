@@ -1,0 +1,2257 @@
+{
+  "name": "ABCD Study Protocol",
+  "description": "Adolescent Brain Cognitive Development (ABCD) Study imaging protocol.\n\nThe ABCD study tracks brain development of over 10,000 children (ages 9-10 at baseline) through adolescence across 21 sites in the United States. The imaging protocol was harmonized across three 3T scanner platforms: Siemens Prisma, GE 750, and Philips.\n\nReference: Casey et al. (2018) \"The Adolescent Brain Cognitive Development (ABCD) study: Imaging acquisition across 21 sites.\" Developmental Cognitive Neuroscience 32:43-54.",
+  "version": "1.0",
+  "authors": [
+    "Chloe Hampson",
+    "Cleaned by dicompare"
+  ],
+  "acquisitions": {
+    "ABCD_fMRI_DistortionMap_PA": {
+      "description": "fMRI B0 field map - Posterior-Anterior phase encoding",
+      "tags": ["brain", "fieldmap", "fMRI"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_fMRI_DistortionMap_PA"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "epse2d1_90"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": [
+            "SK",
+            "SP"
+          ]
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "EP"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M",
+            "ND"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.4
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.4,
+            2.4
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 90
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 90
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            90,
+            0,
+            0,
+            90
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 7030
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 80
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 90
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 2780,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 90
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.17069
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "series": [],
+      "rules": [],
+      "detailed_description": "## fMRI Distortion Correction - PA Direction\n\nSpin-echo EPI field map for geometric distortion correction of functional MRI data. Acquired with posterior-to-anterior (PA) phase encoding direction."
+    },
+    "ABCD_fMRI_task_MID": {
+      "description": "Monetary Incentive Delay (MID) task fMRI",
+      "tags": ["brain", "fMRI", "task-based"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_fMRI_task_Monetary_Incentive"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "epfid2d1_90"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "EP"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M",
+            "ND",
+            "MOSAIC"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.4
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.4,
+            2.4
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 720
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 720
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            90,
+            0,
+            0,
+            90
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 800
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 30
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 52
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 90
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 2780,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 90
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.0681
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "series": [],
+      "rules": [],
+      "detailed_description": "## Monetary Incentive Delay Task (MID)\n\nTask-based fMRI measuring reward processing, including anticipation and receipt of monetary rewards and losses. Robust activator of the ventral striatum.\n\n### Cognitive Domains (from Table 1)\n- **Reward Processing**: Anticipation and outcome of reward and loss\n- **Motivation**: Anticipation of responding for outcome\n\n### Neural Correlates\n- Ventral striatum\n- Orbitofrontal cortex\n- Medial prefrontal cortex\n- Ventromedial prefrontal cortex\n\n### Task Design\n- 2 runs, 50 trials each (100 total)\n- Trial types: Win $5, Win $0.20, Lose $5, Lose $0.20, $0 neutral\n- Adaptive algorithm maintains ~60% hit rate\n- Average earnings: $21\n\n### Key Parameters\n- Same as resting-state fMRI (2.4mm, TR=800ms, MB=6)\n- Duration: 5:42 per run\n\n### References\n- Knutson et al. (2000) NeuroImage"
+    },
+    "Localizer": {
+      "description": "Localizer scan for slice positioning",
+      "tags": ["brain", "localizer"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "localizer_32ch"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "*fl2d1"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": [
+            "SP",
+            "OSP"
+          ]
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "GR"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M",
+            "ND",
+            "NORM"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 7
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            0.48828,
+            0.48828
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 512
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 512
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 7.5
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 3.69
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 20
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 1
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 320,
+          "tolerance": 1
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 233
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 123.18844,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.03299
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 2
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 91
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "series": [
+        {
+          "name": "ROW orientation",
+          "fields": [
+            {
+              "field": "InPlanePhaseEncodingDirection",
+              "value": "ROW"
+            },
+            {
+              "field": "AcquisitionMatrix",
+              "value": [
+                0,
+                256,
+                233,
+                0
+              ]
+            }
+          ]
+        },
+        {
+          "name": "COL orientation",
+          "fields": [
+            {
+              "field": "InPlanePhaseEncodingDirection",
+              "value": "COL"
+            },
+            {
+              "field": "AcquisitionMatrix",
+              "value": [
+                256,
+                0,
+                0,
+                233
+              ]
+            }
+          ]
+        }
+      ],
+      "rules": [],
+      "detailed_description": "## Localizer\n\nStandard localizer acquisition using 32-channel head coil for planning subsequent scan prescriptions. Acquired in orthogonal orientations (ROW and COL phase encoding) for optimal slice positioning.\n\n### Key Parameters (Siemens)\n- Sequence: 2D Gradient Echo\n- Resolution: 0.49 \u00d7 0.49 mm in-plane\n- Slice Thickness: 7 mm\n- TR/TE: 7.5/3.69 ms\n- Flip Angle: 20\u00b0"
+    },
+    "ABCD_T2w_SPC_vNav": {
+      "description": "3D T2-weighted SPACE/CUBE with vNav motion correction",
+      "tags": ["brain", "structural", "T2-weighted"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_T2w_SPC_vNav"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "spc_200ns"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": [
+            "SK",
+            "SP"
+          ]
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "SE"
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            1,
+            1
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 256
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 256
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            0,
+            256,
+            256,
+            0
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 3200
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 565
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 120
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 190
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 240,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "ROW"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 227
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagingFrequency",
+          "tag": "0018,0084",
+          "value": 123.18839,
+          "tolerance": 1
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.08302
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "PFP"
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "series": [
+        {
+          "name": "With NORM",
+          "fields": [
+            {
+              "field": "ImageType",
+              "value": [
+                "ORIGINAL",
+                "PRIMARY",
+                "M",
+                "ND",
+                "NORM"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Without NORM",
+          "fields": [
+            {
+              "field": "ImageType",
+              "value": [
+                "ORIGINAL",
+                "PRIMARY",
+                "M",
+                "ND"
+              ]
+            }
+          ]
+        }
+      ],
+      "rules": [],
+      "detailed_description": "## 3D T2-Weighted Structural Imaging (SPACE/CUBE)\n\nHigh-resolution T2-weighted fast spin echo with variable flip angle (SPACE on Siemens, CUBE on GE) for detection and quantification of white matter lesions and CSF. Uses volumetric navigators for prospective motion correction.\n\n### Clinical Purpose\n- White matter hyperintensity detection\n- CSF quantification\n- Lesion characterization\n- Complementary contrast to T1w\n\n### Key Parameters (from Table 2)\n| Platform | Matrix | Resolution | TR | TE | Flip | Time |\n|----------|--------|------------|-----|-----|------|------|\n| Siemens | 256\u00d7256 | 1.0 mm iso | 3200 ms | 565 ms | Variable | 6:35 |\n| Philips | 256\u00d7256 | 1.0 mm iso | 2500 ms | 251.6 ms | 90\u00b0 | 2:53 |\n| GE | 256\u00d7256 | 1.0 mm iso | 3200 ms | 60 ms | Variable | 5:50 |\n\n### Technical Notes\n- Parallel imaging: 2\u00d7 \n- Variable refocusing flip angle train for optimal contrast\n- 176-256 slices depending on platform"
+    },
+    "ABCD_T1w_MPR_vNav": {
+      "description": "3D T1-weighted MPRAGE with vNav motion correction",
+      "tags": ["brain", "structural", "T1-weighted"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_T1w_MPR_vNav"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "tfl3d1_16ns"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": [
+            "SK",
+            "SP",
+            "MP"
+          ]
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": [
+            "GR",
+            "IR"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            1,
+            1
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 256
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 256
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            0,
+            256,
+            256,
+            0
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 2500
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 2.9
+        },
+        {
+          "field": "InversionTime",
+          "tag": "0018,0082",
+          "value": 1070
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 8
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 1
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 240,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "ROW"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 255
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.03788
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": [
+            "IR",
+            "WE"
+          ]
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "rules": [],
+      "detailed_description": "## 3D T1-Weighted Structural Imaging (MPRAGE)\n\nHigh-resolution T1-weighted magnetization-prepared rapid acquisition gradient echo (MPRAGE) scan for cortical and subcortical segmentation. Uses volumetric navigators (vNav) for prospective motion correction and selective reacquisition.\n\n### Clinical Purpose\n- Cortical surface reconstruction\n- Subcortical volume segmentation\n- Gray/white matter differentiation\n- Anatomical reference for functional data\n\n### Key Parameters (from Table 2)\n| Platform | Matrix | Resolution | TR | TE | TI | Flip | Time |\n|----------|--------|------------|-----|-----|------|------|------|\n| Siemens | 256\u00d7256 | 1.0 mm iso | 2500 ms | 2.88 ms | 1060 ms | 8\u00b0 | 7:12 |\n| Philips | 256\u00d7256 | 1.0 mm iso | 6.31 ms | 2.9 ms | 1060 ms | 8\u00b0 | 5:38 |\n| GE | 256\u00d7256 | 1.0 mm iso | 2500 ms | 2 ms | 1060 ms | 8\u00b0 | 6:09 |\n\n### Technical Notes\n- Parallel imaging: 2\u00d7 (GRAPPA/SENSE/ARC)\n- Prospective motion correction via vNav (Siemens, Philips) or PROMO (GE)\n- 176-208 slices depending on platform"
+    },
+    "ABCD_dMRI": {
+      "description": "High angular resolution diffusion imaging (HARDI) with multi-shell acquisition",
+      "tags": ["brain", "dMRI", "multiband", "HARDI"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_dMRI"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": [
+            "SK",
+            "SP"
+          ]
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "EP"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "DIFFUSION",
+            "NONE",
+            "ND",
+            "MOSAIC"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1.7
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            1.71429,
+            1.71429
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 1260
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 1260
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            140,
+            0,
+            0,
+            140
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 4200
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 89
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 105
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 1700,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 105
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.26572
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": [
+            "PFP",
+            "FS"
+          ]
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "rules": [],
+      "detailed_description": "## Diffusion-Weighted Imaging (HARDI)\n\nHigh angular resolution diffusion imaging (HARDI) with multiple b-values for white matter tract segmentation and diffusion measurement. Includes fast integrated B0 distortion correction using reversed polarity gradient (RPG) method.\n\n### Clinical Purpose\n- White matter tract segmentation\n- Fractional anisotropy (FA) mapping\n- Mean diffusivity (MD) measurement\n- Tractography and connectomics\n\n### Key Parameters (from Table 2)\n| Platform | Matrix | Resolution | TR | TE | Flip | Directions | b-values | Time |\n|----------|--------|------------|-----|-----|------|------------|----------|------|\n| Siemens | 140\u00d7140 | 1.7 mm iso | 4100 ms | 88 ms | 90\u00b0 | 96 | 500(6), 1000(15), 2000(15), 3000(60) | 7:31 |\n| Philips | 140\u00d7140 | 1.7 mm iso | 5300 ms | 89 ms | 78\u00b0 | 96 | 500(6), 1000(15), 2000(15), 3000(60) | 9:14 |\n| GE | 140\u00d7140 | 1.7 mm iso | 4100 ms | 81.9 ms | 77\u00b0 | 96 | 500(6), 1000(15), 2000(15), 3000(60) | 7:30 |\n\n### Technical Notes\n- Multiband acceleration: 3\u00d7\n- Partial Fourier: 6/8 (Siemens/GE) or 0.6 (Philips)\n- 81 slices\n- Multi-shell scheme enables advanced diffusion models (NODDI, etc.)",
+      "series": []
+    },
+    "ABCD_dMRI_DistortionMap_AP": {
+      "description": "Diffusion B0 field map - Anterior-Posterior phase encoding",
+      "tags": ["brain", "fieldmap", "dMRI"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_dMRI_DistortionMap_AP"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "ep_b0"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": [
+            "SK",
+            "SP"
+          ]
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "EP"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "DIFFUSION",
+            "NONE",
+            "ND"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1.7
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            1.71429,
+            1.71429
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 140
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 140
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            140,
+            0,
+            0,
+            140
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 12400
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 89
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 105
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 0
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 1700,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 105
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.13485
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": [
+            "PFP",
+            "FS"
+          ]
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "series": [],
+      "rules": [],
+      "detailed_description": "## dMRI Distortion Correction - AP Direction\n\nReversed polarity gradient field map for EPI distortion correction of diffusion data. Acquired with anterior-to-posterior (AP) phase encoding direction, paired with PA acquisition for topup/FSL distortion correction."
+    },
+    "ABCD_dMRI_DistortionMap_PA": {
+      "description": "Diffusion B0 field map - Posterior-Anterior phase encoding",
+      "tags": ["brain", "fieldmap", "dMRI"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_dMRI_DistortionMap_PA"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "ep_b0"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": [
+            "SK",
+            "SP"
+          ]
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "EP"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "DIFFUSION",
+            "NONE",
+            "ND"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1.7
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            1.71429,
+            1.71429
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 140
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 140
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            140,
+            0,
+            0,
+            140
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 12400
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 89
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 105
+        },
+        {
+          "field": "DiffusionBValue",
+          "tag": "0018,9087",
+          "value": 0
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 1700,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 105
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.13485
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": [
+            "PFP",
+            "FS"
+          ]
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "series": [],
+      "rules": [],
+      "detailed_description": "## dMRI Distortion Correction - PA Direction\n\nReversed polarity gradient field map for EPI distortion correction of diffusion data. Acquired with posterior-to-anterior (PA) phase encoding direction, paired with AP acquisition for topup/FSL distortion correction."
+    },
+    "ABCD_fMRI_DistortionMap_AP": {
+      "description": "fMRI B0 field map - Anterior-Posterior phase encoding",
+      "tags": ["brain", "fieldmap", "fMRI"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_fMRI_DistortionMap_AP"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "epse2d1_90"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": [
+            "SK",
+            "SP"
+          ]
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "EP"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M",
+            "ND"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.4
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.4,
+            2.4
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 90
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 90
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            90,
+            0,
+            0,
+            90
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 7030
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 80
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 90
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 90
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 2780,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 90
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.17069
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "series": [],
+      "rules": [],
+      "detailed_description": "## fMRI Distortion Correction - AP Direction\n\nSpin-echo EPI field map for geometric distortion correction of functional MRI data. Acquired with anterior-to-posterior (AP) phase encoding direction."
+    },
+    "ABCD_fMRI_rest": {
+      "description": "Resting-state fMRI with multiband acceleration",
+      "tags": ["brain", "fMRI", "resting-state", "multiband"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_fMRI_rest"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "epfid2d1_90"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "EP"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M",
+            "ND",
+            "MOSAIC"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.4
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.4,
+            2.4
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 720
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 720
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            90,
+            0,
+            0,
+            90
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 800
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 30
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 52
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 90
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 2780,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 90
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.06807
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "series": [],
+      "rules": [],
+      "detailed_description": "## Resting-State Functional MRI\n\nHigh spatial and temporal resolution simultaneous multi-slice (SMS)/multiband EPI resting-state fMRI for examining functional connectivity. Participants passively view a crosshair with eyes open.\n\n### Protocol\n- 4 runs of 5 minutes each (20 minutes total)\n- 2 runs acquired after T1w\n- 2 runs acquired after T2w\n- Eyes open, passive fixation crosshair viewing\n\n### Key Parameters (from Table 2)\n| Parameter | Value |\n|-----------|-------|\n| Matrix | 90 \u00d7 90 |\n| Resolution | 2.4 mm isotropic |\n| TR | 800 ms |\n| TE | 30 ms |\n| Flip Angle | 52\u00b0 |\n| Slices | 60 |\n| Multiband Factor | 6 |\n\n### Technical Notes\n- High temporal resolution (TR=800ms) enabled by multiband\n- Mean frame-to-frame displacement: 0.22 mm (SD=0.20)\n- FIRMM real-time motion monitoring at Siemens sites"
+    },
+    "ABCD_fMRI_task_EN-back": {
+      "description": "Emotional N-back (EN-back) task fMRI",
+      "tags": ["brain", "fMRI", "task-based"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_fMRI_task_Emotional_n-back"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "epfid2d1_90"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "EP"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M",
+            "ND",
+            "MOSAIC"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.4
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.4,
+            2.4
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 720
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 720
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            90,
+            0,
+            0,
+            90
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 800
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 30
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 52
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 90
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 2780,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 90
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.06805
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "series": [],
+      "rules": [],
+      "detailed_description": "## Emotional N-back Task (EN-back)\n\nTask-based fMRI measuring working memory and emotion regulation. Variant of the HCP n-back task with emotional face stimuli.\n\n### Cognitive Domains (from Table 1)\n- **Memory**: Working memory (2-back vs 0-back), encoding, retrieval\n- **Emotion Regulation**: Reactivity to fearful/happy vs neutral faces\n\n### Neural Correlates\n- Dorsolateral prefrontal cortex\n- Parietal cortex\n- Premotor cortex\n- Hippocampus/parahippocampus\n- Amygdala\n- Ventral striatum\n\n### Task Design\n- 2 runs, 8 blocks each\n- Block types: 2-back (high load) and 0-back (low load)\n- Stimulus types: Happy faces, fearful faces, neutral faces, places\n- 160 trials total (40 per stimulus type)\n- NimStim + RADIATE face stimulus sets\n\n### Key Parameters\n- Same as resting-state fMRI (2.4mm, TR=800ms, MB=6)\n\n### References\n- Barch et al. (2013) - HCP task design\n- Cohen et al. (2016)"
+    },
+    "ABCD_fMRI_task_SST": {
+      "description": "Stop Signal Task (SST) fMRI",
+      "tags": ["brain", "fMRI", "task-based"],
+      "fields": [
+        {
+          "field": "SeriesDescription",
+          "tag": "0008,103E",
+          "value": "ABCD_fMRI_task_Stop"
+        },
+        {
+          "field": "SequenceName",
+          "tag": "0018,0024",
+          "value": "epfid2d1_90"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "value": "SK"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "value": "EP"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "value": [
+            "ORIGINAL",
+            "PRIMARY",
+            "M",
+            "ND",
+            "MOSAIC"
+          ]
+        },
+        {
+          "field": "Manufacturer",
+          "tag": "0008,0070",
+          "value": "SIEMENS"
+        },
+        {
+          "field": "ManufacturerModelName",
+          "tag": "0008,1090",
+          "value": "Prisma"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 2.4
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            2.4,
+            2.4
+          ]
+        },
+        {
+          "field": "Rows",
+          "tag": "0028,0010",
+          "value": 720
+        },
+        {
+          "field": "Columns",
+          "tag": "0028,0011",
+          "value": 720
+        },
+        {
+          "field": "AcquisitionMatrix",
+          "tag": "0018,1310",
+          "value": [
+            90,
+            0,
+            0,
+            90
+          ]
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "value": 800
+        },
+        {
+          "field": "EchoTime",
+          "tag": "0018,0081",
+          "value": 30
+        },
+        {
+          "field": "FlipAngle",
+          "tag": "0018,1314",
+          "value": 52
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 90
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 2780,
+          "tolerance": 1
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL"
+        },
+        {
+          "field": "NumberOfPhaseEncodingSteps",
+          "tag": "0018,0089",
+          "value": 90
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "value": 3,
+          "tolerance": 0.3
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H"
+        },
+        {
+          "field": "TransmitCoilName",
+          "tag": "0018,1251",
+          "value": "Body"
+        },
+        {
+          "field": "SAR",
+          "tag": "0018,1316",
+          "value": 0.06814
+        },
+        {
+          "field": "dBdt",
+          "tag": "0018,1318",
+          "value": 0
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1
+        },
+        {
+          "field": "CoilType",
+          "tag": "unknown_CoilType",
+          "value": "Combined"
+        },
+        {
+          "field": "PercentSampling",
+          "tag": "0018,0093",
+          "value": 100
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100
+        },
+        {
+          "field": "ScanOptions",
+          "tag": "0018,0022",
+          "value": "FS"
+        },
+        {
+          "field": "AngioFlag",
+          "tag": "0018,0025",
+          "value": "N"
+        }
+      ],
+      "series": [],
+      "rules": [],
+      "detailed_description": "## Stop Signal Task (SST)\n\nTask-based fMRI measuring impulsivity and impulse control. Participants respond to arrow direction but must inhibit response when stop signal appears.\n\n### Cognitive Domains (from Table 1)\n- **Impulsivity**: Error monitoring (failed stops)\n- **Impulse Control**: Conflict monitoring and resolution (correct stops)\n\n### Neural Correlates\n- Dorsal striatum\n- Anterior cingulate cortex\n- Ventrolateral prefrontal cortex\n\n### Task Design\n- 2 runs, 180 trials each (360 total)\n- 150 Go trials + 30 Stop trials per run\n- Tracking algorithm maintains ~50% stop success rate\n- Stop Signal Delay (SSD) adapts based on performance\n\n### Key Measures\n- Stop Signal Reaction Time (SSRT)\n- Go trial reaction time\n- Stop accuracy\n\n### Key Parameters\n- Same as resting-state fMRI (2.4mm, TR=800ms, MB=6)\n- Duration: 349s per run\n\n### References\n- Logan (1994)\n- Whelan et al. (2012) Nature Neuroscience"
+    }
+  },
+  "rules": []
+}

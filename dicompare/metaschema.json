@@ -61,6 +61,11 @@
           "type": "array",
           "description": "Acquisition-specific validation rules",
           "items": { "$ref": "#/$defs/rule" }
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tags specific to this acquisition"
         }
       }
     },

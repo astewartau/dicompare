@@ -1,13 +1,15 @@
 {
   "name": "UK Biobank",
-  "description": "Auto-generated validation template",
+  "description": "Brain imaging protocol for the UK Biobank prospective epidemiological study (~100,000 participants). Acquired on Siemens Skyra 3T scanners at dedicated imaging centers across the UK. Protocol version 4.0.\n\nReference: Miller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
   "version": "1.0",
   "authors": [
     "Ashley Stewart"
   ],
   "acquisitions": {
     "T1 structural brain images": {
-      "description": "",
+      "description": "3D T1-weighted MPRAGE acquisition for high-resolution brain anatomy",
+      "detailed_description": "## T1-Weighted Structural MRI\n\nThis acquisition provides high-resolution T1-weighted anatomical images of the brain using a 3D Magnetization-Prepared Rapid Gradient Echo (MPRAGE) sequence.\n\n### Purpose\n\nThe T1-weighted structural scan serves as the primary anatomical reference for UK Biobank brain imaging and is used for:\n- Brain tissue segmentation (grey matter, white matter, CSF)\n- Cortical surface reconstruction and thickness measurements\n- Subcortical structure volumetrics\n- Spatial normalization and registration template\n- Identification of gross anatomical abnormalities\n\n### Acquisition Parameters\n\n- **Sequence**: 3D MPRAGE (tfl3d1_16ns)\n- **Resolution**: 1.0 mm isotropic\n- **FOV**: 256 x 256 mm, sagittal orientation\n- **TR/TE/TI**: 2000 ms / 2.01 ms / 880 ms\n- **Flip Angle**: 8 degrees\n- **Acceleration**: GRAPPA factor 2\n- **Scan Time**: ~5 minutes\n\n### Key Features\n\n- Isotropic resolution enables high-quality reformatting in any plane\n- Inversion recovery preparation provides excellent grey/white matter contrast\n- Whole-brain coverage from vertex to below cerebellum\n- Consistent positioning using AutoAlign to AC-PC orientation\n\n### Derived Measures\n\nUK Biobank provides numerous imaging-derived phenotypes (IDPs) from this scan including:\n- Total brain volume, grey matter volume, white matter volume\n- Regional volumes (hippocampus, amygdala, thalamus, etc.)\n- Cortical thickness and surface area measures\n- Subcortical structure volumes\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
+      "tags": ["brain", "structural", "T1-weighted"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -205,7 +207,9 @@
       "rules": []
     },
     "Functional brain images - task": {
-      "description": "",
+      "description": "Multi-band EPI acquisition for task-based functional MRI",
+      "detailed_description": "## Task-Based Functional MRI\n\nThis acquisition captures brain activity during a cognitive task using Blood Oxygen Level Dependent (BOLD) contrast with multi-band acceleration.\n\n### Purpose\n\nThe task fMRI scan measures brain activation patterns during the Hariri faces/shapes emotional processing task:\n- Identify brain regions involved in emotional face processing\n- Assess amygdala reactivity to emotional stimuli\n- Study individual differences in emotional processing circuitry\n- Enable genome-wide association studies of brain function\n\n### Task Paradigm\n\nThe Hariri faces/shapes task alternates between:\n- **Faces blocks**: Match emotional expressions (angry, fearful, neutral)\n- **Shapes blocks**: Match geometric shapes (control condition)\n- Total duration: ~4 minutes (332 volumes)\n\n### Acquisition Parameters\n\n- **Sequence**: Gradient-echo EPI with multi-band acceleration\n- **Resolution**: 2.4 mm isotropic\n- **FOV**: 210 x 210 mm, transverse oblique (AC-PC aligned)\n- **TR/TE**: 735 ms / 39 ms\n- **Flip Angle**: 52 degrees\n- **Multi-band Factor**: 8 (64 slices acquired simultaneously in 8 groups)\n- **Volumes**: 332\n- **Scan Time**: ~4 minutes\n\n### Key Features\n\n- Ultra-fast TR (735 ms) enabled by multi-band acceleration\n- Whole-brain coverage with no slice gaps\n- Fat saturation to reduce signal from subcutaneous fat\n- Single-band reference (SBRef) image acquired for motion correction\n\n### Processing Considerations\n\n- Susceptibility-induced distortions corrected using field maps\n- Motion correction and slice-timing correction applied\n- Spatial smoothing and temporal filtering\n- GLM analysis for task activation maps\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
+      "tags": ["brain", "fMRI", "task-based"],
       "fields": [
         {
           "field": "SequenceName",
@@ -281,12 +285,14 @@
         {
           "field": "EchoTime",
           "tag": "0018,0081",
-          "value": 42.4
+          "value": 39,
+          "tolerance": 4
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 51
+          "value": 52,
+          "tolerance": 2
         },
         {
           "field": "EchoTrainLength",
@@ -405,7 +411,9 @@
       "rules": []
     },
     "Multiband diffusion brain images": {
-      "description": "",
+      "description": "Multi-shell diffusion MRI with multi-band acceleration for white matter microstructure",
+      "detailed_description": "## Diffusion-Weighted MRI\n\nThis acquisition provides multi-shell diffusion-weighted imaging for characterizing white matter microstructure using multi-band acceleration.\n\n### Purpose\n\nThe diffusion MRI scan enables investigation of white matter organization and connectivity:\n- White matter tract reconstruction (tractography)\n- Microstructural measures (FA, MD, diffusivities)\n- Advanced modeling (NODDI, DKI)\n- Structural connectivity analysis\n- Detection of white matter pathology\n\n### Acquisition Parameters\n\n- **Sequence**: Spin-echo EPI with multi-band acceleration\n- **Resolution**: 2.0 mm isotropic\n- **FOV**: 210 x 210 mm, transverse oblique (AC-PC aligned)\n- **TR/TE**: 3600 ms / 92 ms\n- **Flip Angle**: 78 degrees\n- **Multi-band Factor**: 3 (72 slices acquired in 24 groups)\n- **Slices**: 72 (whole brain coverage)\n\n### Diffusion Scheme\n\n- **b = 0 s/mm²**: ~8 volumes (non-diffusion weighted)\n- **b = 1000 s/mm²**: 50 directions\n- **b = 2000 s/mm²**: 50 directions\n- **Total volumes**: 108\n- **Scan Time**: ~7 minutes (including PA field map)\n\n### Field Map Acquisition\n\nA short reverse phase-encode (PA) acquisition with 3 b=0 volumes is acquired for susceptibility distortion correction using FSL's topup.\n\n### Key Features\n\n- Multi-shell design enables advanced diffusion models beyond DTI\n- Multi-band acceleration reduces scan time while maintaining angular resolution\n- Isotropic resolution for accurate tractography\n- Optimized gradient directions for uniform sampling\n\n### Derived Measures\n\nUK Biobank provides diffusion IDPs including:\n- Fractional anisotropy (FA) in major white matter tracts\n- Mean diffusivity (MD), axial and radial diffusivity\n- NODDI metrics (ICVF, ISOVF, OD)\n- Tract-averaged measures for 27 major pathways\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
+      "tags": ["brain", "dMRI", "multiband"],
       "fields": [
         {
           "field": "SequenceVariant",
@@ -1235,7 +1243,9 @@
       ]
     },
     "Susceptibility weighted brain images": {
-      "description": "",
+      "description": "3D dual-echo gradient echo acquisition for susceptibility-weighted imaging",
+      "detailed_description": "## Susceptibility-Weighted Imaging (SWI)\n\nThis acquisition provides high-resolution susceptibility-weighted images using a 3D dual-echo gradient echo sequence, sensitive to iron, blood products, and venous structures.\n\n### Purpose\n\nThe SWI scan enables detection of susceptibility-related tissue properties:\n- Cerebral microbleed detection and quantification\n- Iron deposition in deep grey matter structures\n- Venous architecture visualization\n- Calcification detection\n- Assessment of small vessel disease\n\n### Acquisition Parameters\n\n- **Sequence**: 3D flow-compensated dual-echo GRE (fl3d2r)\n- **Resolution**: 0.8 x 0.8 x 3.0 mm (high in-plane, thick slices)\n- **FOV**: 230 x 205 mm, transverse oblique (AC-PC aligned)\n- **TR**: 27 ms\n- **TE1/TE2**: 9.4 ms / 19.7 ms\n- **Flip Angle**: 15 degrees\n- **Acceleration**: GRAPPA factor 2\n- **Slices**: 48\n- **Scan Time**: ~2.5 minutes\n\n### Dual-Echo Design\n\nTwo echoes are acquired per TR:\n- **First echo (TE=9.4 ms)**: Less T2* weighting, better SNR\n- **Second echo (TE=19.7 ms)**: More susceptibility contrast\n\nBoth magnitude and phase images are saved for each echo.\n\n### Key Features\n\n- Flow compensation reduces vessel signal loss from flowing blood\n- Phase images enable QSM-like processing\n- High in-plane resolution for microbleed detection\n- Bipolar readout for efficient dual-echo acquisition\n\n### Derived Measures\n\nUK Biobank uses SWI for:\n- Automated microbleed detection and counting\n- T2* mapping from dual-echo data\n- Iron quantification in basal ganglia\n- Small vessel disease burden assessment\n\n### Clinical Relevance\n\nMicrobleeds detected on SWI are associated with:\n- Cerebral amyloid angiopathy\n- Hypertensive vasculopathy\n- Increased stroke risk\n- Cognitive decline\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
+      "tags": ["brain", "SWI", "susceptibility", "T2*-weighted", "QSM"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1463,7 +1473,9 @@
       ]
     },
     "T2 FLAIR structural brain images": {
-      "description": "",
+      "description": "3D T2-weighted FLAIR acquisition for white matter lesion detection",
+      "detailed_description": "## T2-Weighted FLAIR Structural MRI\n\nThis acquisition provides T2-weighted images with CSF suppression using a 3D Fluid-Attenuated Inversion Recovery (FLAIR) sequence, optimized for detecting white matter abnormalities.\n\n### Purpose\n\nThe T2 FLAIR scan is primarily used for:\n- White matter hyperintensity (WMH) detection and quantification\n- Assessment of small vessel cerebrovascular disease\n- Detection of periventricular and deep white matter lesions\n- Multiple sclerosis lesion identification\n- Stroke and ischemic lesion detection\n\n### Acquisition Parameters\n\n- **Sequence**: 3D SPACE with FLAIR (spcir_284ns)\n- **Resolution**: 1.0 x 1.0 x 1.05 mm (near-isotropic)\n- **FOV**: 256 x 256 mm, sagittal orientation\n- **TR/TE/TI**: 5000 ms / 395 ms / 1800 ms\n- **Flip Angle**: Variable (T2-optimized)\n- **Turbo Factor**: 284\n- **Acceleration**: GRAPPA factor 2\n- **Slices**: 192\n- **Scan Time**: ~6 minutes\n\n### Key Features\n\n- Long inversion time (TI=1800 ms) suppresses CSF signal\n- CSF suppression makes periventricular lesions clearly visible\n- 3D acquisition enables reformatting in any plane\n- Fat saturation reduces scalp signal artifacts\n- Near-isotropic resolution for accurate volumetric measurements\n\n### FLAIR Physics\n\nThe FLAIR technique uses an inversion pulse timed so that CSF (with long T1) has zero longitudinal magnetization at the time of excitation. This nulls CSF signal while preserving signal from pathological tissue that would otherwise be obscured.\n\n### Derived Measures\n\nUK Biobank provides WMH-related IDPs:\n- Total white matter hyperintensity volume\n- Periventricular vs deep WMH volumes\n- Lesion count and distribution\n- Fazekas visual rating scale scores\n\n### Clinical Relevance\n\nWhite matter hyperintensities on FLAIR are associated with:\n- Age and vascular risk factors\n- Cognitive decline and dementia risk\n- Stroke risk\n- Gait and balance disturbances\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
+      "tags": ["brain", "structural", "FLAIR"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1664,7 +1676,9 @@
       "rules": []
     },
     "Functional brain images - resting": {
-      "description": "",
+      "description": "Multi-band EPI acquisition for resting-state functional connectivity",
+      "detailed_description": "## Resting-State Functional MRI\n\nThis acquisition captures spontaneous brain activity fluctuations during rest using BOLD contrast with multi-band acceleration, enabling analysis of intrinsic functional connectivity.\n\n### Purpose\n\nThe resting-state fMRI scan enables investigation of intrinsic brain organization:\n- Functional connectivity between brain regions\n- Identification of resting-state networks (default mode, salience, etc.)\n- Network topology and graph-theoretic measures\n- Individual differences in brain functional organization\n- Biomarkers for neurological and psychiatric conditions\n\n### Acquisition Parameters\n\n- **Sequence**: Gradient-echo EPI with multi-band acceleration\n- **Resolution**: 2.4 mm isotropic\n- **FOV**: 210 x 210 mm, transverse oblique (AC-PC aligned)\n- **TR/TE**: 735 ms / 39 ms\n- **Flip Angle**: 52 degrees\n- **Multi-band Factor**: 8 (64 slices acquired simultaneously in 8 groups)\n- **Slices**: 64 (whole brain coverage)\n- **Volumes**: 490\n- **Scan Time**: ~6 minutes\n\n### Participant Instructions\n\nDuring the resting-state scan, participants are instructed to:\n- Keep eyes open and fixate on a crosshair\n- Stay awake and relaxed\n- Let their mind wander freely\n- Avoid structured thinking or mental tasks\n\n### Key Features\n\n- Ultra-fast TR (735 ms) provides excellent temporal resolution\n- Multi-band acceleration enables whole-brain coverage with short TR\n- ~6 minutes provides sufficient data for reliable connectivity estimates\n- Single-band reference (SBRef) image for distortion correction\n- Fat saturation reduces artifacts from subcutaneous tissue\n\n### Derived Measures\n\nUK Biobank provides numerous functional connectivity IDPs:\n- Node amplitudes for 21 resting-state network nodes (ICA-based)\n- Full and partial correlation matrices between network nodes\n- Network-specific connectivity measures\n- Amplitude of low-frequency fluctuations (ALFF)\n\n### Processing Pipeline\n\n1. Motion correction and distortion correction (using field maps)\n2. Registration to T1 and MNI space\n3. ICA-based denoising (FIX) to remove artifacts\n4. Bandpass filtering (typically 0.01-0.1 Hz)\n5. Dual regression for subject-specific network maps\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
+      "tags": ["brain", "fMRI", "resting-state"],
       "fields": [
         {
           "field": "SequenceName",
@@ -1740,12 +1754,14 @@
         {
           "field": "EchoTime",
           "tag": "0018,0081",
-          "value": 42.4
+          "value": 39,
+          "tolerance": 4
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 51
+          "value": 52,
+          "tolerance": 2
         },
         {
           "field": "EchoTrainLength",
