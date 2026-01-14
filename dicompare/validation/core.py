@@ -226,12 +226,31 @@ class BaseValidationModel:
                     continue
 
                 # get unique combinations + counts
+                # Count = actual slice count per unique value combination
+                # Priority: pre-computed Count > NumberOfImagesInMosaic > unique SliceLocation > row count
                 grouped = (
                     acq_df[list(field_names)]
                     .groupby(list(field_names), dropna=False)
                     .size()
-                    .reset_index(name="Count")
+                    .reset_index(name="_raw_count")
                 )
+
+                # Compute smart Count (actual slices, not just file count)
+                if "Count" in acq_df.columns and acq_df["Count"].notna().any() and acq_df["Count"].iloc[0] > 0:
+                    # Use pre-computed Count (from web UI analysis)
+                    grouped["Count"] = int(acq_df["Count"].iloc[0])
+                elif "NumberOfImagesInMosaic" in acq_df.columns and acq_df["NumberOfImagesInMosaic"].notna().any():
+                    # Siemens mosaic: slices packed into single 2D image
+                    grouped["Count"] = int(acq_df["NumberOfImagesInMosaic"].iloc[0])
+                elif "SliceLocation" in acq_df.columns and acq_df["SliceLocation"].nunique() > 1:
+                    # Regular multi-slice: count unique slice locations
+                    grouped["Count"] = acq_df["SliceLocation"].nunique()
+                else:
+                    # Fallback to raw row count
+                    grouped["Count"] = grouped["_raw_count"]
+
+                # Remove temporary column
+                grouped = grouped.drop(columns=["_raw_count"])
 
                 # run each validator
                 for validator_func in validators:

@@ -60,7 +60,14 @@ DEFAULT_SETTINGS_FIELDS = [
     "SteadyStatePulseSequence",
     "PartialFourierDirection",
     "MultibandFactor",
-    "ImageType"  # Can vary within multi-part acquisitions (M/P) - handled by parameter set grouping
+    "ImageType",  # Can vary within multi-part acquisitions (M/P) - handled by parameter set grouping
+
+    # ASL (Arterial Spin Labeling) parameters
+    "ArterialSpinLabelingType",  # PCASL, PASL, CASL
+    "PostLabelDelay",  # PLD in seconds
+    "LabelingDuration",  # Labeling duration in seconds
+    "BolusDuration",  # PASL bolus duration
+    "LabelOffset",  # Labeling plane offset in mm
 ]
 
 DEFAULT_SERIES_FIELDS = [
@@ -80,7 +87,7 @@ DEFAULT_RUN_GROUP_FIELDS = ["PatientName", "PatientID", "ProtocolName", "StudyDa
 # Fields that should not contain zero values (used in DICOM processing)
 NONZERO_FIELDS = [
     "EchoTime",
-    "FlipAngle", 
+    "FlipAngle",
     "SliceThickness",
     "RepetitionTime",
     "InversionTime",
@@ -92,6 +99,12 @@ NONZERO_FIELDS = [
     "PercentSampling",
     "PercentPhaseFieldOfView",
     "PixelBandwidth",
+    # ASL timing parameters
+    "PostLabelDelay",
+    "LabelingDuration",
+    "BolusDuration",
+    "TagDuration",
+    "TagPlaneDThickness",
 ]
 
 # Maximum difference score for field matching
@@ -129,6 +142,7 @@ DEFAULT_DICOM_FIELDS = [
     'EchoTrainLength',
     'GradientEchoTrainLength', # MISSING
     'NumberOfTemporalPositions',
+    'NumberOfImagesInMosaic',  # Siemens mosaic: slices per volume
     'TemporalResolution', # MISSING
     'SliceTiming', # MISSING
 
@@ -190,6 +204,27 @@ DEFAULT_DICOM_FIELDS = [
     'TimeOfFlightContrast',
     'SteadyStatePulseSequence', # MISSING
     'PartialFourierDirection',
+
+    # ASL (Arterial Spin Labeling) parameters
+    'ArterialSpinLabelingType',  # PCASL, PASL, CASL - inferred from CSA/sequence name
+    'PostLabelDelay',  # PLD in seconds (Siemens CSA, Philips TriggerDelayTime)
+    'LabelingDuration',  # Labeling duration in seconds (computed from TagDuration or NumRFBlocks*RFGap)
+    'BolusDuration',  # PASL bolus duration in seconds
+    'LabelOffset',  # Labeling plane offset in mm
+    'InitialPostLabelDelay',  # Multi-PLD array (vessel-encoded ASL)
+    'NumRFBlocks',  # Number of RF pulses in labeling train
+    'RFGap',  # Gap between RF pulses in seconds
+    'TagDuration',  # PCASL labeling duration (vessel-encoded)
+    'TagRFFlipAngle',  # RF flip angle for labeling
+    'TagRFDuration',  # Duration of each RF pulse
+    'TagRFSeparation',  # Separation between RF pulses
+    'MeanTagGradient',  # Mean gradient during labeling
+    'TagGradientAmplitude',  # Gradient amplitude during labeling
+    'MaximumT1Opt',  # Maximum T1 optimization value
+    'TagPlaneDThickness',  # Labeling plane thickness in mm
+    'PhiAdjust',  # Phase adjustment for labeling
+    'T1',  # Blood T1 value used for quantification (seconds)
+    'MeanGzx10',  # Mean gradient (scaled by 10)
 ]
 
 # Enhanced to regular DICOM field mapping

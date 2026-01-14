@@ -150,6 +150,28 @@ def extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
     # Phase encoding polarity (0 = negative/reversed, 1 = positive/normal)
     csa_metadata["PhaseEncodingDirectionPositive"] = get_csa_value("PhaseEncodingDirectionPositive")
 
+    # ASL-specific CSA fields (Siemens)
+    # These are extracted from research/product ASL sequences
+    csa_metadata["PostLabelDelay"] = get_csa_value("PostLabelDelay")
+    csa_metadata["BolusDuration"] = get_csa_value("BolusDuration")
+    csa_metadata["LabelOffset"] = get_csa_value("LabelOffset")
+    csa_metadata["NumRFBlocks"] = get_csa_value("NumRFBlocks")
+    csa_metadata["RFGap"] = get_csa_value("RFGap")
+    csa_metadata["MeanGzx10"] = get_csa_value("MeanGzx10")
+    csa_metadata["PhiAdjust"] = get_csa_value("PhiAdjust")
+    csa_metadata["T1"] = get_csa_value("T1")  # Blood T1 assumption
+
+    # Vessel-encoded PCASL parameters
+    csa_metadata["TagDuration"] = get_csa_value("TagDuration")
+    csa_metadata["TagRFFlipAngle"] = get_csa_value("TagRFFlipAngle")
+    csa_metadata["TagRFDuration"] = get_csa_value("TagRFDuration")
+    csa_metadata["TagRFSeparation"] = get_csa_value("TagRFSeparation")
+    csa_metadata["MeanTagGradient"] = get_csa_value("MeanTagGradient")
+    csa_metadata["TagGradientAmplitude"] = get_csa_value("TagGradientAmplitude")
+    csa_metadata["MaximumT1Opt"] = get_csa_value("MaximumT1Opt")
+    csa_metadata["InitialPostLabelDelay"] = get_csa_value("InitialPostLabelDelay", scalar=False)
+    csa_metadata["TagPlaneDThickness"] = get_csa_value("TagPlaneDThickness")
+
     return csa_metadata
 
 
@@ -760,6 +782,239 @@ def load_dicom(
             accel_factor_pe = get_ascconv_value(ascconv, 'sPat.lAccelFactPE')
             if accel_factor_pe is not None and accel_factor_pe > 1:
                 _set_metadata_value(metadata, 'AccelerationFactorPE', accel_factor_pe)
+
+            # --- Siemens ASL parameter extraction from ASCCONV ---
+            # Check ASL mode: 1 = pCASL (2D), 2 = PASL, 4 = pCASL (3D)
+            asl_mode = get_ascconv_value(ascconv, 'sAsl.ulMode')
+
+            # Detect vessel-encoded (Oxford) ASL sequences via tSequenceFileName
+            # Oxford sequences use alFree array with different indices than product sequences
+            # Note: VEPCASL sequences may report sAsl.ulMode=2 but are actually pCASL
+            # Reference: dcm2niix source - checks for "VEPCASL" in sequence filename
+            sequence_filename = get_ascconv_value(ascconv, 'tSequenceFileName') or ''
+            is_vessel_encoded = 'VEPCASL' in sequence_filename.upper()
+
+            # Also detect sequence type from sequence name as fallback
+            # Mode values can be unreliable (e.g., tgse_pasl reports mode 4 like pCASL 3D)
+            seq_name_lower = sequence_filename.lower()
+            is_pasl_by_name = '_pasl' in seq_name_lower or 'pasl_' in seq_name_lower
+
+            # Store sequence filename for debugging/reference
+            if sequence_filename:
+                _set_metadata_value(metadata, 'PulseSequenceDetails', sequence_filename)
+
+            if is_vessel_encoded:
+                # Oxford/vessel-encoded pCASL: Parameters in sWipMemBlock.alFree array
+                # Reference: dcm2niix source code (nii_dicom_batch.cpp)
+                # 2D and 3D sequences use different array indices:
+                # - to_ep2d_VEPCASL (2D): alFree[4-6] for params, alFree[11-30] for PLDs
+                # - jw_tgse_VEPCASL (3D): alFree[6-9] for params, alFree[30-37] for PLDs
+                # Reference: https://github.com/neurolabusc/dcm_qa_asl
+                is_3d_vepcasl = 'jw_tgse' in seq_name_lower or 'tgse_vepcasl' in seq_name_lower
+
+                alFree = get_ascconv_value(ascconv, 'sWipMemBlock.alFree')
+                if alFree and isinstance(alFree, list):
+                    if is_3d_vepcasl:
+                        # 3D jw_tgse_VEPCASL indices (from dcm2niix)
+                        idx_flip = 6
+                        idx_duration = 7
+                        idx_separation = 8
+                        idx_t1opt = 9
+                        pld_start = 30
+                        pld_end = 38
+                    else:
+                        # 2D to_ep2d_VEPCASL indices (from dcm2niix)
+                        idx_flip = 4
+                        idx_duration = 5
+                        idx_separation = 6
+                        idx_t1opt = 10
+                        pld_start = 11
+                        pld_end = 31
+
+                    # TagRFFlipAngle (degrees)
+                    if len(alFree) > idx_flip and alFree[idx_flip] and alFree[idx_flip] != []:
+                        try:
+                            _set_metadata_value(metadata, 'TagRFFlipAngle', float(alFree[idx_flip]))
+                        except (ValueError, TypeError):
+                            pass
+                    # TagRFDuration in µs -> seconds
+                    if len(alFree) > idx_duration and alFree[idx_duration] and alFree[idx_duration] != []:
+                        try:
+                            _set_metadata_value(metadata, 'TagRFDuration', float(alFree[idx_duration]) / 1_000_000)
+                        except (ValueError, TypeError):
+                            pass
+                    # TagRFSeparation in µs -> seconds
+                    if len(alFree) > idx_separation and alFree[idx_separation] and alFree[idx_separation] != []:
+                        try:
+                            _set_metadata_value(metadata, 'TagRFSeparation', float(alFree[idx_separation]) / 1_000_000)
+                        except (ValueError, TypeError):
+                            pass
+                    # MaximumT1Opt in ms -> seconds
+                    if len(alFree) > idx_t1opt and alFree[idx_t1opt] and alFree[idx_t1opt] != []:
+                        try:
+                            _set_metadata_value(metadata, 'MaximumT1Opt', float(alFree[idx_t1opt]) / 1000)
+                        except (ValueError, TypeError):
+                            pass
+                    # Extract full PLD array as InitialPostLabelDelay (ms -> seconds)
+                    pld_array = []
+                    for i in range(pld_start, min(pld_end, len(alFree))):
+                        if alFree[i] and alFree[i] != [] and alFree[i] != 0:
+                            try:
+                                pld_array.append(float(alFree[i]) / 1000)
+                            except (ValueError, TypeError):
+                                pass
+                    if pld_array:
+                        _set_metadata_value(metadata, 'InitialPostLabelDelay', pld_array)
+
+                # Set ASL type - vessel-encoded is always PCASL
+                _set_metadata_value(metadata, 'ArterialSpinLabelingType', 'PCASL')
+
+            elif (asl_mode == 1 or asl_mode == 4) and not is_pasl_by_name:
+                # Product pCASL: Parameters stored in sWipMemBlock.adFree array
+                # Reference: dcm2niix source code
+                # Note: Skip if sequence name indicates PASL (mode values can be unreliable)
+                adFree = get_ascconv_value(ascconv, 'sWipMemBlock.adFree')
+                if adFree and isinstance(adFree, list):
+                    # adFree[1] = LabelOffset in mm
+                    if len(adFree) > 1 and adFree[1] and adFree[1] != []:
+                        try:
+                            _set_metadata_value(metadata, 'LabelOffset', float(adFree[1]))
+                        except (ValueError, TypeError):
+                            pass
+                    # adFree[2] = PostLabelDelay in µs
+                    if len(adFree) > 2 and adFree[2] and adFree[2] != []:
+                        try:
+                            pld_us = float(adFree[2])
+                            _set_metadata_value(metadata, 'PostLabelDelay', pld_us / 1_000_000)
+                        except (ValueError, TypeError):
+                            pass
+                    # Note: Product sequences don't expose LabelingDuration in WIP memory
+                    # The value in adFree[12] for mode 4 appears to be T1 (blood T1), not LabelingDuration
+
+                # Set ASL type
+                _set_metadata_value(metadata, 'ArterialSpinLabelingType', 'PCASL')
+
+            elif asl_mode == 2 or is_pasl_by_name:
+                # PASL: Parameters stored in alTI array
+                alTI = get_ascconv_value(ascconv, 'alTI')
+                if alTI and isinstance(alTI, list):
+                    # alTI[0] = BolusDuration in µs
+                    if len(alTI) > 0 and alTI[0] and alTI[0] != []:
+                        try:
+                            bolus_us = float(alTI[0])
+                            _set_metadata_value(metadata, 'BolusDuration', bolus_us / 1_000_000)
+                        except (ValueError, TypeError):
+                            pass
+                    # alTI[2] = InversionTime (TI) in µs
+                    if len(alTI) > 2 and alTI[2] and alTI[2] != []:
+                        try:
+                            ti_us = float(alTI[2])
+                            _set_metadata_value(metadata, 'InversionTime', ti_us / 1_000_000)
+                        except (ValueError, TypeError):
+                            pass
+
+                # Set ASL type
+                _set_metadata_value(metadata, 'ArterialSpinLabelingType', 'PASL')
+
+            # Extract lRepetitions from ASCCONV and map to NumberOfTemporalPositions
+            # lRepetitions is 0-indexed, so actual volumes = lRepetitions + 1
+            # This provides the same information as the standard DICOM NumberOfTemporalPositions field
+            l_repetitions = get_ascconv_value(ascconv, 'lRepetitions')
+            if l_repetitions is not None and not _key_in_metadata(metadata, 'NumberOfTemporalPositions'):
+                try:
+                    # lRepetitions = 17 means 18 volumes (0 through 17)
+                    num_volumes = int(l_repetitions) + 1
+                    _set_metadata_value(metadata, 'NumberOfTemporalPositions', num_volumes)
+                except (ValueError, TypeError):
+                    pass
+
+    # --- ASL-specific metadata extraction ---
+    # Infer ArterialSpinLabelingType from available parameters and ImageType
+    image_type = _get_metadata_value(metadata, 'ImageType')
+    image_type_str = ''
+    if image_type:
+        if isinstance(image_type, (list, tuple)):
+            image_type_str = ' '.join(str(t) for t in image_type).upper()
+        else:
+            image_type_str = str(image_type).upper()
+
+    is_asl_scan = 'ASL' in image_type_str or 'PERFUSION' in image_type_str
+
+    # Philips ASL: Extract TriggerDelayTime as PostLabelDelay
+    if 'PHILIPS' in manufacturer:
+        # Philips stores PLD in TriggerDelayTime (in ms) for multi-phase ASL
+        trigger_delay = _get_metadata_value(metadata, 'TriggerDelayTime')
+        if trigger_delay is not None and not _key_in_metadata(metadata, 'PostLabelDelay'):
+            try:
+                # Convert from ms to seconds for consistency with Siemens
+                pld_seconds = float(trigger_delay) / 1000.0
+                _set_metadata_value(metadata, 'PostLabelDelay', pld_seconds)
+            except (ValueError, TypeError):
+                pass
+
+    # Infer ASL labeling type if not already set
+    if not _key_in_metadata(metadata, 'ArterialSpinLabelingType') or _get_metadata_value(metadata, 'ArterialSpinLabelingType') is None:
+        asl_type = None
+
+        # Check for PCASL indicators
+        has_pcasl_params = (
+            _get_metadata_value(metadata, 'PostLabelDelay') is not None or
+            _get_metadata_value(metadata, 'TagDuration') is not None or
+            _get_metadata_value(metadata, 'NumRFBlocks') is not None or
+            _get_metadata_value(metadata, 'RFGap') is not None
+        )
+
+        # Check for PASL indicators
+        has_pasl_params = (
+            _get_metadata_value(metadata, 'BolusDuration') is not None and
+            _get_metadata_value(metadata, 'InversionTime') is not None
+        )
+
+        # Check sequence name / protocol name for hints
+        seq_name = str(_get_metadata_value(metadata, 'SequenceName', '')).lower()
+        protocol_name = str(_get_metadata_value(metadata, 'ProtocolName', '')).lower()
+        series_desc = str(_get_metadata_value(metadata, 'SeriesDescription', '')).lower()
+        pulse_seq = str(_get_metadata_value(metadata, 'PulseSequenceDetails', '')).lower()
+
+        name_str = f"{seq_name} {protocol_name} {series_desc} {pulse_seq}"
+
+        if 'pcasl' in name_str or 'pseudo' in name_str:
+            asl_type = 'PCASL'
+        elif 'pasl' in name_str or 'ep2d_pasl' in name_str:
+            asl_type = 'PASL'
+        elif 'casl' in name_str:
+            asl_type = 'CASL'
+        elif has_pcasl_params and is_asl_scan:
+            asl_type = 'PCASL'
+        elif has_pasl_params and is_asl_scan:
+            asl_type = 'PASL'
+
+        if asl_type:
+            _set_metadata_value(metadata, 'ArterialSpinLabelingType', asl_type)
+
+    # Compute LabelingDuration for PCASL if we have the components
+    # LabelingDuration = NumRFBlocks * (RFGap + TagRFDuration) or use TagDuration directly
+    if not _key_in_metadata(metadata, 'LabelingDuration') or _get_metadata_value(metadata, 'LabelingDuration') is None:
+        tag_duration = _get_metadata_value(metadata, 'TagDuration')
+        if tag_duration is not None:
+            _set_metadata_value(metadata, 'LabelingDuration', tag_duration)
+        else:
+            # Try to compute from NumRFBlocks and RFGap
+            num_rf_blocks = _get_metadata_value(metadata, 'NumRFBlocks')
+            rf_gap = _get_metadata_value(metadata, 'RFGap')
+            if num_rf_blocks is not None and rf_gap is not None:
+                try:
+                    # Approximate labeling duration (RF gap dominates)
+                    labeling_duration = float(num_rf_blocks) * float(rf_gap)
+                    _set_metadata_value(metadata, 'LabelingDuration', labeling_duration)
+                except (ValueError, TypeError):
+                    pass
+
+    # For PASL, BolusDuration is the labeling duration equivalent
+    if _get_metadata_value(metadata, 'ArterialSpinLabelingType') == 'PASL':
+        bolus_duration = _get_metadata_value(metadata, 'BolusDuration')
+        if bolus_duration is not None and not _key_in_metadata(metadata, 'LabelingDuration'):
+            _set_metadata_value(metadata, 'LabelingDuration', bolus_duration)
 
     # Add AcquisitionPlane based on ImageOrientationPatient
     if _key_in_metadata(metadata, 'ImageOrientationPatient'):

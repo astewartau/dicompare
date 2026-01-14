@@ -51,12 +51,13 @@ def levenshtein_distance(s1, s2):
 
     return previous_row[-1]
 
-def calculate_field_score(expected, actual, tolerance=None, contains=None):
+def calculate_field_score(expected, actual, tolerance=None, contains=None, min_value=None, max_value=None):
     """
     Calculate the difference score between expected and actual values, applying specific rules.
 
     Notes:
         - Handles numeric comparisons with optional tolerance.
+        - Handles min/max range constraints.
         - Applies substring containment checks.
         - String comparisons use Levenshtein distance.
         - Missing values incur a high penalty.
@@ -66,6 +67,8 @@ def calculate_field_score(expected, actual, tolerance=None, contains=None):
         actual (Any): The actual value.
         tolerance (Optional[float]): Tolerance for numeric comparisons.
         contains (Optional[str]): Substring or value that should be contained in `actual`.
+        min_value (Optional[float]): Minimum allowed value (inclusive).
+        max_value (Optional[float]): Maximum allowed value (inclusive).
 
     Returns:
         float: A difference score capped at `MAX_DIFF_SCORE`.
@@ -74,6 +77,23 @@ def calculate_field_score(expected, actual, tolerance=None, contains=None):
     if actual is None:
         # Assign a high penalty for missing actual value
         return MAX_DIFF_SCORE
+
+    # Handle min/max range constraints
+    if min_value is not None or max_value is not None:
+        if isinstance(actual, (int, float)):
+            in_range = True
+            if min_value is not None and actual < min_value:
+                in_range = False
+            if max_value is not None and actual > max_value:
+                in_range = False
+            if in_range:
+                return 0  # Within range, no difference
+            # Out of range: calculate distance from nearest boundary
+            if min_value is not None and actual < min_value:
+                return min(MAX_DIFF_SCORE, min_value - actual)
+            if max_value is not None and actual > max_value:
+                return min(MAX_DIFF_SCORE, actual - max_value)
+        return min(MAX_DIFF_SCORE, 5)  # Non-numeric value for range constraint
 
     if isinstance(expected, str) and ("*" in expected or "?" in expected):
         pattern = re.compile("^" + expected.replace("*", ".*").replace("?", ".") + "$")
@@ -127,10 +147,13 @@ def calculate_match_score(ref_row, in_row):
         expected = ref_field.get("value")
         tolerance = ref_field.get("tolerance")
         contains = ref_field.get("contains")
+        min_value = ref_field.get("min")
+        max_value = ref_field.get("max")
         in_field = next((f for f in in_fields if f["field"] == ref_field["field"]), {})
         actual = in_field.get("value")
 
-        diff = calculate_field_score(expected, actual, tolerance=tolerance, contains=contains)
+        diff = calculate_field_score(expected, actual, tolerance=tolerance, contains=contains,
+                                     min_value=min_value, max_value=max_value)
         diff_score += diff
 
     return round(diff_score, 2)
@@ -162,6 +185,8 @@ def compute_series_cost_matrix(
                 expected_value = fdef.get("value")
                 tolerance = fdef.get("tolerance")
                 contains = fdef.get("contains")
+                min_value = fdef.get("min")
+                max_value = fdef.get("max")
 
                 # If field missing, big cost
                 if field_name not in row_data:
@@ -172,7 +197,8 @@ def compute_series_cost_matrix(
                 # If it's multiple unique values, or array-like, handle that logic if needed
                 # (Here we assume each row is a single value.)
                 cost = calculate_field_score(expected_value, actual_value,
-                                             tolerance=tolerance, contains=contains)
+                                             tolerance=tolerance, contains=contains,
+                                             min_value=min_value, max_value=max_value)
                 total_cost += cost
 
             cost_matrix[i, j] = total_cost
@@ -214,6 +240,8 @@ def map_to_json_reference(
                 expected_value = fdef.get("value")
                 tolerance = fdef.get("tolerance")
                 contains = fdef.get("contains")
+                min_value = fdef.get("min")
+                max_value = fdef.get("max")
 
                 if field_name in subset_df.columns:
                     vals = subset_df[field_name].unique()
@@ -227,7 +255,8 @@ def map_to_json_reference(
                     actual_value = None
 
                 acq_level_cost += calculate_field_score(expected_value, actual_value,
-                                                        tolerance=tolerance, contains=contains)
+                                                        tolerance=tolerance, contains=contains,
+                                                        min_value=min_value, max_value=max_value)
 
             # --- 2) If we have reference-series definitions, do a nested assignment ---
             series_cost_total = 0.0

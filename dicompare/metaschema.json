@@ -100,6 +100,14 @@
           "minimum": 0,
           "description": "Allowed deviation from expected value (for numeric fields)"
         },
+        "min": {
+          "type": "number",
+          "description": "Minimum allowed value (inclusive) for numeric fields"
+        },
+        "max": {
+          "type": "number",
+          "description": "Maximum allowed value (inclusive) for numeric fields"
+        },
         "contains": {
           "type": "string",
           "description": "Substring that must be present in the field value"
@@ -124,7 +132,12 @@
           "then": {
             "required": ["value"],
             "properties": {
-              "value": { "type": "number" }
+              "value": {
+                "oneOf": [
+                  { "type": "number" },
+                  { "type": "array", "items": { "type": "number" } }
+                ]
+              }
             }
           }
         }

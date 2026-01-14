@@ -10,9 +10,15 @@ from .config import DEFAULT_SETTINGS_FIELDS, DEFAULT_ACQUISITION_FIELDS, DEFAULT
 from .schema import get_tag_info, get_all_tags_in_dataset
 
 # Import enhanced functionality for web interfaces
-from .schema import build_schema
+from .schema import build_schema, determine_field_type_from_values
 from .io import make_json_serializable
 from .utils import detect_constant_fields, clean_string, make_hashable
 from .interface import (
     analyze_dicom_files_for_web,
+    analyze_dicom_files_for_ui,
+    validate_acquisition_for_ui,
+    load_protocol_for_ui,
+    search_dicom_dictionary,
+    build_schema_from_ui_acquisitions,
+    format_compliance_results_for_web,
 )

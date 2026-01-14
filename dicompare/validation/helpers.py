@@ -203,11 +203,13 @@ def validate_constraint(
     tolerance: float = None,
     contains: str = None,
     contains_any: List[str] = None,
-    contains_all: List[str] = None
+    contains_all: List[str] = None,
+    min_value: float = None,
+    max_value: float = None
 ) -> bool:
     """
     Core constraint validation function.
-    
+
     Args:
         actual_value: The actual value to validate
         expected_value: Expected value (if any)
@@ -215,17 +217,28 @@ def validate_constraint(
         contains: Substring that must be contained (if any)
         contains_any: List of substrings/elements where at least one must match (if any)
         contains_all: List of elements that must all be present in lists (if any)
-        
+        min_value: Minimum allowed value inclusive (if any)
+        max_value: Maximum allowed value inclusive (if any)
+
     Returns:
         True if constraint passes, False otherwise
     """
-    # Priority order: contains_any, contains_all, contains, tolerance, value
+    # Priority order: contains_any, contains_all, contains, min/max, tolerance, value
     if contains_any is not None:
         return check_contains_any(actual_value, contains_any)
     elif contains_all is not None:
         return check_contains_all(actual_value, contains_all)
     elif contains is not None:
         return check_contains(actual_value, contains)
+    elif min_value is not None or max_value is not None:
+        # Range validation with min/max
+        if not isinstance(actual_value, (int, float)):
+            return False
+        if min_value is not None and actual_value < min_value:
+            return False
+        if max_value is not None and actual_value > max_value:
+            return False
+        return True
     elif tolerance is not None:
         if not isinstance(actual_value, (int, float)):
             return False
@@ -250,7 +263,9 @@ def validate_field_values(
     tolerance: float = None,
     contains: str = None,
     contains_any: List[str] = None,
-    contains_all: List[str] = None
+    contains_all: List[str] = None,
+    min_value: float = None,
+    max_value: float = None
 ) -> Tuple[bool, List[Any], str]:
     """
     Validate all values for a field against constraints.
@@ -263,13 +278,15 @@ def validate_field_values(
         contains: Substring constraint
         contains_any: List of substrings/elements where at least one must match
         contains_all: List of elements that must all be present in lists
+        min_value: Minimum allowed value inclusive
+        max_value: Maximum allowed value inclusive
 
     Returns:
         Tuple of (all_passed, invalid_values, error_message)
     """
     invalid_values = []
 
-    # Priority order: contains_any, contains_all, contains, tolerance, value
+    # Priority order: contains_any, contains_all, contains, min/max, tolerance, value
     # Use validate_constraint() as single source of truth for simple cases
 
     if contains_any is not None:
@@ -292,6 +309,35 @@ def validate_field_values(
                 invalid_values.append(val)
         if invalid_values:
             return False, invalid_values, f"Expected to contain '{contains}', but got {invalid_values}"
+
+    elif min_value is not None or max_value is not None:
+        # Range validation with min/max
+        values_to_check = []
+        for val in actual_values:
+            if isinstance(val, (list, tuple)):
+                values_to_check.extend(val)
+            else:
+                values_to_check.append(val)
+
+        # Check for non-numeric values first
+        non_numeric = [val for val in values_to_check if not isinstance(val, (int, float))]
+        if non_numeric:
+            return False, non_numeric, f"Field must be numeric; found {non_numeric}"
+
+        # Check min/max for each value
+        for val in values_to_check:
+            if not validate_constraint(val, min_value=min_value, max_value=max_value):
+                invalid_values.append(val)
+
+        if invalid_values:
+            # Build descriptive range message
+            if min_value is not None and max_value is not None:
+                range_desc = f"[{min_value}, {max_value}]"
+            elif min_value is not None:
+                range_desc = f">= {min_value}"
+            else:
+                range_desc = f"<= {max_value}"
+            return False, invalid_values, f"Expected {range_desc}, but got {invalid_values}"
 
     elif tolerance is not None:
         # Special handling for tolerance: unpack tuples and handle multi-value expected values
@@ -353,32 +399,43 @@ def validate_field_values(
 
 
 def format_constraint_description(
-    expected_value: Any = None, 
-    tolerance: float = None, 
+    expected_value: Any = None,
+    tolerance: float = None,
     contains: str = None,
     contains_any: List[str] = None,
-    contains_all: List[str] = None
+    contains_all: List[str] = None,
+    min_value: float = None,
+    max_value: float = None
 ) -> str:
     """
     Format a human-readable description of constraints.
-    
+
     Args:
         expected_value: Expected value constraint
-        tolerance: Numeric tolerance constraint  
+        tolerance: Numeric tolerance constraint
         contains: Substring constraint
         contains_any: List of substrings/elements where at least one must match
         contains_all: List of elements that must all be present in lists
-        
+        min_value: Minimum allowed value inclusive
+        max_value: Maximum allowed value inclusive
+
     Returns:
         Formatted constraint description
     """
-    # Priority order: contains_any, contains_all, contains, tolerance, value
+    # Priority order: contains_any, contains_all, contains, min/max, tolerance, value
     if contains_any is not None:
         return f"contains_any={contains_any}"
     elif contains_all is not None:
         return f"contains_all={contains_all}"
     elif contains is not None:
         return f"contains='{contains}'"
+    elif min_value is not None or max_value is not None:
+        if min_value is not None and max_value is not None:
+            return f"range=[{min_value}, {max_value}]"
+        elif min_value is not None:
+            return f"min={min_value}"
+        else:
+            return f"max={max_value}"
     elif tolerance is not None:
         return f"value={expected_value} ± {tolerance}"
     elif isinstance(expected_value, list):
@@ -401,6 +458,8 @@ def create_compliance_record(
     contains: str = None,
     contains_any: List[str] = None,
     contains_all: List[str] = None,
+    min_value: float = None,
+    max_value: float = None,
 ) -> Dict[str, Any]:
     """
     Create a standardized compliance record.
@@ -417,14 +476,17 @@ def create_compliance_record(
         contains: Substring constraint (used to format expected if expected not provided)
         contains_any: List of substrings/elements where at least one must match
         contains_all: List of elements that must all be present in lists
+        min_value: Minimum allowed value inclusive
+        max_value: Maximum allowed value inclusive
 
     Returns:
         Compliance record dictionary
     """
     # Format expected description if constraint parameters provided but no explicit expected
     if expected is None and (tolerance is not None or contains is not None or
-                             contains_any is not None or contains_all is not None):
-        expected = format_constraint_description(None, tolerance, contains, contains_any, contains_all)
+                             contains_any is not None or contains_all is not None or
+                             min_value is not None or max_value is not None):
+        expected = format_constraint_description(None, tolerance, contains, contains_any, contains_all, min_value, max_value)
 
     result = {
         "field": field,

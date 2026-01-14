@@ -135,6 +135,8 @@ def check_acquisition_compliance(
             contains = fdef.get("contains")
             contains_any = fdef.get("contains_any")
             contains_all = fdef.get("contains_all")
+            min_value = fdef.get("min")
+            max_value = fdef.get("max")
 
             # Find matching column name (handles "Flip Angle" vs "FlipAngle")
             matched_field = _find_column_match(field, in_acq.columns.tolist())
@@ -149,7 +151,9 @@ def check_acquisition_compliance(
                     tolerance=tolerance,
                     contains=contains,
                     contains_any=contains_any,
-                    contains_all=contains_all
+                    contains_all=contains_all,
+                    min_value=min_value,
+                    max_value=max_value
                 ))
                 continue
 
@@ -157,7 +161,8 @@ def check_acquisition_compliance(
 
             # Use validation helper
             passed, invalid_values, message = validate_field_values(
-                field, actual_values, expected_value, tolerance, contains, contains_any, contains_all
+                field, actual_values, expected_value, tolerance, contains, contains_any, contains_all,
+                min_value, max_value
             )
 
             results.append(create_compliance_record(
@@ -170,7 +175,9 @@ def check_acquisition_compliance(
                 tolerance=tolerance,
                 contains=contains,
                 contains_any=contains_any,
-                contains_all=contains_all
+                contains_all=contains_all,
+                min_value=min_value,
+                max_value=max_value
             ))
 
         return results
@@ -220,9 +227,11 @@ def check_acquisition_compliance(
             contains = fdef.get("contains")
             contains_any = fdef.get("contains_any")
             contains_all = fdef.get("contains_all")
+            min_val = fdef.get("min")
+            max_val = fdef.get("max")
 
             mask = matching_df[actual_field].apply(
-                lambda x: validate_constraint(x, expected, tolerance, contains, contains_any, contains_all)
+                lambda x, exp=expected, tol=tolerance, con=contains, con_any=contains_any, con_all=contains_all, mn=min_val, mx=max_val: validate_constraint(x, exp, tol, con, con_any, con_all, mn, mx)
             )
             matching_df = matching_df[mask]
 
@@ -242,8 +251,17 @@ def check_acquisition_compliance(
                 contains = fdef.get("contains")
                 contains_any = fdef.get("contains_any")
                 contains_all = fdef.get("contains_all")
+                min_val = fdef.get("min")
+                max_val = fdef.get("max")
 
-                if expected is not None:
+                if min_val is not None or max_val is not None:
+                    if min_val is not None and max_val is not None:
+                        constraint_desc.append(f"{field} in [{min_val}, {max_val}]")
+                    elif min_val is not None:
+                        constraint_desc.append(f"{field} >= {min_val}")
+                    else:
+                        constraint_desc.append(f"{field} <= {max_val}")
+                elif expected is not None:
                     if tolerance is not None:
                         constraint_desc.append(f"{field}={expected}±{tolerance}")
                     else:

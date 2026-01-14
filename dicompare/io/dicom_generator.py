@@ -85,7 +85,8 @@ def generate_test_dicoms_from_schema(
 
     for field in field_definitions:
         field_name = field.get('name', '')
-        tag_str = field.get('tag', '').strip('()')
+        tag_raw = field.get('tag')
+        tag_str = (tag_raw or '').strip('()')
         vr = field.get('vr', 'UN')
 
         if tag_str and ',' in tag_str:
