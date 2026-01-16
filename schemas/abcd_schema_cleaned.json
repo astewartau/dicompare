@@ -161,7 +161,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -341,7 +341,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -515,7 +515,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -725,7 +725,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -936,7 +936,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -1117,7 +1117,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -1308,7 +1308,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -1499,7 +1499,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -1684,7 +1684,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -1864,7 +1864,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -2044,7 +2044,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
@@ -2224,7 +2224,7 @@
         },
         {
           "field": "CoilType",
-          "tag": "unknown_CoilType",
+          "tag": "custom",
           "value": "Combined"
         },
         {
