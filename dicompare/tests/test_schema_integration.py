@@ -258,32 +258,6 @@ class TestUKBiobankSchema:
         return fields, schema, validation_rules
 
     @pytest.fixture
-    def valid_t1_session(self, tmp_path, ukb_schema):
-        """Create a valid T1 structural session matching UK Biobank specs using schema generator."""
-        import zipfile
-        import io
-
-        _, schema, _ = ukb_schema
-
-        # Generate DICOMs from schema
-        zip_bytes = dicompare.generate_test_dicoms_from_schema_json(
-            schema,
-            "T1 structural brain images"
-        )
-
-        # Extract to tmp_path
-        zip_buffer = io.BytesIO(zip_bytes)
-        with zipfile.ZipFile(zip_buffer, 'r') as zf:
-            zf.extractall(tmp_path)
-
-        session_df = dicompare.load_dicom_session(str(tmp_path), show_progress=False)
-        session_df = dicompare.assign_acquisition_and_run_numbers(
-            session_df,
-            settings_fields=[]
-        )
-        return session_df
-
-    @pytest.fixture
     def invalid_t1_wrong_tr(self, tmp_path):
         """Create T1 session with wrong TR (should fail tolerance)."""
         metadata = {
@@ -419,32 +393,6 @@ class TestUKBiobankSchema:
         dwi_acq = schema["acquisitions"]["Multiband diffusion brain images"]
         assert "rules" in dwi_acq
         assert len(dwi_acq["rules"]) == 2
-
-    def test_valid_t1_session_passes(self, ukb_schema, valid_t1_session):
-        """Test that a valid T1 session passes field validation."""
-        fields, schema, validation_rules = ukb_schema
-
-        # Get the single acquisition from schema
-        schema_acq = schema["acquisitions"]["T1 structural brain images"]
-
-        # Get the actual acquisition name from the session
-        actual_acq_name = valid_t1_session['Acquisition'].iloc[0]
-
-        compliance = dicompare.check_acquisition_compliance(
-            in_session=valid_t1_session,
-            schema_acquisition=schema_acq,
-            acquisition_name=actual_acq_name
-        )
-
-        # Should have results
-        assert len(compliance) > 0
-
-        # Most fields should pass
-        passed_fields = [r for r in compliance if r["status"] == "ok"]
-        failed_fields = [r for r in compliance if r["status"] != "ok"]
-
-        # Should have more passes than failures
-        assert len(passed_fields) >= len(failed_fields)
 
     def test_t1_wrong_tr_fails_tolerance(self, ukb_schema, invalid_t1_wrong_tr):
         """Test that T1 with wrong TR fails validation."""

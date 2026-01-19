@@ -11,9 +11,7 @@ from pathlib import Path
 
 from dicompare.io.examcard import (
     load_examcard_file,
-    load_examcard_file_all_scans,
     load_examcard_file_schema_format,
-    load_examcard_session,
     apply_examcard_to_dicom_mapping,
     _sort_output_fields,
     _calculate_derived_fields,
@@ -496,23 +494,7 @@ class TestFileOperations:
         with pytest.raises(FileNotFoundError):
             load_examcard_file("/nonexistent/path/test.ExamCard")
 
-    def test_load_examcard_session_not_found(self):
-        """Test FileNotFoundError for non-existent directory."""
-        with pytest.raises(FileNotFoundError):
-            load_examcard_session("/nonexistent/path/")
-
-    def test_load_examcard_session_no_files(self):
-        """Test ValueError when no ExamCard files found."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(ValueError, match="No ExamCard files found"):
-                load_examcard_session(tmpdir)
-
     def test_load_examcard_file_schema_format_not_found(self):
         """Test FileNotFoundError for schema format loading."""
         with pytest.raises(FileNotFoundError):
             load_examcard_file_schema_format("/nonexistent/path/test.ExamCard")
-
-    def test_load_examcard_file_all_scans_not_found(self):
-        """Test FileNotFoundError for all scans loading."""
-        with pytest.raises(FileNotFoundError):
-            load_examcard_file_all_scans("/nonexistent/path/test.ExamCard")

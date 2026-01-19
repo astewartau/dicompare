@@ -9,7 +9,6 @@ from dicompare.io.special_fields import (
     encode_multiband_in_image_comments,
     apply_special_field_encoding,
     get_unhandled_field_warnings,
-    get_field_categorization_summary,
     HANDLED_SPECIAL_FIELDS,
 )
 
@@ -239,44 +238,6 @@ class TestGetUnhandledFieldWarnings:
         warnings = get_unhandled_field_warnings(field_defs, test_data)
 
         assert len(warnings) == 0
-
-
-class TestGetFieldCategorizationSummary:
-    """Tests for the get_field_categorization_summary function."""
-
-    def test_summary_counts(self):
-        """Test that summary includes correct counts."""
-        fields = [
-            {'name': 'RepetitionTime', 'tag': '0018,0080'},
-            {'name': 'EchoTime', 'tag': '0018,0081'},
-            {'name': 'MultibandFactor', 'tag': ''},
-            {'name': 'UnknownField', 'tag': ''}
-        ]
-        summary = get_field_categorization_summary(fields)
-
-        assert summary['counts']['standard'] == 2
-        assert summary['counts']['handled'] == 1
-        assert summary['counts']['unhandled'] == 1
-        assert summary['counts']['total'] == 4
-
-    def test_summary_has_unhandled_flag(self):
-        """Test that summary includes has_unhandled flag."""
-        fields_with_unhandled = [{'name': 'UnknownField', 'tag': ''}]
-        summary = get_field_categorization_summary(fields_with_unhandled)
-        assert summary['has_unhandled'] is True
-
-        fields_without_unhandled = [{'name': 'RepetitionTime', 'tag': '0018,0080'}]
-        summary = get_field_categorization_summary(fields_without_unhandled)
-        assert summary['has_unhandled'] is False
-
-    def test_summary_includes_fields_dict(self):
-        """Test that summary includes categorized fields."""
-        fields = [{'name': 'RepetitionTime', 'tag': '0018,0080'}]
-        summary = get_field_categorization_summary(fields)
-
-        assert 'fields' in summary
-        assert 'standard' in summary['fields']
-        assert len(summary['fields']['standard']) == 1
 
 
 class TestHandledSpecialFieldsConstant:

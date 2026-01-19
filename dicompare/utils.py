@@ -2,14 +2,6 @@
 This module provides utility functions for handling and normalizing data used in DICOM validation workflows.
 """
 
-import sys
-import os
-import logging
-import pandas as pd
-from typing import List, Dict, Any, Tuple
-
-logger = logging.getLogger(__name__)
-
 def normalize_numeric_values(data):
     """
     Recursively convert all numeric values in a data structure to floats.
@@ -33,31 +25,6 @@ def normalize_numeric_values(data):
         return float(data)
     return data
 
-def convert_jsproxy(obj):
-    """
-    Convert a JSProxy object (or similar) to a Python dictionary.
-
-    Notes:
-        - Handles nested structures recursively.
-        - Supports JSProxy objects with a `to_py` method for conversion.
-        - If the input is already a Python data type, it is returned as-is.
-
-    Args:
-        obj (Any): The object to convert.
-
-    Returns:
-        Any: The equivalent Python data structure (dict, list, or primitive types).
-    """
-
-    if hasattr(obj, "to_py"):
-        return convert_jsproxy(obj.to_py())
-    elif isinstance(obj, dict):
-        return {k: convert_jsproxy(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_jsproxy(v) for v in obj]
-    else:
-        return obj
-    
 def make_hashable(value):
     """
     Convert a value into a hashable format for use in dictionaries or sets.
@@ -125,91 +92,12 @@ def safe_convert_value(value, target_type, default_val=None, replace_zero_with_n
     """
     try:
         converted = target_type(value)
-        
+
         # Handle zero replacement logic
         if replace_zero_with_none and converted == 0:
             if nonzero_keys and element_keyword and element_keyword in nonzero_keys:
                 return None
-        
+
         return converted
     except (ValueError, TypeError):
         return default_val
-
-def infer_type_from_extension(ref_path):
-    """
-    Infer the type of reference based on the file extension.
-
-    Notes:
-        - Recognizes '.json' as JSON references.
-        - Recognizes '.dcm' and '.IMA' as DICOM references.
-        - Recognizes '.py' as Python module references for Pydantic models.
-        - Exits the program with an error message if the extension is unrecognized.
-
-    Args:
-        ref_path (str): The file path to infer the type from.
-
-    Returns:
-        str: The inferred reference type ('json', 'dicom', or 'pydantic').
-    """
-
-    _, ext = os.path.splitext(ref_path.lower())
-    if ext == ".json":
-        return "json"
-    elif ext in [".dcm", ".ima"]:
-        return "dicom"
-    elif ext == ".py":
-        return "pydantic"
-    else:
-        logger.error("Could not determine the reference type. Please specify '--type'.")
-        sys.exit(1)
-
-
-def detect_constant_fields(df: pd.DataFrame, 
-                         fields: List[str]) -> Tuple[Dict[str, Any], List[str]]:
-    """
-    Detect which fields are constant vs variable within a dataframe.
-    
-    Args:
-        df: DataFrame to analyze
-        fields: List of field names to check
-        
-    Returns:
-        Tuple of (constant_fields_dict, variable_fields_list)
-        - constant_fields_dict: Dict mapping field names to their constant values
-        - variable_fields_list: List of field names that have multiple values
-        
-    Examples:
-        >>> df = pd.DataFrame({
-        ...     'A': [1, 1, 1], 
-        ...     'B': [2, 3, 4], 
-        ...     'C': ['x', 'x', 'x']
-        ... })
-        >>> constant, variable = detect_constant_fields(df, ['A', 'B', 'C'])
-        >>> constant
-        {'A': 1, 'C': 'x'}
-        >>> variable
-        ['B']
-    """
-    constant_fields = {}
-    variable_fields = []
-    
-    for field in fields:
-        if field not in df.columns:
-            logger.warning(f"Field '{field}' not found in dataframe columns")
-            continue
-            
-        # Get unique non-null values
-        unique_values = df[field].dropna().unique()
-        
-        if len(unique_values) == 0:
-            # All values are null
-            constant_fields[field] = None
-        elif len(unique_values) == 1:
-            # Single unique value - it's constant
-            constant_fields[field] = unique_values[0]
-        else:
-            # Multiple unique values - it's variable
-            variable_fields.append(field)
-    
-    return constant_fields, variable_fields
-

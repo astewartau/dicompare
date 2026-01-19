@@ -1,13 +1,12 @@
 """
 Unit tests for dicompare.validation.core module.
-Tests for get_unique_combinations, BaseValidationModel, and dynamic model creation.
+Tests for BaseValidationModel, ValidationError, ValidationWarning, and dynamic model creation.
 """
 
 import pytest
 import pandas as pd
 import numpy as np
 from dicompare.validation.core import (
-    get_unique_combinations,
     ValidationError,
     ValidationWarning,
     validator,
@@ -16,61 +15,6 @@ from dicompare.validation.core import (
     create_validation_model_from_rules,
     create_validation_models_from_rules,
 )
-
-
-class TestGetUniqueCombinations:
-    """Tests for get_unique_combinations function."""
-
-    def test_basic_unique_combinations(self):
-        """Test basic unique combination extraction."""
-        df = pd.DataFrame({
-            "EchoTime": [0.01, 0.01, 0.02, 0.02],
-            "FlipAngle": [30, 30, 30, 30],
-            "SliceLocation": [1, 2, 1, 2],
-        })
-        result = get_unique_combinations(df, ["EchoTime"])
-        assert len(result) == 2
-        assert set(result["EchoTime"].values) == {0.01, 0.02}
-
-    def test_varying_columns_set_to_none(self):
-        """Test that varying columns are set to None."""
-        df = pd.DataFrame({
-            "Acquisition": ["T1", "T1"],
-            "EchoTime": [0.01, 0.01],
-            "SliceLocation": [1, 2],
-        })
-        result = get_unique_combinations(df, ["EchoTime"])
-        # SliceLocation varies within EchoTime groups, should be None
-        assert result["SliceLocation"].iloc[0] is None
-
-    def test_constant_columns_preserved(self):
-        """Test that constant columns are preserved."""
-        df = pd.DataFrame({
-            "EchoTime": [0.01, 0.01],
-            "Manufacturer": ["SIEMENS", "SIEMENS"],
-        })
-        result = get_unique_combinations(df, ["EchoTime"])
-        assert result["Manufacturer"].iloc[0] == "SIEMENS"
-
-    def test_multiple_grouping_fields(self):
-        """Test grouping by multiple fields."""
-        df = pd.DataFrame({
-            "EchoTime": [0.01, 0.01, 0.02, 0.02],
-            "FlipAngle": [30, 60, 30, 60],
-            "Value": [1, 2, 3, 4],
-        })
-        result = get_unique_combinations(df, ["EchoTime", "FlipAngle"])
-        assert len(result) == 4
-
-    def test_with_nan_values(self):
-        """Test handling of NaN values."""
-        df = pd.DataFrame({
-            "EchoTime": [0.01, np.nan, 0.01],
-            "Value": [1, 2, 3],
-        })
-        result = get_unique_combinations(df, ["EchoTime"])
-        # Should have 2 groups: 0.01 and NaN
-        assert len(result) == 2
 
 
 class TestValidationExceptions:

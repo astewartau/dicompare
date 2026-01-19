@@ -3,7 +3,7 @@ Tests for multiband factor extraction from ImageComments field.
 """
 import pytest
 import pydicom
-from dicompare.io.dicom import extract_inferred_metadata
+from dicompare.io.dicom import _extract_inferred_metadata
 
 
 class TestMultibandExtraction:
@@ -14,7 +14,7 @@ class TestMultibandExtraction:
         ds = pydicom.Dataset()
         ds.ImageComments = "Unaliased MB3/PE3 SENSE1"
 
-        metadata = extract_inferred_metadata(ds)
+        metadata = _extract_inferred_metadata(ds)
 
         assert metadata["MultibandFactor"] == 3
         assert metadata["MultibandAccelerationFactor"] == 3
@@ -25,7 +25,7 @@ class TestMultibandExtraction:
         ds = pydicom.Dataset()
         ds.ImageComments = "Unaliased MB4/PE3/LB"
 
-        metadata = extract_inferred_metadata(ds)
+        metadata = _extract_inferred_metadata(ds)
 
         assert metadata["MultibandFactor"] == 4
         assert metadata["MultibandAccelerationFactor"] == 4
@@ -35,7 +35,7 @@ class TestMultibandExtraction:
         ds = pydicom.Dataset()
         ds.ImageComments = "Unaliased MB2/PE2"
 
-        metadata = extract_inferred_metadata(ds)
+        metadata = _extract_inferred_metadata(ds)
 
         assert metadata["MultibandFactor"] == 2
 
@@ -44,7 +44,7 @@ class TestMultibandExtraction:
         ds = pydicom.Dataset()
         ds.ProtocolName = "diff_PA_MPopt_MB3_3b0_lowflip"
 
-        metadata = extract_inferred_metadata(ds)
+        metadata = _extract_inferred_metadata(ds)
 
         assert metadata["MultibandFactor"] == 3
 
@@ -54,7 +54,7 @@ class TestMultibandExtraction:
         ds.ImageComments = "Unaliased MB4/PE3"
         ds.ProtocolName = "diff_MB2_test"
 
-        metadata = extract_inferred_metadata(ds)
+        metadata = _extract_inferred_metadata(ds)
 
         # Should get MB4 from ImageComments, not MB2 from ProtocolName
         assert metadata["MultibandFactor"] == 4
@@ -65,7 +65,7 @@ class TestMultibandExtraction:
         ds.ImageComments = "Single-band reference SENSE1"
         ds.ProtocolName = "diff_MB3_test"
 
-        metadata = extract_inferred_metadata(ds)
+        metadata = _extract_inferred_metadata(ds)
 
         # Should fall back to ProtocolName
         assert metadata["MultibandFactor"] == 3
@@ -76,7 +76,7 @@ class TestMultibandExtraction:
         ds.ImageComments = "Single-band reference SENSE1"
         ds.ProtocolName = "T1_weighted"
 
-        metadata = extract_inferred_metadata(ds)
+        metadata = _extract_inferred_metadata(ds)
 
         assert "MultibandFactor" not in metadata
         assert "MultibandAccelerationFactor" not in metadata
@@ -86,7 +86,7 @@ class TestMultibandExtraction:
         ds = pydicom.Dataset()
         ds.ImageComments = "Unaliased mb5/PE3"
 
-        metadata = extract_inferred_metadata(ds)
+        metadata = _extract_inferred_metadata(ds)
 
         assert metadata["MultibandFactor"] == 5
 
@@ -95,7 +95,7 @@ class TestMultibandExtraction:
         ds = pydicom.Dataset()
         ds.ProtocolName = "diff_Mb6_test"
 
-        metadata = extract_inferred_metadata(ds)
+        metadata = _extract_inferred_metadata(ds)
 
         assert metadata["MultibandFactor"] == 6
 
@@ -104,6 +104,6 @@ class TestMultibandExtraction:
         ds = pydicom.Dataset()
         ds.ImageComments = "Unaliased MB12/PE3"
 
-        metadata = extract_inferred_metadata(ds)
+        metadata = _extract_inferred_metadata(ds)
 
         assert metadata["MultibandFactor"] == 12

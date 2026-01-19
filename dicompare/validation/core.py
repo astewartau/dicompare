@@ -9,47 +9,8 @@ import pandas as pd
 from itertools import chain
 import math
 from ..utils import make_hashable
-from ..data_utils import make_dataframe_hashable
 from .helpers import ComplianceStatus
-    
-def get_unique_combinations(data: pd.DataFrame, fields: List[str]) -> pd.DataFrame:
-    """
-    Filter a DataFrame to unique combinations of specified fields, filling varying values 
-    in other fields with `None`.
 
-    Notes:
-        - Ensures all values are hashable to avoid grouping issues.
-        - Useful for simplifying validation by grouping related data.
-
-    Args:
-        data (pd.DataFrame): The input DataFrame.
-        fields (List[str]): The list of fields to extract unique combinations.
-
-    Returns:
-        pd.DataFrame: A DataFrame with unique combinations of the specified fields, 
-                      and other fields set to `None` if they vary.
-    """
-
-    # Ensure fields are strings and drop duplicates
-    fields = [str(field) for field in fields]
-
-    # Flatten all values in the DataFrame to ensure they are hashable
-    data = make_dataframe_hashable(data)
-
-    # Get unique combinations of specified fields
-    unique_combinations = data.groupby(fields, dropna=False).first().reset_index()
-
-    # Set all other fields to None if they vary across the combinations
-    for col in data.columns:
-        if col not in fields:
-            # Check if the column has varying values within each group
-            is_unique_per_group = data.groupby(fields)[col].nunique(dropna=False).max() == 1
-            if not is_unique_per_group:
-                unique_combinations[col] = None
-            else:
-                unique_combinations[col] = data.groupby(fields)[col].first().values
-
-    return unique_combinations
 
 class ValidationError(Exception):
     """

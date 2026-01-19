@@ -11,7 +11,6 @@ from .parallel_utils import (
 
 from .progress_utils import (
     ProgressTracker,
-    track_async_completion,
     track_iteration
 )
 
@@ -21,6 +20,5 @@ __all__ = [
 
     # Progress tracking
     'ProgressTracker',
-    'track_async_completion',
     'track_iteration'
 ]

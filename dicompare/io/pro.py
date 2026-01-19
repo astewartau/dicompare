@@ -1481,7 +1481,7 @@ def _extract_protocol_text_from_xprotocol(json_text: str) -> Optional[str]:
     return None
 
 
-def extract_protocols_from_exar(exar_path: str) -> List[str]:
+def _extract_protocols_from_exar(exar_path: str) -> List[str]:
     """
     Extract protocol text content from a .exar1 file.
 
@@ -1562,7 +1562,7 @@ def load_exar_file(exar_file_path: str) -> List[Dict[str, Any]]:
         raise FileNotFoundError(f"Protocol file not found: {exar_file_path}")
 
     # Extract protocol texts from the .exar1 file
-    protocol_texts = extract_protocols_from_exar(exar_file_path)
+    protocol_texts = _extract_protocols_from_exar(exar_file_path)
 
     if not protocol_texts:
         raise Exception(f"No protocols found in EXAR file: {exar_file_path}")

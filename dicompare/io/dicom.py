@@ -33,7 +33,7 @@ from nibabel.nicom.csareader import get_csa_header
 
 pydicom.config.debug(False)
 
-def extract_inferred_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
+def _extract_inferred_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
     """
     Extract inferred metadata from a DICOM dataset.
 
@@ -66,7 +66,7 @@ def extract_inferred_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
 
     return inferred_metadata
 
-def extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
+def _extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
     """
     Extract relevant acquisition-specific metadata from Siemens CSA header.
 
@@ -175,7 +175,7 @@ def extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
     return csa_metadata
 
 
-def extract_ascconv(ds: pydicom.Dataset) -> Dict[str, Any]:
+def _extract_ascconv(ds: pydicom.Dataset) -> Dict[str, Any]:
     """
     Extract and parse the ASCCONV protocol section from Siemens DICOM CSA series header.
 
@@ -251,7 +251,7 @@ def extract_ascconv(ds: pydicom.Dataset) -> Dict[str, Any]:
         return {}
 
 
-def get_ascconv_value(ascconv: Dict[str, Any], key: str, default: Any = None) -> Any:
+def _get_ascconv_value(ascconv: Dict[str, Any], key: str, default: Any = None) -> Any:
     """
     Get a value from parsed ASCCONV data with support for nested paths and arrays.
 
@@ -635,13 +635,13 @@ def load_dicom(
     # Only extract CSA metadata for Siemens DICOM files
     manufacturer = getattr(ds_raw, 'Manufacturer', '').upper()
     if 'SIEMENS' in manufacturer:
-        csa_metadata = extract_csa_metadata(ds_raw)
+        csa_metadata = _extract_csa_metadata(ds_raw)
         if isinstance(csa_metadata, dict) and csa_metadata:
             _update_metadata(metadata, csa_metadata)
         elif csa_metadata and not isinstance(csa_metadata, dict):
             logger.warning(f"Unexpected format of CSA metadata extracted from Siemens DICOM file {dicom_file}")
 
-    inferred_metadata = extract_inferred_metadata(ds_raw)
+    inferred_metadata = _extract_inferred_metadata(ds_raw)
     if not inferred_metadata:
         logger.debug(f"No inferred metadata extracted from DICOM file {dicom_file}")
     elif isinstance(inferred_metadata, dict):
@@ -765,10 +765,10 @@ def load_dicom(
     # Extract additional Siemens-specific fields from ASCCONV protocol section
     # Only for Siemens scanners where ASCCONV is available
     if 'SIEMENS' in manufacturer:
-        ascconv = extract_ascconv(ds_raw)
+        ascconv = _extract_ascconv(ds_raw)
         if ascconv:
             # CoilCombinationMethod from ucCoilCombineMode
-            coil_combine_mode = get_ascconv_value(ascconv, 'ucCoilCombineMode')
+            coil_combine_mode = _get_ascconv_value(ascconv, 'ucCoilCombineMode')
             if coil_combine_mode is not None:
                 # Map Siemens ucCoilCombineMode values to human-readable strings
                 coil_combine_method_map = {
@@ -779,19 +779,19 @@ def load_dicom(
                 _set_metadata_value(metadata, 'CoilCombinationMethod', method_name)
 
             # AccelerationFactorPE from sPat.lAccelFactPE (GRAPPA/SENSE acceleration factor)
-            accel_factor_pe = get_ascconv_value(ascconv, 'sPat.lAccelFactPE')
+            accel_factor_pe = _get_ascconv_value(ascconv, 'sPat.lAccelFactPE')
             if accel_factor_pe is not None and accel_factor_pe > 1:
                 _set_metadata_value(metadata, 'AccelerationFactorPE', accel_factor_pe)
 
             # --- Siemens ASL parameter extraction from ASCCONV ---
             # Check ASL mode: 1 = pCASL (2D), 2 = PASL, 4 = pCASL (3D)
-            asl_mode = get_ascconv_value(ascconv, 'sAsl.ulMode')
+            asl_mode = _get_ascconv_value(ascconv, 'sAsl.ulMode')
 
             # Detect vessel-encoded (Oxford) ASL sequences via tSequenceFileName
             # Oxford sequences use alFree array with different indices than product sequences
             # Note: VEPCASL sequences may report sAsl.ulMode=2 but are actually pCASL
             # Reference: dcm2niix source - checks for "VEPCASL" in sequence filename
-            sequence_filename = get_ascconv_value(ascconv, 'tSequenceFileName') or ''
+            sequence_filename = _get_ascconv_value(ascconv, 'tSequenceFileName') or ''
             is_vessel_encoded = 'VEPCASL' in sequence_filename.upper()
 
             # Also detect sequence type from sequence name as fallback
@@ -812,7 +812,7 @@ def load_dicom(
                 # Reference: https://github.com/neurolabusc/dcm_qa_asl
                 is_3d_vepcasl = 'jw_tgse' in seq_name_lower or 'tgse_vepcasl' in seq_name_lower
 
-                alFree = get_ascconv_value(ascconv, 'sWipMemBlock.alFree')
+                alFree = _get_ascconv_value(ascconv, 'sWipMemBlock.alFree')
                 if alFree and isinstance(alFree, list):
                     if is_3d_vepcasl:
                         # 3D jw_tgse_VEPCASL indices (from dcm2niix)
@@ -873,7 +873,7 @@ def load_dicom(
                 # Product pCASL: Parameters stored in sWipMemBlock.adFree array
                 # Reference: dcm2niix source code
                 # Note: Skip if sequence name indicates PASL (mode values can be unreliable)
-                adFree = get_ascconv_value(ascconv, 'sWipMemBlock.adFree')
+                adFree = _get_ascconv_value(ascconv, 'sWipMemBlock.adFree')
                 if adFree and isinstance(adFree, list):
                     # adFree[1] = LabelOffset in mm
                     if len(adFree) > 1 and adFree[1] and adFree[1] != []:
@@ -896,7 +896,7 @@ def load_dicom(
 
             elif asl_mode == 2 or is_pasl_by_name:
                 # PASL: Parameters stored in alTI array
-                alTI = get_ascconv_value(ascconv, 'alTI')
+                alTI = _get_ascconv_value(ascconv, 'alTI')
                 if alTI and isinstance(alTI, list):
                     # alTI[0] = BolusDuration in µs
                     if len(alTI) > 0 and alTI[0] and alTI[0] != []:
@@ -919,7 +919,7 @@ def load_dicom(
             # Extract lRepetitions from ASCCONV and map to NumberOfTemporalPositions
             # lRepetitions is 0-indexed, so actual volumes = lRepetitions + 1
             # This provides the same information as the standard DICOM NumberOfTemporalPositions field
-            l_repetitions = get_ascconv_value(ascconv, 'lRepetitions')
+            l_repetitions = _get_ascconv_value(ascconv, 'lRepetitions')
             if l_repetitions is not None and not _key_in_metadata(metadata, 'NumberOfTemporalPositions'):
                 try:
                     # lRepetitions = 17 means 18 volumes (0 through 17)

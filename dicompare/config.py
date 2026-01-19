@@ -81,9 +81,6 @@ DEFAULT_SERIES_FIELDS = [
 # Default acquisition identification fields
 DEFAULT_ACQUISITION_FIELDS = ["ProtocolName"]
 
-# Default run grouping fields for identifying separate runs
-DEFAULT_RUN_GROUP_FIELDS = ["PatientName", "PatientID", "ProtocolName", "StudyDate"]
-
 # Fields that should not contain zero values (used in DICOM processing)
 NONZERO_FIELDS = [
     "EchoTime",

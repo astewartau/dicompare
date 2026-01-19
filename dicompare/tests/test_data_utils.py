@@ -12,7 +12,6 @@ from dicompare.data_utils import (
     _convert_to_plain_python_types,
     _process_dicom_metadata,
     prepare_session_dataframe,
-    standardize_session_dataframe
 )
 
 
@@ -262,84 +261,3 @@ class TestPrepareSessionDataframe:
         assert paths == sorted(paths)
 
 
-class TestStandardizeSessionDataframe:
-    """Test the standardize_session_dataframe function."""
-
-    def test_standardize_session_dataframe_basic(self):
-        """Test basic DataFrame standardization."""
-        df = pd.DataFrame({
-            'ProtocolName': ['BOLD', 'BOLD', 'T1'],
-            'SeriesDescription': ['func_run1', 'func_run2', 'anat'],
-            'SeriesInstanceUID': ['1.2.3.4.1', '1.2.3.4.2', '1.2.3.4.3'],
-            'RepetitionTime': [2000, 2000, 1000],
-            'EchoTime': [30, 35, 5],
-            'InstanceNumber': [1, 2, 1]
-        })
-        
-        reference_fields = ['RepetitionTime', 'EchoTime']
-        
-        result = standardize_session_dataframe(df, reference_fields)
-        
-        # Should have Acquisition column added
-        assert 'Acquisition' in result.columns
-        
-        # Should be sorted
-        assert len(result) == 3
-
-    def test_standardize_session_dataframe_with_acquisition(self):
-        """Test DataFrame standardization when Acquisition column already exists."""
-        df = pd.DataFrame({
-            'Acquisition': ['BOLD', 'T1', 'BOLD'],
-            'RepetitionTime': [2000, 1000, 2000],
-            'EchoTime': [30, 5, 35],
-            'InstanceNumber': [1, 1, 2]
-        })
-        
-        reference_fields = ['RepetitionTime', 'EchoTime']
-        
-        result = standardize_session_dataframe(df, reference_fields)
-        
-        # Should preserve existing Acquisition column
-        assert 'Acquisition' in result.columns
-        assert len(result) == 3
-
-    def test_standardize_session_dataframe_no_reference_fields(self):
-        """Test DataFrame standardization without reference fields."""
-        df = pd.DataFrame({
-            'ProtocolName': ['BOLD', 'T1'],
-            'SeriesDescription': ['func', 'anat'],
-            'SeriesInstanceUID': ['1.2.3.4.1', '1.2.3.4.2'],
-            'RepetitionTime': [2000, 1000],
-            'InstanceNumber': [1, 1]
-        })
-        
-        result = standardize_session_dataframe(df, None)
-        
-        # Should have Acquisition column added
-        assert 'Acquisition' in result.columns
-        
-        # Should be sorted by Acquisition only
-        assert len(result) == 2
-
-    def test_standardize_session_dataframe_preserves_original(self):
-        """Test that function properly handles DataFrame copying."""
-        df = pd.DataFrame({
-            'ProtocolName': ['BOLD', 'T1'],
-            'SeriesDescription': ['func', 'anat'],
-            'SeriesInstanceUID': ['1.2.3.4.1', '1.2.3.4.2'],
-            'RepetitionTime': [2000, 1000],
-            'InstanceNumber': [1, 1]
-        })
-        
-        original_columns = df.columns.tolist()
-        reference_fields = ['RepetitionTime']
-        
-        result = standardize_session_dataframe(df, reference_fields)
-        
-        # Function operates on a copy, so original structure should be mostly preserved
-        # (Note: make_dataframe_hashable may modify values in place, but structure should be similar)
-        assert set(original_columns).issubset(set(df.columns))
-        
-        # Result should be different (has Acquisition column)
-        assert 'Acquisition' in result.columns
-        assert len(result.columns) > len(original_columns)

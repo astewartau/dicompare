@@ -13,7 +13,6 @@ from .core import (
     safe_exec_rule,
     create_validation_model_from_rules,
     create_validation_models_from_rules,
-    get_unique_combinations
 )
 
 from .compliance import (
@@ -42,7 +41,6 @@ __all__ = [
     'safe_exec_rule',
     'create_validation_model_from_rules',
     'create_validation_models_from_rules',
-    'get_unique_combinations',
 
     # Compliance checking
     'check_acquisition_compliance',

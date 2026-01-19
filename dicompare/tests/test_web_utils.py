@@ -4,7 +4,7 @@ Test cases for web utility functions.
 
 import tempfile
 import pytest
-from dicompare.interface import analyze_dicom_files_for_web
+from dicompare.interface.web_utils import analyze_dicom_files_for_web
 from dicompare.tests.test_dicom_factory import create_test_dicom_series
 
 

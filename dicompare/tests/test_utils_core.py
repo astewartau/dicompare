@@ -1,65 +1,15 @@
 """
 Unit tests for core utility functions in dicompare.utils module.
-Tests for convert_jsproxy, make_hashable, safe_convert_value, and infer_type_from_extension.
+Tests for make_hashable, safe_convert_value, normalize_numeric_values, and clean_string.
 """
 
 import pytest
-import sys
 from dicompare.utils import (
-    convert_jsproxy,
     make_hashable,
     safe_convert_value,
-    infer_type_from_extension,
     normalize_numeric_values,
     clean_string,
 )
-
-
-class TestConvertJsProxy:
-    """Tests for convert_jsproxy function."""
-
-    def test_dict_passthrough(self):
-        """Test that dicts are returned with converted values."""
-        data = {"a": 1, "b": {"c": 2}}
-        result = convert_jsproxy(data)
-        assert result == {"a": 1, "b": {"c": 2}}
-
-    def test_list_passthrough(self):
-        """Test that lists are returned with converted values."""
-        data = [1, 2, [3, 4]]
-        result = convert_jsproxy(data)
-        assert result == [1, 2, [3, 4]]
-
-    def test_primitive_passthrough(self):
-        """Test that primitives are returned unchanged."""
-        assert convert_jsproxy(42) == 42
-        assert convert_jsproxy("hello") == "hello"
-        assert convert_jsproxy(3.14) == 3.14
-        assert convert_jsproxy(None) is None
-
-    def test_object_with_to_py(self):
-        """Test conversion of objects with to_py method."""
-        class MockJsProxy:
-            def to_py(self):
-                return {"converted": True}
-
-        proxy = MockJsProxy()
-        result = convert_jsproxy(proxy)
-        assert result == {"converted": True}
-
-    def test_nested_to_py(self):
-        """Test nested conversion with to_py objects."""
-        class InnerProxy:
-            def to_py(self):
-                return [1, 2, 3]
-
-        class OuterProxy:
-            def to_py(self):
-                return {"inner": InnerProxy()}
-
-        proxy = OuterProxy()
-        result = convert_jsproxy(proxy)
-        assert result == {"inner": [1, 2, 3]}
 
 
 class TestMakeHashable:
@@ -150,32 +100,6 @@ class TestSafeConvertValue:
     def test_type_error_handling(self):
         """Test handling of TypeError during conversion."""
         assert safe_convert_value(None, int) is None
-
-
-class TestInferTypeFromExtension:
-    """Tests for infer_type_from_extension function."""
-
-    def test_json_extension(self):
-        """Test .json extension inference."""
-        assert infer_type_from_extension("schema.json") == "json"
-        assert infer_type_from_extension("/path/to/file.JSON") == "json"
-
-    def test_dicom_extensions(self):
-        """Test .dcm and .IMA extension inference."""
-        assert infer_type_from_extension("image.dcm") == "dicom"
-        assert infer_type_from_extension("image.DCM") == "dicom"
-        assert infer_type_from_extension("image.ima") == "dicom"
-        assert infer_type_from_extension("image.IMA") == "dicom"
-
-    def test_python_extension(self):
-        """Test .py extension inference."""
-        assert infer_type_from_extension("model.py") == "pydantic"
-
-    def test_unknown_extension_exits(self):
-        """Test that unknown extension causes system exit."""
-        with pytest.raises(SystemExit) as exc_info:
-            infer_type_from_extension("file.unknown")
-        assert exc_info.value.code == 1
 
 
 class TestNormalizeNumericValues:

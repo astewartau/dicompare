@@ -84,40 +84,6 @@ class ProgressTracker:
         self.close()
 
 
-async def track_async_completion(
-    futures: List[Any],
-    progress_function: Optional[Callable[[int], None]] = None,
-    show_progress: bool = False,
-    description: str = "Processing"
-) -> List[Any]:
-    """
-    Track completion of async futures with progress updates.
-    
-    Args:
-        futures: List of futures to track
-        progress_function: Optional progress callback
-        show_progress: Whether to show progress bar
-        description: Description for progress bar
-        
-    Returns:
-        List of results from completed futures
-    """
-    results = []
-    
-    with ProgressTracker(
-        total=len(futures), 
-        progress_function=progress_function,
-        show_progress=show_progress,
-        description=description
-    ) as tracker:
-        for fut in asyncio.as_completed(futures):
-            result = await fut
-            results.append(result)
-            await tracker.update()
-    
-    return results
-
-
 async def track_iteration(
     items: List[Any],
     process_func: Callable,
