@@ -582,16 +582,16 @@
           "id": "custom_1758075459044",
           "name": "Diffusion Directions",
           "description": "Checks expected number of diffusion gradient directions",
-          "implementation": "n_expected = 100\ndirections = [\n  tuple(d) if isinstance(d, list) else \n  d for d in value[\"DiffusionGradientDirectionSequence\"]\n]\nn_actual = len(set(directions))\n\nif n_actual != n_expected:\n  raise ValidationError(f\"Expected {n_expected} distinct diffusion gradient directions, but found {n_actual}.\")\n",
+          "implementation": "n_expected = 100\ndirections = [\n  tuple(d) if isinstance(d, list) else \n  d for d in value[\"DiffusionGradientOrientation\"]\n]\nn_actual = len(set(directions))\n\nif n_actual != n_expected:\n  raise ValidationError(f\"Expected {n_expected} distinct diffusion gradient directions, but found {n_actual}.\")\n",
           "fields": [
-            "DiffusionGradientDirectionSequence"
+            "DiffusionGradientOrientation"
           ],
           "testCases": [
             {
               "id": "test_1759471463995",
               "name": "Expected number of gradients",
               "data": {
-                "DiffusionGradientDirectionSequence": [
+                "DiffusionGradientOrientation": [
                   [
                     0,
                     0
@@ -1001,7 +1001,7 @@
               "id": "test_1759471812791",
               "name": "New Test Case",
               "data": {
-                "DiffusionGradientDirectionSequence": [
+                "DiffusionGradientOrientation": [
                   [
                     0,
                     0
