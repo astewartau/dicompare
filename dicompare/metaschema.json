@@ -165,8 +165,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*$",
-          "description": "Unique identifier for the rule (snake_case)"
+          "pattern": "^[a-z][a-z0-9_/.-]*$",
+          "description": "Unique identifier for the rule (lowercase with underscores, hyphens, slashes, or dots)"
         },
         "name": {
           "type": "string",

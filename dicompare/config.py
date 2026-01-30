@@ -145,6 +145,7 @@ DEFAULT_DICOM_FIELDS = [
 
     # Diffusion-specific
     'DiffusionBValue', # MISSING
+    'DiffusionGradientOrientation',  # Gradient direction cosines - needed for validation rules
     #'DiffusionGradientDirectionSequence', # MISSING - too many unique values, should be handled by validation rules
 
     # Parallel Imaging / Multiband

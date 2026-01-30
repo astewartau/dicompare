@@ -332,7 +332,7 @@ def validate_field_values(
         if invalid_values:
             # Build descriptive range message
             if min_value is not None and max_value is not None:
-                range_desc = f"[{min_value}, {max_value}]"
+                range_desc = f"{min_value}-{max_value}"
             elif min_value is not None:
                 range_desc = f">= {min_value}"
             else:
@@ -431,7 +431,7 @@ def format_constraint_description(
         return f"contains='{contains}'"
     elif min_value is not None or max_value is not None:
         if min_value is not None and max_value is not None:
-            return f"range=[{min_value}, {max_value}]"
+            return f"range={min_value}-{max_value}"
         elif min_value is not None:
             return f"min={min_value}"
         else:

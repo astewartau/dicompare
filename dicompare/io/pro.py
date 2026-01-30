@@ -792,8 +792,11 @@ def _detect_sequence_variant(pro_data: Dict[str, Any]) -> Optional[list]:
 # Only includes legitimate DICOM field names from the target list
 PRO_TO_DICOM_MAPPING = {
     # Core Identifiers
+    # Note: twixtools may parse protocol name as either tProtocolName or ProtocolName
+    # depending on the file format, so we accept both
     "tProtocolName": "ProtocolName",
-    "tSequenceFileName": "SequenceName", 
+    "ProtocolName": "ProtocolName",  # Direct passthrough for formats that use this key
+    "tSequenceFileName": "SequenceName",
     "SeriesDescription": "SeriesDescription",
     
     # Manufacturer info - ManufacturerModelName removed (only contains internal code "142")
