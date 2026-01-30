@@ -326,7 +326,7 @@ class TestValidateFieldValues:
         passed, invalid, msg = validate_field_values(
             "Field", [150], min_value=0, max_value=100
         )
-        assert "[0, 100]" in msg
+        assert "0-100" in msg
 
     def test_min_only_message(self):
         """Test min-only error message formatting."""
@@ -444,7 +444,7 @@ class TestFormatConstraintDescription:
     def test_range_both(self):
         """Test range formatting with both min and max."""
         result = format_constraint_description(min_value=0, max_value=100)
-        assert result == "range=[0, 100]"
+        assert result == "range=0-100"
 
     def test_min_only(self):
         """Test min-only formatting."""
