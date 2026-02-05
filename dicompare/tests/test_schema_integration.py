@@ -144,19 +144,21 @@ class TestQSMConsensusGuidelines:
         )
         return session_df
 
+    QSM_ACQ_NAME = "Quantitative Susceptibility Mapping (QSM)"
+
     def test_load_qsm_schema(self, qsm_schema):
         """Test that QSM schema loads successfully."""
         fields, schema, validation_rules = qsm_schema
 
         assert "acquisitions" in schema
-        assert "QSM" in schema["acquisitions"]
-        assert "rules" in schema["acquisitions"]["QSM"]
+        assert self.QSM_ACQ_NAME in schema["acquisitions"]
+        assert "rules" in schema["acquisitions"][self.QSM_ACQ_NAME]
 
-        # Should have 11 rules as defined in the schema
-        assert len(schema["acquisitions"]["QSM"]["rules"]) == 10
+        # Should have 10 rules as defined in the schema
+        assert len(schema["acquisitions"][self.QSM_ACQ_NAME]["rules"]) == 10
 
         # Check some specific rules exist
-        rule_ids = [r["id"] for r in schema["acquisitions"]["QSM"]["rules"]]
+        rule_ids = [r["id"] for r in schema["acquisitions"][self.QSM_ACQ_NAME]["rules"]]
         assert "validate_echo_count" in rule_ids
         assert "validate_pixel_bandwidth" in rule_ids
         assert "validate_flip_angle" in rule_ids
@@ -167,7 +169,7 @@ class TestQSMConsensusGuidelines:
 
         # Get the actual acquisition name from the session
         actual_acq_name = valid_qsm_session['Acquisition'].iloc[0]
-        session_map = {"QSM": actual_acq_name}
+        session_map = {self.QSM_ACQ_NAME: actual_acq_name}
 
         # Use check_session_compliance with rules
         _, schema_data, validation_rules = dicompare.load_schema(
@@ -197,7 +199,7 @@ class TestQSMConsensusGuidelines:
 
         # Get the actual acquisition name from the session
         actual_acq_name = invalid_qsm_single_echo['Acquisition'].iloc[0]
-        session_map = {"QSM": actual_acq_name}
+        session_map = {self.QSM_ACQ_NAME: actual_acq_name}
 
         compliance = check_session_compliance(
             in_session=invalid_qsm_single_echo,
@@ -226,7 +228,7 @@ class TestQSMConsensusGuidelines:
 
         # Get the actual acquisition name from the session
         actual_acq_name = invalid_qsm_2d['Acquisition'].iloc[0]
-        session_map = {"QSM": actual_acq_name}
+        session_map = {self.QSM_ACQ_NAME: actual_acq_name}
 
         compliance = check_session_compliance(
             in_session=invalid_qsm_2d,
@@ -250,6 +252,8 @@ class TestQSMConsensusGuidelines:
 
 class TestUKBiobankSchema:
     """Integration tests for UK Biobank schema."""
+
+    T1_ACQ_NAME = "T1-weighted 3D MPRAGE"
 
     @pytest.fixture
     def ukb_schema(self):
@@ -374,11 +378,11 @@ class TestUKBiobankSchema:
         assert len(schema["acquisitions"]) == 6
 
         # Check specific acquisitions exist
-        assert "T1 structural brain images" in schema["acquisitions"]
+        assert self.T1_ACQ_NAME in schema["acquisitions"]
         assert "Multiband diffusion brain images" in schema["acquisitions"]
 
         # T1 should have fields with tolerance
-        t1_acq = schema["acquisitions"]["T1 structural brain images"]
+        t1_acq = schema["acquisitions"][self.T1_ACQ_NAME]
         assert "fields" in t1_acq
 
         # Check tolerance is used
@@ -403,7 +407,7 @@ class TestUKBiobankSchema:
         actual_acq_name = invalid_t1_wrong_tr['Acquisition'].iloc[0]
 
         # Get the single acquisition from schema
-        schema_acq = schema["acquisitions"]["T1 structural brain images"]
+        schema_acq = schema["acquisitions"][self.T1_ACQ_NAME]
 
         compliance = dicompare.check_acquisition_compliance(
             in_session=invalid_t1_wrong_tr,
