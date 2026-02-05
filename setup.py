@@ -45,7 +45,10 @@ setup(
     keywords="DICOM compliance validation medical imaging",
     include_package_data=True,
     package_data={
-        "dicompare": ["metaschema.json"],
+        "dicompare": [
+            "metaschema.json",
+            "schemas/*.json",
+        ],
     },
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

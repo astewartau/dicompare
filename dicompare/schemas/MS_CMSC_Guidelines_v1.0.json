@@ -1,0 +1,1216 @@
+{
+  "name": "MS CMSC MRI Guidelines",
+  "description": "Standardized MRI protocol for the diagnosis and follow-up of Multiple Sclerosis, based on the 2016 revised recommendations of the Consortium of MS Centers (CMSC) Task Force. Includes protocols for brain MRI (diagnosis/follow-up), PML surveillance, spinal cord, and orbit imaging.",
+  "version": "1.0",
+  "authors": [
+    "Consortium of MS Centers Task Force",
+    "A. Traboulsee",
+    "J.H. Simon",
+    "L. Stone",
+    "E. Fisher",
+    "D.E. Jones",
+    "A. Malhotra",
+    "S.D. Newsome",
+    "J. Oh",
+    "D.S. Reich",
+    "N. Richert",
+    "K. Rammohan",
+    "O. Khan",
+    "E.-W. Radue",
+    "C. Ford",
+    "J. Halper",
+    "D. Li"
+  ],
+  "acquisitions": {
+    "MS Brain 3D T1 Pre-contrast": {
+      "description": "3D T1-weighted anatomic imaging for MS brain protocol (pre-contrast)",
+      "detailed_description": "## 3D T1-Weighted Pre-Contrast (Anatomic)\n\nThis is the anatomic 3D T1-weighted sequence acquired BEFORE gadolinium contrast administration.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | 3D IR-prepared T1 gradient echo (e.g., MPRAGE, BRAVO, 3D TFE) |\n| Acquisition thickness | 1.0-1.5 mm isotropic |\n| Reconstruction | 3 mm for clinical review |\n| In-plane resolution | ≤1 x 1 mm |\n| Coverage | Whole brain |\n| Orientation | Subcallosal plane |\n\n### Clinical Purpose\n\n- Volumetric analysis (brain atrophy)\n- Confirmation of juxtacortical and infratentorial lesions\n- Anatomical reference\n- Must be acquired BEFORE contrast for accurate volumetrics\n\n### Important Notes\n\n- **Acquire before gadolinium administration**\n- T1 \"black holes\" are best assessed on 2D spin-echo sequences, not 3D IR-prepared images\n- 3D acquisition enables multiplanar reformatting\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["analysis:volumetry", "analysis:segmentation", "MS", "brain", "T1-weighted", "3D", "structural", "pre-contrast", "volumetric"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [1.0, 1.0],
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["GR", "IR"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ContrastBolusAgent",
+          "tag": "0018,0010",
+          "value": "",
+          "vr": "LO",
+          "dataType": "string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "MS brain imaging requires whole-brain coverage (typically >140mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 140:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain MS imaging. Typical coverage is >140mm.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_good_coverage",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [1.0], "Count": [180]},
+              "expectedResult": "pass",
+              "description": "180 slices x 1mm = 180mm coverage"
+            },
+            {
+              "id": "test_insufficient_coverage",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [1.0], "Count": [120]},
+              "expectedResult": "warning",
+              "description": "120 slices x 1mm = 120mm may be insufficient"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Brain 3D FLAIR": {
+      "description": "3D T2-FLAIR for MS lesion detection - primary sequence for white matter lesions",
+      "detailed_description": "## 3D T2-FLAIR (Primary Lesion Detection)\n\nFLAIR is the primary sequence for detecting MS white matter lesions. The 3D acquisition enables multiplanar reformatting.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | 3D T2-FLAIR |\n| Acquisition thickness | 1.0-1.5 mm isotropic |\n| Reconstruction | 3 mm for clinical review |\n| In-plane resolution | ≤1 x 1 mm |\n| Acquisition plane | Sagittal (for reformatting) |\n| Coverage | Whole brain |\n\n### Clinical Purpose\n\n- **Primary sequence for MS lesion detection**\n- Corpus callosum lesions (best seen on sagittal)\n- Juxtacortical lesions (white matter touching cortex)\n- Periventricular lesions (touching ventricles)\n- Oval perivenular lesion configuration\n\n### Key Lesion Locations for McDonald Criteria\n\n| Location | Requirement |\n|----------|-------------|\n| Periventricular | ≥1 lesion touching ventricles |\n| Juxtacortical | ≥1 lesion touching cortex |\n| Infratentorial | ≥1 lesion |\n| Spinal cord | ≥1 lesion |\n\n**2 of 4 locations required for dissemination in space**\n\n### Timing Note\n\nFLAIR can be acquired during the 5-minute post-contrast delay (after gadolinium injection, before post-contrast T1).\n\n### 2D Alternative\n\nIf 3D not available: 2D axial AND sagittal FLAIR at ≤3mm thickness, no gap.\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "brain", "FLAIR", "T2-weighted", "3D", "lesion", "white matter"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [1.0, 1.0],
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains": "IR",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "contains": "SK",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "MS brain imaging requires whole-brain coverage (typically >140mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 140:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain MS imaging. Typical coverage is >140mm.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_good_coverage",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [1.0], "Count": [180]},
+              "expectedResult": "pass",
+              "description": "180 slices x 1mm = 180mm coverage"
+            },
+            {
+              "id": "test_insufficient_coverage",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [1.0], "Count": [120]},
+              "expectedResult": "warning",
+              "description": "120 slices x 1mm = 120mm may be insufficient"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Brain 2D FLAIR (Alternative)": {
+      "description": "2D T2-FLAIR alternative when 3D not available - requires both axial and sagittal acquisitions",
+      "detailed_description": "## 2D T2-FLAIR (Alternative)\n\nWhen 3D FLAIR is not available, 2D FLAIR should be acquired in **both axial AND sagittal** planes.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | 2D T2-FLAIR |\n| Slice thickness | ≤3 mm |\n| Gap | **No gap** |\n| Planes | Axial AND Sagittal |\n| Coverage | Whole brain |\n\n### Why Both Planes?\n\n- **Sagittal**: Best for corpus callosum lesions (Dawson's fingers)\n- **Axial**: Standard orientation for lesion counting and comparison\n\n### No Gap Requirement\n\nSlice gap can cause lesions to be missed. SpacingBetweenSlices should equal SliceThickness.\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "brain", "FLAIR", "T2-weighted", "2D", "lesion"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [1.0, 1.0],
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains": "IR",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "contains": "SK",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_no_gap",
+          "name": "No Gap Between Slices",
+          "description": "2D MS brain sequences should have no gap between slices. SpacingBetweenSlices should equal SliceThickness.",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].iloc[0] if \"SpacingBetweenSlices\" in value.columns and not pd.isna(value[\"SpacingBetweenSlices\"].iloc[0]) else slice_thickness\n\ngap = spacing - slice_thickness\nif gap > 0.5:\n    raise ValidationWarning(f\"Gap detected between slices ({gap:.1f} mm). MS protocols require no gap (SpacingBetweenSlices should equal SliceThickness).\")",
+          "fields": ["SliceThickness", "SpacingBetweenSlices"],
+          "testCases": [
+            {
+              "id": "test_no_gap",
+              "name": "No gap - passes",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [3.0]},
+              "expectedResult": "pass",
+              "description": "No gap between slices"
+            },
+            {
+              "id": "test_gap_present",
+              "name": "Gap present - warning",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [4.5]},
+              "expectedResult": "warning",
+              "description": "1.5mm gap detected"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Brain 3D T2": {
+      "description": "3D T2-weighted imaging for MS - backup for posterior fossa lesion detection",
+      "detailed_description": "## 3D T2-Weighted Imaging\n\nT2-weighted imaging provides backup lesion detection, particularly for posterior fossa lesions where FLAIR may be suboptimal.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | 3D T2-weighted (e.g., SPACE, CUBE, VISTA) |\n| Acquisition thickness | 1.0-1.5 mm isotropic |\n| Reconstruction | 3 mm for clinical review |\n| In-plane resolution | ≤1 x 1 mm |\n| Coverage | Whole brain |\n\n### Clinical Purpose\n\n- Backup for posterior fossa lesion detection\n- May be superior to FLAIR for infratentorial lesions\n- Confirmation of lesions seen on FLAIR\n- Better CSF-lesion contrast in some regions\n\n### 2D Alternative\n\nIf 3D not available: 2D axial fast/turbo spin-echo proton attenuation/T2 at ≤3mm thickness.\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "brain", "T2-weighted", "3D", "structural", "lesion", "infratentorial"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [1.0, 1.0],
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains": "SE",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "MS Brain 2D T2/Proton Attenuation (Alternative)": {
+      "description": "2D axial fast/turbo spin-echo T2 or proton attenuation - alternative when 3D T2 not available",
+      "detailed_description": "## 2D T2/Proton Attenuation (Alternative)\n\nWhen 3D T2 is not available, 2D axial fast/turbo spin-echo T2 or proton attenuation should be acquired.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | 2D fast/turbo spin-echo T2 or Proton Attenuation |\n| Slice thickness | ≤3 mm |\n| Gap | **No gap** |\n| Coverage | Whole brain |\n\n### Proton Attenuation Note\n\nProton attenuation (PD) weighted sequences have intermediate weighting and may provide complementary lesion detection.\n\n### No Gap Requirement\n\nSlice gap can cause lesions to be missed. SpacingBetweenSlices should equal SliceThickness.\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "brain", "T2-weighted", "2D", "proton-density", "lesion"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [1.0, 1.0],
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains": "SE",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_no_gap",
+          "name": "No Gap Between Slices",
+          "description": "2D MS brain sequences should have no gap between slices. SpacingBetweenSlices should equal SliceThickness.",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].iloc[0] if \"SpacingBetweenSlices\" in value.columns and not pd.isna(value[\"SpacingBetweenSlices\"].iloc[0]) else slice_thickness\n\ngap = spacing - slice_thickness\nif gap > 0.5:\n    raise ValidationWarning(f\"Gap detected between slices ({gap:.1f} mm). MS protocols require no gap (SpacingBetweenSlices should equal SliceThickness).\")",
+          "fields": ["SliceThickness", "SpacingBetweenSlices"],
+          "testCases": [
+            {
+              "id": "test_no_gap",
+              "name": "No gap - passes",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [3.0]},
+              "expectedResult": "pass",
+              "description": "No gap between slices"
+            },
+            {
+              "id": "test_gap_present",
+              "name": "Gap present - warning",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [4.5]},
+              "expectedResult": "warning",
+              "description": "1.5mm gap detected"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Brain DWI": {
+      "description": "Diffusion-weighted imaging for MS brain protocol",
+      "detailed_description": "## Diffusion-Weighted Imaging (DWI)\n\nDWI is included in the MS protocol primarily to detect non-MS pathology and for early PML detection.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | 2D axial DWI |\n| Slice thickness | ≤5 mm |\n| Gap | No gap |\n| Coverage | Whole brain |\n| b-values | 0 and 1000 s/mm² typical |\n\n### Clinical Purpose\n\n1. **Acute ischemia/infarction detection** - important differential diagnosis\n2. **Early PML detection** - high DWI signal in ~60% of presymptomatic PML\n3. **Acute MS lesion characterization** - some acute lesions show restricted diffusion\n\n### PML Detection on DWI\n\n- Subcortical lesions with high DWI signal\n- 48% occur in frontal lobes\n- Sharp borders toward gray matter, ill-defined toward white matter\n- May be absent in ~40% of presymptomatic PML\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["analysis:diffusion", "MS", "brain", "DWI", "diffusion"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["DIFFUSION", "DWI"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_no_gap",
+          "name": "No Gap Between Slices",
+          "description": "DWI should have no gap between slices. SpacingBetweenSlices should equal SliceThickness.",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].iloc[0] if \"SpacingBetweenSlices\" in value.columns and not pd.isna(value[\"SpacingBetweenSlices\"].iloc[0]) else slice_thickness\n\ngap = spacing - slice_thickness\nif gap > 0.5:\n    raise ValidationWarning(f\"Gap detected between slices ({gap:.1f} mm). MS DWI requires no gap (SpacingBetweenSlices should equal SliceThickness).\")",
+          "fields": ["SliceThickness", "SpacingBetweenSlices"],
+          "testCases": [
+            {
+              "id": "test_no_gap",
+              "name": "No gap - passes",
+              "data": {"SliceThickness": [5.0], "SpacingBetweenSlices": [5.0]},
+              "expectedResult": "pass",
+              "description": "No gap between slices"
+            },
+            {
+              "id": "test_gap_present",
+              "name": "Gap present - warning",
+              "data": {"SliceThickness": [5.0], "SpacingBetweenSlices": [6.0]},
+              "expectedResult": "warning",
+              "description": "1mm gap detected"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Brain T1 Post-contrast": {
+      "description": "Post-gadolinium T1-weighted imaging for active lesion detection",
+      "detailed_description": "## Post-Gadolinium T1-Weighted Imaging\n\nGadolinium-enhanced T1 imaging detects blood-brain barrier breakdown in active MS lesions.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | 3D FLASH (non-IR prep) or 2D T1 spin-echo |\n| Acquisition thickness | 1.0-1.5 mm (3D) or ≤3 mm (2D) |\n| Gadolinium dose | Single dose: 0.1 mmol/kg |\n| Injection rate | Over 30 seconds |\n| Delay | **Minimum 5 minutes** after injection |\n| Coverage | Whole brain |\n\n### Important: Non-IR Preparation Required\n\nPost-contrast T1 should NOT use IR (inversion recovery) preparation, as IR preparation can mask contrast enhancement. Use gradient echo (e.g., FLASH, VIBE) or spin-echo sequences instead.\n\n### Clinical Purpose\n\n1. **Active lesion detection** - enhancing lesions indicate acute inflammation\n2. **Dissemination in time** - asymptomatic enhancing lesion on first MRI meets DIT criterion\n3. **Treatment monitoring** - new enhancing lesions indicate breakthrough activity\n4. **Differential diagnosis** - tumor (persistent enhancement) vs MS (transient)\n\n### Enhancement Characteristics\n\n- Average duration: 3 weeks\n- Most enhance for 2-6 weeks\n- Rarely >3 months with single-dose gadolinium\n\n### Important Notes\n\n- **5-minute minimum delay** before post-contrast imaging\n- FLAIR/T2 can be acquired during this delay\n- Triple-dose and longer delays (15 min) not necessary for routine practice\n- Check renal function (eGFR) before gadolinium administration\n- Macrocyclic chelates recommended to minimize nephrogenic systemic fibrosis risk\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "brain", "T1-weighted", "gadolinium", "contrast-enhanced", "lesion"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 1.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [1.0, 1.0],
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["GR", "SE"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ContrastBolusAgent",
+          "tag": "0018,0010",
+          "contains_any": ["gado", "Gado", "GADO", "Gd", "GD"],
+          "vr": "LO",
+          "dataType": "string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_non_ir_sequence",
+          "name": "Non-IR Sequence Required",
+          "description": "Post-contrast T1 should NOT use IR (inversion recovery) preparation, as IR preparation can mask contrast enhancement.",
+          "implementation": "scanning_seq = value[\"ScanningSequence\"].iloc[0]\nif isinstance(scanning_seq, str):\n    sequences = [s.strip() for s in scanning_seq.split('\\\\')]\nelse:\n    sequences = list(scanning_seq) if hasattr(scanning_seq, '__iter__') else [str(scanning_seq)]\n\nif 'IR' in sequences:\n    raise ValidationWarning(\"Post-contrast T1 uses IR (inversion recovery) preparation. Guidelines recommend non-IR sequences (FLASH, VIBE, or spin-echo) as IR can mask contrast enhancement.\")",
+          "fields": ["ScanningSequence"],
+          "testCases": [
+            {
+              "id": "test_gradient_echo",
+              "name": "Gradient echo - passes",
+              "data": {"ScanningSequence": ["GR"]},
+              "expectedResult": "pass",
+              "description": "Gradient echo without IR is acceptable"
+            },
+            {
+              "id": "test_spin_echo",
+              "name": "Spin echo - passes",
+              "data": {"ScanningSequence": ["SE"]},
+              "expectedResult": "pass",
+              "description": "Spin echo without IR is acceptable"
+            },
+            {
+              "id": "test_ir_prep",
+              "name": "IR prepared - warning",
+              "data": {"ScanningSequence": ["GR\\IR"]},
+              "expectedResult": "warning",
+              "description": "IR preparation may mask enhancement"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Brain SWI (Optional)": {
+      "description": "Susceptibility-weighted imaging for central vein sign detection - optional advanced sequence",
+      "detailed_description": "## Susceptibility-Weighted Imaging (SWI)\n\nSWI is an optional advanced sequence that can demonstrate the \"central vein sign\" characteristic of MS lesions.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | 3D SWI or T2* gradient echo |\n| Slice thickness | ≤2 mm |\n| Coverage | Whole brain |\n| Processing | Minimum intensity projection (minIP) |\n\n### Central Vein Sign\n\nMS lesions characteristically form around small veins. SWI can demonstrate:\n- Small vein running through the center of white matter lesions\n- High specificity for demyelinating lesions\n- Helps differentiate MS from mimics (vascular disease, migraine)\n\n### Research Application\n\nThe central vein sign is increasingly used in research to improve MS diagnostic specificity. A threshold of ≥40% of lesions showing central veins has been proposed.\n\n### Note\n\nThis is an optional research/advanced sequence not required for standard MS protocols.\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.\nSati P, et al. Nat Rev Neurol 2016;12:714-722.",
+      "tags": ["MS", "brain", "SWI", "susceptibility", "lesion"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 2,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains": "GR",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "MS PML Surveillance FLAIR": {
+      "description": "FLAIR sequence for abbreviated PML surveillance protocol",
+      "detailed_description": "## PML Surveillance - FLAIR\n\nAbbreviated protocol for monitoring patients at risk for Progressive Multifocal Leukoencephalopathy (PML).\n\n### When to Use PML Surveillance Protocol\n\n| JC Virus Status | Natalizumab Duration | Surveillance Frequency |\n|-----------------|---------------------|------------------------|\n| Negative | Any | Every 12 months |\n| Positive | <18 months | As per routine MS protocol |\n| Positive | ≥18 months | **Every 3-6 months** |\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | 3D (or 2D) T2-FLAIR |\n| Slice thickness | ≤3 mm, no gap |\n| Coverage | Whole brain |\n| Orientation | Subcallosal plane |\n\n### PML Lesion Characteristics on FLAIR\n\n- **Location**: Subcortical (48% frontal lobe)\n- **Signal**: Hyperintense on T2/FLAIR\n- **Borders**: Sharp toward gray matter, ill-defined toward white matter\n- **Deep gray matter**: Can involve thalamus and dentate nuclei\n\n### Key Points\n\n- Postcontrast T1 adds little value (<50% of early PML enhances)\n- DWI is essential (paired with FLAIR)\n- Any clinical change suspicious for PML → urgent MRI\n- Early detection improves outcome and survival\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "brain", "FLAIR", "T2-weighted", "PML", "surveillance"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "contains_any": ["2D", "3D"],
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [1.0, 1.0],
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains": "IR",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_no_gap",
+          "name": "No Gap Between Slices",
+          "description": "PML surveillance FLAIR should have no gap between slices.",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].iloc[0] if \"SpacingBetweenSlices\" in value.columns and not pd.isna(value[\"SpacingBetweenSlices\"].iloc[0]) else slice_thickness\n\ngap = spacing - slice_thickness\nif gap > 0.5:\n    raise ValidationWarning(f\"Gap detected between slices ({gap:.1f} mm). PML surveillance requires no gap.\")",
+          "fields": ["SliceThickness", "SpacingBetweenSlices"],
+          "testCases": [
+            {
+              "id": "test_no_gap",
+              "name": "No gap - passes",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [3.0]},
+              "expectedResult": "pass",
+              "description": "No gap between slices"
+            },
+            {
+              "id": "test_gap_present",
+              "name": "Gap present - warning",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [4.0]},
+              "expectedResult": "warning",
+              "description": "1mm gap detected"
+            }
+          ]
+        }
+      ]
+    },
+    "MS PML Surveillance DWI": {
+      "description": "DWI sequence for abbreviated PML surveillance protocol",
+      "detailed_description": "## PML Surveillance - DWI\n\nDWI is essential for early PML detection alongside FLAIR.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | 2D axial DWI |\n| Slice thickness | ≤5 mm, no gap |\n| Coverage | Whole brain |\n\n### PML Detection on DWI\n\n- High signal intensity on DWI in ~60% of presymptomatic PML\n- Absent in ~40% of patients with presymptomatic PML\n- Subcortical distribution\n- Frontal lobe predominance\n\n### Surveillance Schedule\n\nHigh-risk patients (JC virus antibody positive, ≥18 months natalizumab):\n- PML surveillance MRI every 3-6 months\n- FLAIR + DWI sequences only\n- No contrast required\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["analysis:diffusion", "MS", "brain", "DWI", "diffusion", "PML", "surveillance"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["DIFFUSION", "DWI"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_no_gap",
+          "name": "No Gap Between Slices",
+          "description": "PML surveillance DWI should have no gap between slices.",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].iloc[0] if \"SpacingBetweenSlices\" in value.columns and not pd.isna(value[\"SpacingBetweenSlices\"].iloc[0]) else slice_thickness\n\ngap = spacing - slice_thickness\nif gap > 0.5:\n    raise ValidationWarning(f\"Gap detected between slices ({gap:.1f} mm). PML surveillance requires no gap.\")",
+          "fields": ["SliceThickness", "SpacingBetweenSlices"],
+          "testCases": [
+            {
+              "id": "test_no_gap",
+              "name": "No gap - passes",
+              "data": {"SliceThickness": [5.0], "SpacingBetweenSlices": [5.0]},
+              "expectedResult": "pass",
+              "description": "No gap between slices"
+            },
+            {
+              "id": "test_gap_present",
+              "name": "Gap present - warning",
+              "data": {"SliceThickness": [5.0], "SpacingBetweenSlices": [6.0]},
+              "expectedResult": "warning",
+              "description": "1mm gap detected"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Spinal Cord Sagittal T2": {
+      "description": "Sagittal T2-weighted spinal cord imaging for MS",
+      "detailed_description": "## Spinal Cord MRI - Sagittal T2\n\nSpinal cord imaging is important for MS diagnosis when brain MRI is nondiagnostic or symptoms involve the spinal cord.\n\n### Indications\n\n- Transverse myelitis (partial or complete)\n- Progressive myelopathy suspicious for primary-progressive MS\n- Brain MRI insufficient for diagnosis\n- Age >40 with nonspecific brain MRI findings\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | Sagittal T2-weighted |\n| Slice thickness | ≤3 mm |\n| Gap | No gap |\n| Coverage | Cervical cord minimum |\n| Resolution | ≤1 x 1 mm in-plane |\n\n### Clinical Value\n\n- Spinal cord lesions have **greater specificity** for demyelination than brain lesions\n- Nonspecific white matter lesions are extremely uncommon in spinal cord\n- Asymptomatic spinal cord lesions predict conversion to MS in radiologically isolated syndrome\n\n### Lesion Characteristics\n\n**MS lesions:**\n- Typically <2 vertebral segments\n- Peripheral cord location\n- Partial cross-sectional involvement\n\n**Neuromyelitis optica:**\n- Longitudinally extensive (≥3 segments)\n- Central cord predominance\n- May have mass effect\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "spinal cord", "T2-weighted", "sagittal", "cervical", "lesion"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [1.0, 1.0],
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains": "SE",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "BodyPartExamined",
+          "tag": "0018,0015",
+          "contains_any": ["SPINE", "CSPINE", "CERVICAL", "TSPINE"],
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_no_gap",
+          "name": "No Gap Between Slices",
+          "description": "Spinal cord imaging should have no gap between slices.",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].iloc[0] if \"SpacingBetweenSlices\" in value.columns and not pd.isna(value[\"SpacingBetweenSlices\"].iloc[0]) else slice_thickness\n\ngap = spacing - slice_thickness\nif gap > 0.5:\n    raise ValidationWarning(f\"Gap detected between slices ({gap:.1f} mm). Spinal cord imaging requires no gap.\")",
+          "fields": ["SliceThickness", "SpacingBetweenSlices"],
+          "testCases": [
+            {
+              "id": "test_no_gap",
+              "name": "No gap - passes",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [3.0]},
+              "expectedResult": "pass",
+              "description": "No gap between slices"
+            },
+            {
+              "id": "test_gap_present",
+              "name": "Gap present - warning",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [4.0]},
+              "expectedResult": "warning",
+              "description": "1mm gap detected"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Spinal Cord Sagittal STIR/PD": {
+      "description": "Sagittal STIR, proton attenuation, or phase-sensitive T1-IR for spinal cord MS imaging",
+      "detailed_description": "## Spinal Cord MRI - Sagittal STIR/PD/PST1-IR\n\nA second sagittal sequence is recommended for detecting subtle spinal cord lesions.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | STIR, Proton attenuation, or Phase-sensitive T1-IR |\n| Slice thickness | ≤3 mm |\n| Gap | No gap |\n| Coverage | Cervical cord |\n\n### Sequence Options\n\n1. **STIR**: Short-tau inversion recovery - good fat suppression and lesion conspicuity\n2. **Proton attenuation (PD)**: Good gray-white contrast, intermediate weighting\n3. **Phase-sensitive T1-IR (PST1-IR)**: Improved lesion detection, recommended when available\n\n### Why Two Sequences?\n\n- Subtle lesions may be visible on one sequence but not the other\n- STIR provides fat suppression useful for cord imaging\n- PST1-IR has shown improved sensitivity for cord lesions\n- Confirmation of lesions across sequences increases confidence\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.\nPoonawalla et al. Radiology 2008;246:258-264.",
+      "tags": ["MS", "spinal cord", "STIR", "sagittal", "cervical", "proton-density", "lesion"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["IR", "SE"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "BodyPartExamined",
+          "tag": "0018,0015",
+          "contains_any": ["SPINE", "CSPINE", "CERVICAL", "TSPINE"],
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_no_gap",
+          "name": "No Gap Between Slices",
+          "description": "Spinal cord imaging should have no gap between slices.",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].iloc[0] if \"SpacingBetweenSlices\" in value.columns and not pd.isna(value[\"SpacingBetweenSlices\"].iloc[0]) else slice_thickness\n\ngap = spacing - slice_thickness\nif gap > 0.5:\n    raise ValidationWarning(f\"Gap detected between slices ({gap:.1f} mm). Spinal cord imaging requires no gap.\")",
+          "fields": ["SliceThickness", "SpacingBetweenSlices"],
+          "testCases": [
+            {
+              "id": "test_no_gap",
+              "name": "No gap - passes",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [3.0]},
+              "expectedResult": "pass",
+              "description": "No gap between slices"
+            },
+            {
+              "id": "test_gap_present",
+              "name": "Gap present - warning",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [4.0]},
+              "expectedResult": "warning",
+              "description": "1mm gap detected"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Spinal Cord Axial T2": {
+      "description": "Axial T2 or T2* through spinal cord lesions",
+      "detailed_description": "## Spinal Cord MRI - Axial T2\n\nAxial imaging through identified lesions for better characterization.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | Axial T2 or T2*-weighted |\n| Slice thickness | 5 mm |\n| Gap | No gap |\n| Coverage | Through suspicious lesions |\n\n### Clinical Purpose\n\n- Cross-sectional lesion localization (central vs peripheral)\n- Lesion extent characterization\n- Differentiation from other pathology\n\n### Lesion Localization\n\n**MS**: Typically peripheral/lateral cord\n**NMO**: Central cord predominance\n**Anterior spinal artery infarct**: Central/anterior cord\n\n### Optional Extension\n\nAxial T2 through complete cervical cord may be performed for comprehensive evaluation.\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "spinal cord", "T2-weighted", "axial", "lesion"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["SE", "GR"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "BodyPartExamined",
+          "tag": "0018,0015",
+          "contains_any": ["SPINE", "CSPINE", "CERVICAL", "TSPINE"],
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_no_gap",
+          "name": "No Gap Between Slices",
+          "description": "Spinal cord axial imaging should have no gap between slices.",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].iloc[0] if \"SpacingBetweenSlices\" in value.columns and not pd.isna(value[\"SpacingBetweenSlices\"].iloc[0]) else slice_thickness\n\ngap = spacing - slice_thickness\nif gap > 0.5:\n    raise ValidationWarning(f\"Gap detected between slices ({gap:.1f} mm). Spinal cord imaging requires no gap.\")",
+          "fields": ["SliceThickness", "SpacingBetweenSlices"],
+          "testCases": [
+            {
+              "id": "test_no_gap",
+              "name": "No gap - passes",
+              "data": {"SliceThickness": [5.0], "SpacingBetweenSlices": [5.0]},
+              "expectedResult": "pass",
+              "description": "No gap between slices"
+            },
+            {
+              "id": "test_gap_present",
+              "name": "Gap present - warning",
+              "data": {"SliceThickness": [5.0], "SpacingBetweenSlices": [6.0]},
+              "expectedResult": "warning",
+              "description": "1mm gap detected"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Spinal Cord Post-contrast T1 (Optional)": {
+      "description": "Post-gadolinium T1-weighted spinal cord imaging - optional for active lesion detection",
+      "detailed_description": "## Spinal Cord MRI - Post-Gadolinium T1 (Optional)\n\nPost-contrast spinal cord imaging is optional but may be performed when active spinal cord inflammation is suspected.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | Sagittal T1-weighted |\n| Slice thickness | ≤3 mm |\n| Gap | No gap |\n| Coverage | Cervical cord |\n| Fat suppression | Optional but helpful |\n\n### Indications\n\n- Suspected active myelitis\n- Clinical presentation of acute transverse myelitis\n- Differentiating MS from neuromyelitis optica\n\n### Clinical Value\n\n- Active spinal cord lesions may enhance with gadolinium\n- Enhancing lesions indicate active inflammation\n- Less commonly performed than brain post-contrast imaging\n\n### Note\n\nThis sequence is **optional** in routine MS protocols. Brain post-contrast imaging is generally sufficient.\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "spinal cord", "T1-weighted", "gadolinium", "contrast-enhanced", "lesion"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["SE", "GR"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ContrastBolusAgent",
+          "tag": "0018,0010",
+          "contains_any": ["gado", "Gado", "GADO", "Gd", "GD"],
+          "vr": "LO",
+          "dataType": "string"
+        },
+        {
+          "field": "BodyPartExamined",
+          "tag": "0018,0015",
+          "contains_any": ["SPINE", "CSPINE", "CERVICAL", "TSPINE"],
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_no_gap",
+          "name": "No Gap Between Slices",
+          "description": "Spinal cord imaging should have no gap between slices.",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].iloc[0] if \"SpacingBetweenSlices\" in value.columns and not pd.isna(value[\"SpacingBetweenSlices\"].iloc[0]) else slice_thickness\n\ngap = spacing - slice_thickness\nif gap > 0.5:\n    raise ValidationWarning(f\"Gap detected between slices ({gap:.1f} mm). Spinal cord imaging requires no gap.\")",
+          "fields": ["SliceThickness", "SpacingBetweenSlices"],
+          "testCases": [
+            {
+              "id": "test_no_gap",
+              "name": "No gap - passes",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [3.0]},
+              "expectedResult": "pass",
+              "description": "No gap between slices"
+            },
+            {
+              "id": "test_gap_present",
+              "name": "Gap present - warning",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [4.0]},
+              "expectedResult": "warning",
+              "description": "1mm gap detected"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Orbit STIR": {
+      "description": "Coronal STIR or fat-suppressed T2 for optic nerve imaging",
+      "detailed_description": "## Orbit MRI - STIR/Fat-Suppressed T2\n\nOrbit imaging is indicated to confirm optic neuritis and rule out compressive lesions.\n\n### Indications\n\n- Severe optic neuritis with poor recovery\n- Atypical optic neuritis presentation\n- Rule out compressive optic neuropathy\n- Suspected neuromyelitis optica\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | Coronal STIR or fat-suppressed T2 |\n| Slice thickness | ≤2 mm |\n| Coverage | Through optic chiasm |\n| Fat suppression | Required |\n\n### Clinical Findings\n\n**Optic neuritis:**\n- Hyperintense optic nerve on STIR\n- May show nerve swelling acutely\n- Enhancement with gadolinium\n\n**Suggestive of alternative diagnosis:**\n- Unusual enhancement patterns\n- Optic sheath enhancement (sarcoidosis)\n- Longitudinally extensive involvement (NMO)\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "orbit", "optic nerve", "STIR", "fat-suppressed", "lesion"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 2,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains": "IR",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "BodyPartExamined",
+          "tag": "0018,0015",
+          "contains_any": ["ORBIT", "HEAD", "BRAIN"],
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_fat_suppression",
+          "name": "Fat Suppression Required",
+          "description": "Orbit imaging requires fat suppression for adequate optic nerve visualization. STIR inherently provides fat suppression.",
+          "implementation": "scanning_seq = value[\"ScanningSequence\"].iloc[0]\nif isinstance(scanning_seq, str):\n    sequences = [s.strip() for s in scanning_seq.split('\\\\')]\nelse:\n    sequences = list(scanning_seq) if hasattr(scanning_seq, '__iter__') else [str(scanning_seq)]\n\n# STIR (IR with short TI) provides inherent fat suppression\nif 'IR' not in sequences:\n    raise ValidationWarning(\"Orbit imaging should use STIR or fat-suppressed T2. Non-STIR sequences may have inadequate fat suppression.\")",
+          "fields": ["ScanningSequence"],
+          "testCases": [
+            {
+              "id": "test_stir",
+              "name": "STIR sequence - passes",
+              "data": {"ScanningSequence": ["IR"]},
+              "expectedResult": "pass",
+              "description": "STIR provides inherent fat suppression"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Orbit T1 Post-contrast": {
+      "description": "Post-gadolinium fat-suppressed T1 for optic nerve imaging",
+      "detailed_description": "## Orbit MRI - Post-Gadolinium T1\n\nContrast-enhanced imaging of the optic nerves to detect active inflammation.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | T1-weighted with fat suppression |\n| Slice thickness | ≤2 mm |\n| Coverage | Through optic chiasm |\n| Contrast | Post-gadolinium |\n| Fat suppression | Required |\n\n### Enhancement Patterns\n\n**Optic neuritis (MS):**\n- Segmental optic nerve enhancement\n- Usually <50% of nerve length\n\n**Neuromyelitis optica:**\n- Longitudinally extensive enhancement\n- May extend to chiasm\n\n**Sarcoidosis:**\n- Perineural (sheath) enhancement\n- May be bilateral\n\n### Timing\n\nIf orbit imaging follows brain MRI with gadolinium, no additional contrast is needed.\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "orbit", "optic nerve", "T1-weighted", "gadolinium", "contrast-enhanced", "fat-suppressed", "lesion"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 2,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["SE", "GR"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains": "ORIGINAL",
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ContrastBolusAgent",
+          "tag": "0018,0010",
+          "contains_any": ["gado", "Gado", "GADO", "Gd", "GD"],
+          "vr": "LO",
+          "dataType": "string"
+        },
+        {
+          "field": "BodyPartExamined",
+          "tag": "0018,0015",
+          "contains_any": ["ORBIT", "HEAD", "BRAIN"],
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_fat_suppression",
+          "name": "Fat Suppression Required",
+          "description": "Post-contrast orbit T1 imaging requires fat suppression for adequate optic nerve visualization and enhancement detection.",
+          "implementation": "# Check for fat suppression techniques\n# Common indicators: ScanOptions contains 'FS' or 'FAT', or SequenceVariant contains 'SP' (spectral)\nscan_options = value[\"ScanOptions\"].iloc[0] if \"ScanOptions\" in value.columns and not pd.isna(value[\"ScanOptions\"].iloc[0]) else \"\"\nseq_variant = value[\"SequenceVariant\"].iloc[0] if \"SequenceVariant\" in value.columns and not pd.isna(value[\"SequenceVariant\"].iloc[0]) else \"\"\n\n# Convert to string for checking\nscan_options_str = str(scan_options).upper() if scan_options else \"\"\nseq_variant_str = str(seq_variant).upper() if seq_variant else \"\"\n\nhas_fat_sat = any(fs in scan_options_str for fs in ['FS', 'FAT', 'SPIR', 'SPAIR', 'CHESS'])\nhas_spectral = 'SP' in seq_variant_str\n\nif not has_fat_sat and not has_spectral:\n    raise ValidationWarning(\"Orbit T1 imaging may lack fat suppression. Fat suppression is required for adequate optic nerve visualization.\")",
+          "fields": ["ScanOptions", "SequenceVariant"],
+          "testCases": [
+            {
+              "id": "test_with_fs",
+              "name": "With fat saturation - passes",
+              "data": {"ScanOptions": ["FS"], "SequenceVariant": ["SK"]},
+              "expectedResult": "pass",
+              "description": "Fat saturation enabled"
+            }
+          ]
+        }
+      ]
+    },
+    "MS Spinal Cord Sagittal T1 (Optional)": {
+      "description": "Sagittal T1-weighted spinal cord imaging - optional non-contrast sequence",
+      "detailed_description": "## Spinal Cord MRI - Sagittal T1 (Optional)\n\nNon-contrast sagittal T1 imaging of the spinal cord is listed as an optional sequence.\n\n### Technical Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Sequence type | Sagittal T1-weighted |\n| Slice thickness | ≤3 mm |\n| Gap | No gap |\n| Coverage | Cervical cord |\n\n### Clinical Purpose\n\n- Anatomical reference\n- Detection of T1 hypointense lesions (cord \"black holes\")\n- Limited value for characterizing intramedullary disease compared to T2\n\n### Note\n\nThis sequence is **optional**. The primary spinal cord sequences are sagittal T2 and STIR/PD.\n\n### Reference\n\nCMSC Task Force. AJNR Am J Neuroradiol 2016;37:394-401.",
+      "tags": ["MS", "spinal cord", "T1-weighted", "sagittal", "structural"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "max": 3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["SE", "GR"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "BodyPartExamined",
+          "tag": "0018,0015",
+          "contains_any": ["SPINE", "CSPINE", "CERVICAL", "TSPINE"],
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "MagneticFieldStrength",
+          "tag": "0018,0087",
+          "min": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "check_no_gap",
+          "name": "No Gap Between Slices",
+          "description": "Spinal cord imaging should have no gap between slices.",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].iloc[0] if \"SpacingBetweenSlices\" in value.columns and not pd.isna(value[\"SpacingBetweenSlices\"].iloc[0]) else slice_thickness\n\ngap = spacing - slice_thickness\nif gap > 0.5:\n    raise ValidationWarning(f\"Gap detected between slices ({gap:.1f} mm). Spinal cord imaging requires no gap.\")",
+          "fields": ["SliceThickness", "SpacingBetweenSlices"],
+          "testCases": [
+            {
+              "id": "test_no_gap",
+              "name": "No gap - passes",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [3.0]},
+              "expectedResult": "pass",
+              "description": "No gap between slices"
+            },
+            {
+              "id": "test_gap_present",
+              "name": "Gap present - warning",
+              "data": {"SliceThickness": [3.0], "SpacingBetweenSlices": [4.0]},
+              "expectedResult": "warning",
+              "description": "1mm gap detected"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

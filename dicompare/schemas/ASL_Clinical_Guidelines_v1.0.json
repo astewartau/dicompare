@@ -1,0 +1,1942 @@
+{
+  "name": "ASL Clinical Guidelines",
+  "description": "Arterial Spin Labeling (ASL) MRI acquisition guidelines based on the ISMRM Perfusion Study Group clinical recommendations (2022), building on the 2015 ASL consensus paper. This schema validates standard DICOM fields (resolution, slice thickness, acquisition type). Note: Key ASL parameters like labeling duration, post-labeling delay, and labeling type are often stored in vendor-specific private tags and cannot be reliably validated across all scanners.",
+  "version": "1.0",
+  "authors": [
+    "ISMRM Perfusion Study Group",
+    "Ashley Stewart"
+  ],
+  "acquisitions": {
+    "ASL general": {
+      "description": "General-purpose single-PLD PCASL for routine clinical neuroimaging",
+      "detailed_description": "## General ASL Protocol\n\nThis acquisition follows the 2015 ASL consensus recommendations for a general-purpose ASL sequence suitable for routine clinical neuroimaging.\n\n### Indications\n\n- Routine clinical practice where no specific indication is known\n- Initial assessment of cerebral hemodynamics\n- Screening for perfusion abnormalities\n- Cases where a \"one-fits-all\" approach is appropriate\n\n### Key Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Labeling technique | PCASL |\n| Labeling duration | 1800 ms |\n| Post-labeling delay | 2000 ms (adults) |\n| Readout | 3D preferred |\n| Resolution | 3-4 mm isotropic |\n| Scan time | 4-5 minutes |\n| Vascular suppression | Disabled |\n| Background suppression | Enabled |\n\n### Labeling Plane Positioning\n\nThe labeling plane should be positioned:\n- Perpendicular to the spine at C2/C3 vertebral level\n- Approximately 4 cm below the base of the cerebellum\n- Roughly perpendicular to both internal carotid and vertebral arteries\n\n### Clinical Notes\n\n- Vascular suppression should be **disabled** to allow visualization of arterial transit artifacts (ATA)\n- ATA can provide valuable diagnostic information about collateral flow and stenoses\n- Check for labeling asymmetry if perfusion appears asymmetric\n- Gadolinium-based contrast must be administered AFTER ASL acquisition\n\n### Vendor-Specific Parameters\n\nKey ASL timing parameters are stored in vendor-specific private tags. DiCompare can extract from Siemens DICOM:\n\n**Siemens (via ASCCONV parsing):**\n- `ArterialSpinLabelingType`: PCASL or PASL\n- `PostLabelDelay`: PLD in seconds (pCASL)\n- `LabelingDuration`: Computed labeling duration (pCASL)\n- `LabelOffset`: Labeling plane position in mm\n- `NumRFBlocks`, `RFGap`: Labeling train parameters\n- `BolusDuration`, `InversionTime`: PASL timing parameters\n\n**Philips:**\n- `TriggerDelayTime`: PLD in milliseconds (for multi-phase ASL)\n- ImageType typically contains \"PERFUSION\"\n\n### Reference\n\nISMRM Perfusion Study Group. Clinical ASL Guidelines Position Paper (2022). Building on: Alsop DC, et al. Recommended implementation of arterial spin-labeled perfusion MRI for clinical applications. Magn Reson Med. 2015;73(1):102-116.",
+      "tags": ["analysis:asl", "ASL", "perfusion", "PCASL", "CBF", "brain", "clinical", "general"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 4,
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [3.5, 3.5],
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["ASL", "PERFUSION"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ArterialSpinLabelingType",
+          "tag": "derived",
+          "value": "PCASL",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "PostLabelDelay",
+          "tag": "derived",
+          "value": 2.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelingDuration",
+          "tag": "derived",
+          "value": 1.8,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelOffset",
+          "tag": "derived",
+          "value": -85,
+          "tolerance": 25,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "ASL should have whole-brain coverage (typically >100mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 100:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain ASL. Consider increasing number of slices.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_coverage_pass",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [4], "Count": [30]},
+              "expectedResult": "pass",
+              "description": "30 slices x 4mm = 120mm coverage"
+            },
+            {
+              "id": "test_coverage_insufficient",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [4], "Count": [20]},
+              "expectedResult": "warning",
+              "description": "20 slices x 4mm = 80mm is insufficient"
+            }
+          ]
+        },
+        {
+          "id": "check_minimum_te",
+          "name": "Minimum Echo Time",
+          "description": "Reminder to verify minimum TE is used to preserve signal from T2/T2* decay.",
+          "implementation": "te = value[\"EchoTime\"].iloc[0]\nraise ValidationWarning(f\"Echo Time is {te} ms. Verify this is the minimum TE available for your sequence - minimum TE should always be used for ASL to preserve signal from T2/T2* decay.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_reminder",
+              "name": "TE reminder",
+              "data": {"EchoTime": [14]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        },
+        {
+          "id": "check_field_strength",
+          "name": "Field Strength",
+          "description": "ASL is SNR-limited and performs significantly better at 3T than 1.5T.",
+          "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength is None or (isinstance(field_strength, float) and pd.isna(field_strength)):\n    pass  # No data available\nelif field_strength < 2.5:\n    raise ValidationWarning(f\"Field strength is {field_strength}T. ASL is SNR-limited and performs significantly better at 3T. At 1.5T, more signal averages and longer scan times are required.\")",
+          "fields": ["MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3t_pass",
+              "name": "3T field strength",
+              "data": {"MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "3T is optimal for ASL"
+            },
+            {
+              "id": "test_1_5t_warning",
+              "name": "1.5T field strength",
+              "data": {"MagneticFieldStrength": [1.5]},
+              "expectedResult": "warning",
+              "description": "1.5T requires more averages"
+            }
+          ]
+        },
+        {
+          "id": "check_repetition_time",
+          "name": "Repetition Time",
+          "description": "TR should be >3500ms to allow substantial relaxation of labeled spins between acquisitions.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\n\nif tr is None or (isinstance(tr, float) and pd.isna(tr)):\n    pass  # No data available\nelse:\n    # TR may be in ms or seconds depending on vendor\n    tr_ms = tr if tr > 100 else tr * 1000\n    if tr_ms < 3500:\n        raise ValidationWarning(f\"TR is {tr_ms:.0f} ms. For ASL, TR should typically be >3500 ms to allow substantial T1 relaxation of labeled spins between acquisitions.\")",
+          "fields": ["RepetitionTime"],
+          "testCases": [
+            {
+              "id": "test_tr_adequate",
+              "name": "Adequate TR",
+              "data": {"RepetitionTime": [4500]},
+              "expectedResult": "pass",
+              "description": "4500ms TR is adequate"
+            },
+            {
+              "id": "test_tr_short",
+              "name": "Short TR",
+              "data": {"RepetitionTime": [2500]},
+              "expectedResult": "warning",
+              "description": "2500ms may be too short"
+            }
+          ]
+        },
+        {
+          "id": "check_signal_averaging",
+          "name": "Signal Averaging",
+          "description": "Validates number of label/control repeats based on acquisition type and field strength. Uses NumberOfTemporalPositions to count volumes, then divides by 2 for ASL repeats.",
+          "implementation": "num_volumes = value[\"NumberOfTemporalPositions\"].iloc[0] if \"NumberOfTemporalPositions\" in value.columns else None\nacq_type = value[\"MRAcquisitionType\"].iloc[0] if \"MRAcquisitionType\" in value.columns else None\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0] if \"MagneticFieldStrength\" in value.columns else 3.0\n\nif num_volumes is None or (isinstance(num_volumes, float) and pd.isna(num_volumes)):\n    pass  # No temporal position data available\nelse:\n    num_volumes = int(num_volumes)\n    num_repeats = num_volumes // 2  # ASL repeats = volumes / 2 (label + control pairs)\n    is_3d = acq_type == \"3D\" if acq_type else False\n    is_3t = field_strength >= 2.5 if field_strength else True\n    \n    if is_3d:\n        # 3D techniques: 2-4 signal averages (repeats)\n        if num_repeats < 2:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically required for acceptable SNR.\")\n        elif num_repeats > 6:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically sufficient. More repeats increase scan time without proportional SNR benefit.\")\n    else:\n        # 2D techniques: 30-50 at 3T, more at 1.5T\n        if is_3t:\n            if num_repeats < 25:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 3T, 30-50 repeats are typically required for acceptable SNR.\")\n            elif num_repeats > 60:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). This exceeds typical requirements (30-50 at 3T) and may result in excessive scan time.\")\n        else:\n            # 1.5T needs even more\n            if num_repeats < 40:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 1.5T, >50 repeats are typically required due to lower SNR.\")",
+          "fields": ["NumberOfTemporalPositions", "MRAcquisitionType", "MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3d_adequate",
+              "name": "3D with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [8], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "8 volumes = 4 repeats, adequate for 3D"
+            },
+            {
+              "id": "test_3d_low",
+              "name": "3D with too few repeats",
+              "data": {"NumberOfTemporalPositions": [2], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "2 volumes = 1 repeat is too few for 3D"
+            },
+            {
+              "id": "test_2d_3t_adequate",
+              "name": "2D at 3T with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [80], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "80 volumes = 40 repeats, adequate for 2D at 3T"
+            },
+            {
+              "id": "test_2d_3t_low",
+              "name": "2D at 3T with too few repeats",
+              "data": {"NumberOfTemporalPositions": [20], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "20 volumes = 10 repeats is too few for 2D at 3T"
+            }
+          ]
+        }
+      ]
+    },
+    "ASL acute ischemic stroke": {
+      "description": "ASL for acute ischemic stroke (AIS) - rapid evaluation protocol",
+      "detailed_description": "## ASL for Acute Ischemic Stroke\n\nThis protocol is optimized for rapid evaluation of acute ischemic stroke (AIS) where time is critical.\n\n### Indications\n\n- Acute ischemic stroke evaluation\n- Large vessel occlusion assessment\n- ASL-DWI mismatch estimation\n- Collateral flow visualization\n\n### Key Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Labeling duration | 1800 ms |\n| Post-labeling delay | 2000 ms |\n| Scan time | ~2 minutes (minimum) |\n| Vascular suppression | **Disabled** |\n\n### Clinical Utility\n\n1. **Mismatch Classification**: Reduced perfusion signal downstream of LVO can estimate ASL-DWI mismatch\n2. **Collateral Visualization**: Arterial transit artifacts (ATA) identify leptomeningeal collaterals\n3. **Distal Occlusion Detection**: ATA highly sensitive to arterial occlusions missed by CTA/MRA\n\n### Interpretation Notes\n\n- **Hyperperfusion** post-revascularization indicates reperfusion (but also increased hemorrhage risk)\n- **ATA** (hyperintense curvilinear signal) = labeled blood in arteries, indicates delayed transit\n- Quantitative CBF may be inaccurate due to transit delays - interpret qualitatively\n- Normal-appearing ASL has high negative predictive value for significant stenosis/occlusion\n\n### Caution\n\nStandard-delay PCASL can **overestimate** perfusion deficits due to transit delays. Consider long-label/long-delay (3000ms/3000ms) if available.\n\n### Reference\n\nISMRM Perfusion Study Group Clinical ASL Guidelines (2022).",
+      "tags": ["analysis:asl", "ASL", "stroke", "AIS", "acute", "perfusion", "emergency", "PCASL", "collateral"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 4,
+          "tolerance": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [3.5, 3.5],
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["ASL", "PERFUSION"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ArterialSpinLabelingType",
+          "tag": "derived",
+          "value": "PCASL",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "PostLabelDelay",
+          "tag": "derived",
+          "value": 2.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelingDuration",
+          "tag": "derived",
+          "value": 1.8,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelOffset",
+          "tag": "derived",
+          "value": -85,
+          "tolerance": 25,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "ASL should have whole-brain coverage (typically >100mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 100:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain ASL. Consider increasing number of slices.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_coverage_pass",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [4], "Count": [30]},
+              "expectedResult": "pass",
+              "description": "30 slices x 4mm = 120mm coverage"
+            },
+            {
+              "id": "test_coverage_insufficient",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [4], "Count": [20]},
+              "expectedResult": "warning",
+              "description": "20 slices x 4mm = 80mm is insufficient"
+            }
+          ]
+        },
+        {
+          "id": "check_minimum_te",
+          "name": "Minimum Echo Time",
+          "description": "Reminder to verify minimum TE is used to preserve signal from T2/T2* decay.",
+          "implementation": "te = value[\"EchoTime\"].iloc[0]\nraise ValidationWarning(f\"Echo Time is {te} ms. Verify this is the minimum TE available for your sequence - minimum TE should always be used for ASL to preserve signal from T2/T2* decay.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_reminder",
+              "name": "TE reminder",
+              "data": {"EchoTime": [14]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        },
+        {
+          "id": "check_field_strength",
+          "name": "Field Strength",
+          "description": "ASL is SNR-limited and performs significantly better at 3T than 1.5T.",
+          "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength is None or (isinstance(field_strength, float) and pd.isna(field_strength)):\n    pass  # No data available\nelif field_strength < 2.5:\n    raise ValidationWarning(f\"Field strength is {field_strength}T. ASL is SNR-limited and performs significantly better at 3T. At 1.5T, more signal averages and longer scan times are required.\")",
+          "fields": ["MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3t_pass",
+              "name": "3T field strength",
+              "data": {"MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "3T is optimal for ASL"
+            },
+            {
+              "id": "test_1_5t_warning",
+              "name": "1.5T field strength",
+              "data": {"MagneticFieldStrength": [1.5]},
+              "expectedResult": "warning",
+              "description": "1.5T requires more averages"
+            }
+          ]
+        },
+        {
+          "id": "check_repetition_time",
+          "name": "Repetition Time",
+          "description": "TR should be >3500ms to allow substantial relaxation of labeled spins between acquisitions.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\n\nif tr is None or (isinstance(tr, float) and pd.isna(tr)):\n    pass  # No data available\nelse:\n    # TR may be in ms or seconds depending on vendor\n    tr_ms = tr if tr > 100 else tr * 1000\n    if tr_ms < 3500:\n        raise ValidationWarning(f\"TR is {tr_ms:.0f} ms. For ASL, TR should typically be >3500 ms to allow substantial T1 relaxation of labeled spins between acquisitions.\")",
+          "fields": ["RepetitionTime"],
+          "testCases": [
+            {
+              "id": "test_tr_adequate",
+              "name": "Adequate TR",
+              "data": {"RepetitionTime": [4500]},
+              "expectedResult": "pass",
+              "description": "4500ms TR is adequate"
+            },
+            {
+              "id": "test_tr_short",
+              "name": "Short TR",
+              "data": {"RepetitionTime": [2500]},
+              "expectedResult": "warning",
+              "description": "2500ms may be too short"
+            }
+          ]
+        },
+        {
+          "id": "check_signal_averaging",
+          "name": "Signal Averaging",
+          "description": "Validates number of label/control repeats based on acquisition type and field strength. Uses NumberOfTemporalPositions to count volumes, then divides by 2 for ASL repeats.",
+          "implementation": "num_volumes = value[\"NumberOfTemporalPositions\"].iloc[0] if \"NumberOfTemporalPositions\" in value.columns else None\nacq_type = value[\"MRAcquisitionType\"].iloc[0] if \"MRAcquisitionType\" in value.columns else None\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0] if \"MagneticFieldStrength\" in value.columns else 3.0\n\nif num_volumes is None or (isinstance(num_volumes, float) and pd.isna(num_volumes)):\n    pass  # No temporal position data available\nelse:\n    num_volumes = int(num_volumes)\n    num_repeats = num_volumes // 2  # ASL repeats = volumes / 2 (label + control pairs)\n    is_3d = acq_type == \"3D\" if acq_type else False\n    is_3t = field_strength >= 2.5 if field_strength else True\n    \n    if is_3d:\n        # 3D techniques: 2-4 signal averages (repeats)\n        if num_repeats < 2:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically required for acceptable SNR.\")\n        elif num_repeats > 6:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically sufficient. More repeats increase scan time without proportional SNR benefit.\")\n    else:\n        # 2D techniques: 30-50 at 3T, more at 1.5T\n        if is_3t:\n            if num_repeats < 25:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 3T, 30-50 repeats are typically required for acceptable SNR.\")\n            elif num_repeats > 60:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). This exceeds typical requirements (30-50 at 3T) and may result in excessive scan time.\")\n        else:\n            # 1.5T needs even more\n            if num_repeats < 40:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 1.5T, >50 repeats are typically required due to lower SNR.\")",
+          "fields": ["NumberOfTemporalPositions", "MRAcquisitionType", "MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3d_adequate",
+              "name": "3D with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [8], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "8 volumes = 4 repeats, adequate for 3D"
+            },
+            {
+              "id": "test_3d_low",
+              "name": "3D with too few repeats",
+              "data": {"NumberOfTemporalPositions": [2], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "2 volumes = 1 repeat is too few for 3D"
+            },
+            {
+              "id": "test_2d_3t_adequate",
+              "name": "2D at 3T with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [80], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "80 volumes = 40 repeats, adequate for 2D at 3T"
+            },
+            {
+              "id": "test_2d_3t_low",
+              "name": "2D at 3T with too few repeats",
+              "data": {"NumberOfTemporalPositions": [20], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "20 volumes = 10 repeats is too few for 2D at 3T"
+            }
+          ]
+        }
+      ]
+    },
+    "ASL chronic steno-occlusive disease": {
+      "description": "ASL for chronic steno-occlusive disease with extended timing",
+      "detailed_description": "## ASL for Chronic Steno-Occlusive Disease\n\nThis protocol uses extended labeling and post-labeling delays to account for prolonged arterial transit times in chronic vascular disease.\n\n### Indications\n\n- Chronic steno-occlusive disease (SOD)\n- Moyamoya disease\n- Intracranial arterial stenosis\n- Extracranial carotid stenosis\n- Cerebrovascular reserve (CVR) assessment\n\n### Key Parameters (This Schema)\n\n| Parameter | Value |\n|-----------|-------|\n| Labeling duration | 3000 ms |\n| Post-labeling delay | 3000 ms |\n| Vascular suppression | **Disabled** |\n\nThis schema validates the **long-label/long-PLD approach** (3000 ms / 3000 ms), which is the primary recommendation for chronic SOD.\n\n### Rationale for Extended Timing\n\nPatients with SOD often have significantly prolonged arterial transit times due to:\n- Stenotic lesions impeding flow\n- Circuitous collateral pathways\n- Compensatory flow redistribution\n\nStandard PLD (2000 ms) may show false hypoperfusion due to label not yet reaching tissue.\n\n### Alternative: Dual-PLD Approach\n\nAn alternative to the long-label/long-PLD approach is acquiring **two separate single-PLD scans** with different delay times:\n\n| Scan | PLD | Purpose |\n|------|-----|--------|\n| First scan | 1500 ms | Captures early-arriving blood, sensitive to ATA |\n| Second scan | 2500 ms | Allows delayed blood to reach tissue |\n\nThe dual-PLD approach helps distinguish arterial transit artifacts (ATA) from true hyperperfusion by comparing the two images. This requires two separate ASL acquisitions in the same session.\n\n**Note:** This schema validates the primary long-label/long-PLD approach. Sites using the dual-PLD alternative will acquire two separate scans that should be validated individually.\n\n### Moyamoya Considerations\n\n- PLD >2000 ms recommended\n- Multi-PLD provides ATT mapping\n- CVR challenge (acetazolamide/CO2) useful for surgical planning\n\n### Longitudinal Monitoring\n\nWhen following patients longitudinally, use **identical parameters** to prior studies for valid comparison.\n\n### Reference\n\nISMRM Perfusion Study Group Clinical ASL Guidelines (2022).",
+      "tags": ["analysis:asl", "ASL", "stroke", "chronic", "SOD", "moyamoya", "stenosis", "carotid", "PCASL", "long-PLD"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["ASL", "PERFUSION"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [3.5, 3.5],
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 4,
+          "tolerance": 1.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PostLabelDelay",
+          "tag": "derived",
+          "value": 3.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelingDuration",
+          "tag": "derived",
+          "value": 3.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ArterialSpinLabelingType",
+          "tag": "derived",
+          "value": "PCASL",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "LabelOffset",
+          "tag": "derived",
+          "value": -85,
+          "tolerance": 25,
+          "vr": "DS",
+          "dataType": "number"
+        }
+
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "ASL should have whole-brain coverage (typically >100mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 100:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain ASL. Consider increasing number of slices.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_coverage_pass",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [4], "Count": [30]},
+              "expectedResult": "pass",
+              "description": "30 slices x 4mm = 120mm coverage"
+            },
+            {
+              "id": "test_coverage_insufficient",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [4], "Count": [20]},
+              "expectedResult": "warning",
+              "description": "20 slices x 4mm = 80mm is insufficient"
+            }
+          ]
+        },
+        {
+          "id": "check_minimum_te",
+          "name": "Minimum Echo Time",
+          "description": "Reminder to verify minimum TE is used to preserve signal from T2/T2* decay.",
+          "implementation": "te = value[\"EchoTime\"].iloc[0]\nraise ValidationWarning(f\"Echo Time is {te} ms. Verify this is the minimum TE available for your sequence - minimum TE should always be used for ASL to preserve signal from T2/T2* decay.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_reminder",
+              "name": "TE reminder",
+              "data": {"EchoTime": [14]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        },
+        {
+          "id": "check_field_strength",
+          "name": "Field Strength",
+          "description": "ASL is SNR-limited and performs significantly better at 3T than 1.5T.",
+          "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength is None or (isinstance(field_strength, float) and pd.isna(field_strength)):\n    pass  # No data available\nelif field_strength < 2.5:\n    raise ValidationWarning(f\"Field strength is {field_strength}T. ASL is SNR-limited and performs significantly better at 3T. At 1.5T, more signal averages and longer scan times are required.\")",
+          "fields": ["MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3t_pass",
+              "name": "3T field strength",
+              "data": {"MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "3T is optimal for ASL"
+            },
+            {
+              "id": "test_1_5t_warning",
+              "name": "1.5T field strength",
+              "data": {"MagneticFieldStrength": [1.5]},
+              "expectedResult": "warning",
+              "description": "1.5T requires more averages"
+            }
+          ]
+        },
+        {
+          "id": "check_repetition_time",
+          "name": "Repetition Time",
+          "description": "TR should be >3500ms to allow substantial relaxation of labeled spins between acquisitions.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\n\nif tr is None or (isinstance(tr, float) and pd.isna(tr)):\n    pass  # No data available\nelse:\n    # TR may be in ms or seconds depending on vendor\n    tr_ms = tr if tr > 100 else tr * 1000\n    if tr_ms < 3500:\n        raise ValidationWarning(f\"TR is {tr_ms:.0f} ms. For ASL, TR should typically be >3500 ms to allow substantial T1 relaxation of labeled spins between acquisitions.\")",
+          "fields": ["RepetitionTime"],
+          "testCases": [
+            {
+              "id": "test_tr_adequate",
+              "name": "Adequate TR",
+              "data": {"RepetitionTime": [4500]},
+              "expectedResult": "pass",
+              "description": "4500ms TR is adequate"
+            },
+            {
+              "id": "test_tr_short",
+              "name": "Short TR",
+              "data": {"RepetitionTime": [2500]},
+              "expectedResult": "warning",
+              "description": "2500ms may be too short"
+            }
+          ]
+        },
+        {
+          "id": "check_signal_averaging",
+          "name": "Signal Averaging",
+          "description": "Validates number of label/control repeats based on acquisition type and field strength. Uses NumberOfTemporalPositions to count volumes, then divides by 2 for ASL repeats.",
+          "implementation": "num_volumes = value[\"NumberOfTemporalPositions\"].iloc[0] if \"NumberOfTemporalPositions\" in value.columns else None\nacq_type = value[\"MRAcquisitionType\"].iloc[0] if \"MRAcquisitionType\" in value.columns else None\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0] if \"MagneticFieldStrength\" in value.columns else 3.0\n\nif num_volumes is None or (isinstance(num_volumes, float) and pd.isna(num_volumes)):\n    pass  # No temporal position data available\nelse:\n    num_volumes = int(num_volumes)\n    num_repeats = num_volumes // 2  # ASL repeats = volumes / 2 (label + control pairs)\n    is_3d = acq_type == \"3D\" if acq_type else False\n    is_3t = field_strength >= 2.5 if field_strength else True\n    \n    if is_3d:\n        # 3D techniques: 2-4 signal averages (repeats)\n        if num_repeats < 2:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically required for acceptable SNR.\")\n        elif num_repeats > 6:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically sufficient. More repeats increase scan time without proportional SNR benefit.\")\n    else:\n        # 2D techniques: 30-50 at 3T, more at 1.5T\n        if is_3t:\n            if num_repeats < 25:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 3T, 30-50 repeats are typically required for acceptable SNR.\")\n            elif num_repeats > 60:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). This exceeds typical requirements (30-50 at 3T) and may result in excessive scan time.\")\n        else:\n            # 1.5T needs even more\n            if num_repeats < 40:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 1.5T, >50 repeats are typically required due to lower SNR.\")",
+          "fields": ["NumberOfTemporalPositions", "MRAcquisitionType", "MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3d_adequate",
+              "name": "3D with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [8], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "8 volumes = 4 repeats, adequate for 3D"
+            },
+            {
+              "id": "test_3d_low",
+              "name": "3D with too few repeats",
+              "data": {"NumberOfTemporalPositions": [2], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "2 volumes = 1 repeat is too few for 3D"
+            },
+            {
+              "id": "test_2d_3t_adequate",
+              "name": "2D at 3T with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [80], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "80 volumes = 40 repeats, adequate for 2D at 3T"
+            },
+            {
+              "id": "test_2d_3t_low",
+              "name": "2D at 3T with too few repeats",
+              "data": {"NumberOfTemporalPositions": [20], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "20 volumes = 10 repeats is too few for 2D at 3T"
+            }
+          ]
+        }
+      ]
+    },
+    "ASL arteriovenous malformations": {
+      "description": "ASL for arteriovenous malformations (AVM) and fistulas (AVF)",
+      "detailed_description": "## ASL for Arteriovenous Malformations and Fistulas\n\nASL is highly sensitive for detecting AV shunt lesions due to the high concentration of labeled blood flowing through shunts.\n\n### Indications\n\n- AVM detection and characterization\n- AVF (arteriovenous fistula) evaluation\n- Post-treatment monitoring (embolization, radiosurgery, gamma knife)\n- Differentiation from developmental venous anomalies (DVA)\n\n### Key Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Labeling duration | 1800 ms |\n| Post-labeling delay | 2000 ms |\n| Vascular suppression | **Disabled** (critical) |\n| Alternative | Multi-PLD for flow characterization |\n\n### Diagnostic Performance\n\n- **Sensitivity**: Up to 95%\n- **Specificity**: ~90%\n- Can detect small AVMs masked by blood products on conventional MRI\n\n### Imaging Features\n\n1. **Nidal hyperintensity**: High ASL signal within the AVM nidus\n2. **Venous signal**: Hyperintense signal in draining veins\n3. **Absent signal in DVA**: Most DVAs show normal ASL signal (helpful for differentiation)\n\n### Treatment Monitoring\n\nASL maintains high sensitivity for residual AV shunting after:\n- Stereotactic radiosurgery\n- Gamma knife therapy\n- Endovascular embolization\n\nNidal/venous signal intensity correlates with degree of AV shunting.\n\n### Pitfalls\n\n- **Jugular venous reflux**: Can mimic venous shunt signal\n- **Capillary shunting**: High-grade tumors, sickle cell disease may show venous signal\n- Use MRA correlation to confirm findings\n\n### Reference\n\nISMRM Perfusion Study Group Clinical ASL Guidelines (2022).",
+      "tags": ["analysis:asl", "ASL", "AVM", "AVF", "shunt", "vascular", "malformation", "fistula", "PCASL"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 4,
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [3.5, 3.5],
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["ASL", "PERFUSION"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ArterialSpinLabelingType",
+          "tag": "derived",
+          "value": "PCASL",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "PostLabelDelay",
+          "tag": "derived",
+          "value": 2.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelingDuration",
+          "tag": "derived",
+          "value": 1.8,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelOffset",
+          "tag": "derived",
+          "value": -85,
+          "tolerance": 25,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "ASL should have whole-brain coverage (typically >100mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 100:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain ASL. Consider increasing number of slices.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_coverage_pass",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [4], "Count": [30]},
+              "expectedResult": "pass",
+              "description": "30 slices x 4mm = 120mm coverage"
+            },
+            {
+              "id": "test_coverage_insufficient",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [4], "Count": [20]},
+              "expectedResult": "warning",
+              "description": "20 slices x 4mm = 80mm is insufficient"
+            }
+          ]
+        },
+        {
+          "id": "check_minimum_te",
+          "name": "Minimum Echo Time",
+          "description": "Reminder to verify minimum TE is used to preserve signal from T2/T2* decay.",
+          "implementation": "te = value[\"EchoTime\"].iloc[0]\nraise ValidationWarning(f\"Echo Time is {te} ms. Verify this is the minimum TE available for your sequence - minimum TE should always be used for ASL to preserve signal from T2/T2* decay.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_reminder",
+              "name": "TE reminder",
+              "data": {"EchoTime": [14]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        },
+        {
+          "id": "check_field_strength",
+          "name": "Field Strength",
+          "description": "ASL is SNR-limited and performs significantly better at 3T than 1.5T.",
+          "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength is None or (isinstance(field_strength, float) and pd.isna(field_strength)):\n    pass  # No data available\nelif field_strength < 2.5:\n    raise ValidationWarning(f\"Field strength is {field_strength}T. ASL is SNR-limited and performs significantly better at 3T. At 1.5T, more signal averages and longer scan times are required.\")",
+          "fields": ["MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3t_pass",
+              "name": "3T field strength",
+              "data": {"MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "3T is optimal for ASL"
+            },
+            {
+              "id": "test_1_5t_warning",
+              "name": "1.5T field strength",
+              "data": {"MagneticFieldStrength": [1.5]},
+              "expectedResult": "warning",
+              "description": "1.5T requires more averages"
+            }
+          ]
+        },
+        {
+          "id": "check_repetition_time",
+          "name": "Repetition Time",
+          "description": "TR should be >3500ms to allow substantial relaxation of labeled spins between acquisitions.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\n\nif tr is None or (isinstance(tr, float) and pd.isna(tr)):\n    pass  # No data available\nelse:\n    # TR may be in ms or seconds depending on vendor\n    tr_ms = tr if tr > 100 else tr * 1000\n    if tr_ms < 3500:\n        raise ValidationWarning(f\"TR is {tr_ms:.0f} ms. For ASL, TR should typically be >3500 ms to allow substantial T1 relaxation of labeled spins between acquisitions.\")",
+          "fields": ["RepetitionTime"],
+          "testCases": [
+            {
+              "id": "test_tr_adequate",
+              "name": "Adequate TR",
+              "data": {"RepetitionTime": [4500]},
+              "expectedResult": "pass",
+              "description": "4500ms TR is adequate"
+            },
+            {
+              "id": "test_tr_short",
+              "name": "Short TR",
+              "data": {"RepetitionTime": [2500]},
+              "expectedResult": "warning",
+              "description": "2500ms may be too short"
+            }
+          ]
+        },
+        {
+          "id": "check_signal_averaging",
+          "name": "Signal Averaging",
+          "description": "Validates number of label/control repeats based on acquisition type and field strength. Uses NumberOfTemporalPositions to count volumes, then divides by 2 for ASL repeats.",
+          "implementation": "num_volumes = value[\"NumberOfTemporalPositions\"].iloc[0] if \"NumberOfTemporalPositions\" in value.columns else None\nacq_type = value[\"MRAcquisitionType\"].iloc[0] if \"MRAcquisitionType\" in value.columns else None\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0] if \"MagneticFieldStrength\" in value.columns else 3.0\n\nif num_volumes is None or (isinstance(num_volumes, float) and pd.isna(num_volumes)):\n    pass  # No temporal position data available\nelse:\n    num_volumes = int(num_volumes)\n    num_repeats = num_volumes // 2  # ASL repeats = volumes / 2 (label + control pairs)\n    is_3d = acq_type == \"3D\" if acq_type else False\n    is_3t = field_strength >= 2.5 if field_strength else True\n    \n    if is_3d:\n        # 3D techniques: 2-4 signal averages (repeats)\n        if num_repeats < 2:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically required for acceptable SNR.\")\n        elif num_repeats > 6:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically sufficient. More repeats increase scan time without proportional SNR benefit.\")\n    else:\n        # 2D techniques: 30-50 at 3T, more at 1.5T\n        if is_3t:\n            if num_repeats < 25:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 3T, 30-50 repeats are typically required for acceptable SNR.\")\n            elif num_repeats > 60:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). This exceeds typical requirements (30-50 at 3T) and may result in excessive scan time.\")\n        else:\n            # 1.5T needs even more\n            if num_repeats < 40:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 1.5T, >50 repeats are typically required due to lower SNR.\")",
+          "fields": ["NumberOfTemporalPositions", "MRAcquisitionType", "MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3d_adequate",
+              "name": "3D with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [8], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "8 volumes = 4 repeats, adequate for 3D"
+            },
+            {
+              "id": "test_3d_low",
+              "name": "3D with too few repeats",
+              "data": {"NumberOfTemporalPositions": [2], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "2 volumes = 1 repeat is too few for 3D"
+            },
+            {
+              "id": "test_2d_3t_adequate",
+              "name": "2D at 3T with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [80], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "80 volumes = 40 repeats, adequate for 2D at 3T"
+            },
+            {
+              "id": "test_2d_3t_low",
+              "name": "2D at 3T with too few repeats",
+              "data": {"NumberOfTemporalPositions": [20], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "20 volumes = 10 repeats is too few for 2D at 3T"
+            }
+          ]
+        }
+      ]
+    },
+    "ASL brain tumor": {
+      "description": "ASL for brain tumor evaluation and monitoring",
+      "detailed_description": "## ASL for Brain Tumors\n\nASL provides perfusion information for tumor characterization without gadolinium, and is particularly useful in post-operative settings with susceptibility artifacts.\n\n### Indications\n\n- Initial tumor characterization\n- Tumor grading (correlation with microvascular density)\n- Differentiation of tumor types (glioma vs metastasis)\n- Progression vs pseudoprogression assessment\n- Post-treatment monitoring\n\n### Key Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Labeling duration | 1800 ms |\n| Post-labeling delay | 2000 ms |\n| Post-processing | Normalize to contralateral tissue |\n\n### Clinical Applications\n\n1. **Tumor Grading**: CBF correlates with tumor grade and microvascular density\n2. **Glioma vs Metastasis**: \n   - High-grade gliomas: elevated intratumoral AND peritumoral perfusion\n   - Hypervascular metastases: elevated perfusion within tumor only\n3. **Progression vs Pseudoprogression**:\n   - True progression: hyperperfusion\n   - Pseudoprogression: iso- to hypoperfusion\n\n### Advantages Over DSC\n\n- No arterial input function required\n- No BBB leakage correction needed\n- Less susceptibility artifact (especially 3D spin-echo)\n- Better performance near post-surgical cavities\n\n### Interpretation Notes\n\n- Lesions <5-10 mm may be too small to characterize\n- Hypervascular metastases (renal, thyroid, melanoma) show high signal\n- Many metastases appear iso/hypointense relative to cortex\n- Macrovascular artifacts (CBF >500 mL/min/100g) indicate highly vascular tumor\n\n### Caution\n\nNormalizing to white matter may be unreliable after radiochemotherapy (WM CBF may be reduced).\n\n### Reference\n\nISMRM Perfusion Study Group Clinical ASL Guidelines (2022).",
+      "tags": ["analysis:asl", "ASL", "tumor", "glioma", "metastasis", "oncology", "brain", "PCASL", "grading"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 4,
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [3.5, 3.5],
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["ASL", "PERFUSION"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ArterialSpinLabelingType",
+          "tag": "derived",
+          "value": "PCASL",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "PostLabelDelay",
+          "tag": "derived",
+          "value": 2.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelingDuration",
+          "tag": "derived",
+          "value": 1.8,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelOffset",
+          "tag": "derived",
+          "value": -85,
+          "tolerance": 25,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "ASL should have whole-brain coverage (typically >100mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 100:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain ASL. Consider increasing number of slices.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_coverage_pass",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [4], "Count": [30]},
+              "expectedResult": "pass",
+              "description": "30 slices x 4mm = 120mm coverage"
+            },
+            {
+              "id": "test_coverage_insufficient",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [4], "Count": [20]},
+              "expectedResult": "warning",
+              "description": "20 slices x 4mm = 80mm is insufficient"
+            }
+          ]
+        },
+        {
+          "id": "check_minimum_te",
+          "name": "Minimum Echo Time",
+          "description": "Reminder to verify minimum TE is used to preserve signal from T2/T2* decay.",
+          "implementation": "te = value[\"EchoTime\"].iloc[0]\nraise ValidationWarning(f\"Echo Time is {te} ms. Verify this is the minimum TE available for your sequence - minimum TE should always be used for ASL to preserve signal from T2/T2* decay.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_reminder",
+              "name": "TE reminder",
+              "data": {"EchoTime": [14]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        },
+        {
+          "id": "check_field_strength",
+          "name": "Field Strength",
+          "description": "ASL is SNR-limited and performs significantly better at 3T than 1.5T.",
+          "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength is None or (isinstance(field_strength, float) and pd.isna(field_strength)):\n    pass  # No data available\nelif field_strength < 2.5:\n    raise ValidationWarning(f\"Field strength is {field_strength}T. ASL is SNR-limited and performs significantly better at 3T. At 1.5T, more signal averages and longer scan times are required.\")",
+          "fields": ["MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3t_pass",
+              "name": "3T field strength",
+              "data": {"MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "3T is optimal for ASL"
+            },
+            {
+              "id": "test_1_5t_warning",
+              "name": "1.5T field strength",
+              "data": {"MagneticFieldStrength": [1.5]},
+              "expectedResult": "warning",
+              "description": "1.5T requires more averages"
+            }
+          ]
+        },
+        {
+          "id": "check_repetition_time",
+          "name": "Repetition Time",
+          "description": "TR should be >3500ms to allow substantial relaxation of labeled spins between acquisitions.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\n\nif tr is None or (isinstance(tr, float) and pd.isna(tr)):\n    pass  # No data available\nelse:\n    # TR may be in ms or seconds depending on vendor\n    tr_ms = tr if tr > 100 else tr * 1000\n    if tr_ms < 3500:\n        raise ValidationWarning(f\"TR is {tr_ms:.0f} ms. For ASL, TR should typically be >3500 ms to allow substantial T1 relaxation of labeled spins between acquisitions.\")",
+          "fields": ["RepetitionTime"],
+          "testCases": [
+            {
+              "id": "test_tr_adequate",
+              "name": "Adequate TR",
+              "data": {"RepetitionTime": [4500]},
+              "expectedResult": "pass",
+              "description": "4500ms TR is adequate"
+            },
+            {
+              "id": "test_tr_short",
+              "name": "Short TR",
+              "data": {"RepetitionTime": [2500]},
+              "expectedResult": "warning",
+              "description": "2500ms may be too short"
+            }
+          ]
+        },
+        {
+          "id": "check_signal_averaging",
+          "name": "Signal Averaging",
+          "description": "Validates number of label/control repeats based on acquisition type and field strength. Uses NumberOfTemporalPositions to count volumes, then divides by 2 for ASL repeats.",
+          "implementation": "num_volumes = value[\"NumberOfTemporalPositions\"].iloc[0] if \"NumberOfTemporalPositions\" in value.columns else None\nacq_type = value[\"MRAcquisitionType\"].iloc[0] if \"MRAcquisitionType\" in value.columns else None\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0] if \"MagneticFieldStrength\" in value.columns else 3.0\n\nif num_volumes is None or (isinstance(num_volumes, float) and pd.isna(num_volumes)):\n    pass  # No temporal position data available\nelse:\n    num_volumes = int(num_volumes)\n    num_repeats = num_volumes // 2  # ASL repeats = volumes / 2 (label + control pairs)\n    is_3d = acq_type == \"3D\" if acq_type else False\n    is_3t = field_strength >= 2.5 if field_strength else True\n    \n    if is_3d:\n        # 3D techniques: 2-4 signal averages (repeats)\n        if num_repeats < 2:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically required for acceptable SNR.\")\n        elif num_repeats > 6:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically sufficient. More repeats increase scan time without proportional SNR benefit.\")\n    else:\n        # 2D techniques: 30-50 at 3T, more at 1.5T\n        if is_3t:\n            if num_repeats < 25:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 3T, 30-50 repeats are typically required for acceptable SNR.\")\n            elif num_repeats > 60:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). This exceeds typical requirements (30-50 at 3T) and may result in excessive scan time.\")\n        else:\n            # 1.5T needs even more\n            if num_repeats < 40:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 1.5T, >50 repeats are typically required due to lower SNR.\")",
+          "fields": ["NumberOfTemporalPositions", "MRAcquisitionType", "MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3d_adequate",
+              "name": "3D with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [8], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "8 volumes = 4 repeats, adequate for 3D"
+            },
+            {
+              "id": "test_3d_low",
+              "name": "3D with too few repeats",
+              "data": {"NumberOfTemporalPositions": [2], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "2 volumes = 1 repeat is too few for 3D"
+            },
+            {
+              "id": "test_2d_3t_adequate",
+              "name": "2D at 3T with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [80], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "80 volumes = 40 repeats, adequate for 2D at 3T"
+            },
+            {
+              "id": "test_2d_3t_low",
+              "name": "2D at 3T with too few repeats",
+              "data": {"NumberOfTemporalPositions": [20], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "20 volumes = 10 repeats is too few for 2D at 3T"
+            }
+          ]
+        }
+      ]
+    },
+    "ASL neurodegenerative disease": {
+      "description": "ASL for neurodegenerative disease with extended PLD for older patients",
+      "detailed_description": "## ASL for Neurodegenerative Disease\n\nASL can detect perfusion patterns associated with neurodegenerative diseases, often before structural changes are visible.\n\n### Indications\n\n- Alzheimer's disease (AD) evaluation\n- Frontotemporal dementia (FTD)\n- Dementia with Lewy bodies (DLB)\n- Parkinson's disease (PD)\n- Mild cognitive impairment (MCI) screening\n- Disease progression monitoring\n\n### Key Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Labeling duration | 1800 ms |\n| Post-labeling delay | **2500 ms** |\n| Alternative | Multi-PLD 300-2500 ms |\n\n### Rationale for Extended PLD\n\nOlder patients and those with cerebrovascular disease have prolonged arterial transit times. Using 2500 ms (vs standard 2000 ms) reduces false hypoperfusion.\n\n### Disease-Specific Patterns\n\n**Alzheimer's Disease:**\n- Hypoperfusion: temporal, parietal, posterior cingulate cortices\n- Also: insula, hippocampus\n- Can predict MCI to AD conversion\n\n**Frontotemporal Dementia:**\n- Frontal and anterior temporal hypoperfusion\n- Can help differentiate from AD\n\n**Dementia with Lewy Bodies:**\n- Posterior cortical hypoperfusion\n- Occipital involvement (unlike AD)\n\n### Clinical Notes\n\n- Changes are often subtle - use colorized maps\n- Can detect changes before macroscopic atrophy\n- Useful as screening tool for FDG-PET referral\n- Gray matter atrophy and CBF reduction interact synergistically\n\n### Confounders\n\n- Caffeine, nicotine, sedation affect CBF\n- Age-related physiological CBF decline\n- Partial volume effects from atrophy\n\n### Reference\n\nISMRM Perfusion Study Group Clinical ASL Guidelines (2022).",
+      "tags": ["analysis:asl", "ASL", "dementia", "Alzheimer", "neurodegenerative", "FTD", "DLB", "Parkinson", "PCASL", "aging"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 4,
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PostLabelDelay",
+          "tag": "derived",
+          "value": 2.5,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [3.5, 3.5],
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["ASL", "PERFUSION"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ArterialSpinLabelingType",
+          "tag": "derived",
+          "value": "PCASL",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "LabelingDuration",
+          "tag": "derived",
+          "value": 1.8,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelOffset",
+          "tag": "derived",
+          "value": -85,
+          "tolerance": 25,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "ASL should have whole-brain coverage (typically >100mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 100:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain ASL. Consider increasing number of slices.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_coverage_pass",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [4], "Count": [30]},
+              "expectedResult": "pass",
+              "description": "30 slices x 4mm = 120mm coverage"
+            },
+            {
+              "id": "test_coverage_insufficient",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [4], "Count": [20]},
+              "expectedResult": "warning",
+              "description": "20 slices x 4mm = 80mm is insufficient"
+            }
+          ]
+        },
+        {
+          "id": "check_minimum_te",
+          "name": "Minimum Echo Time",
+          "description": "Reminder to verify minimum TE is used to preserve signal from T2/T2* decay.",
+          "implementation": "te = value[\"EchoTime\"].iloc[0]\nraise ValidationWarning(f\"Echo Time is {te} ms. Verify this is the minimum TE available for your sequence - minimum TE should always be used for ASL to preserve signal from T2/T2* decay.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_reminder",
+              "name": "TE reminder",
+              "data": {"EchoTime": [14]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        },
+        {
+          "id": "check_field_strength",
+          "name": "Field Strength",
+          "description": "ASL is SNR-limited and performs significantly better at 3T than 1.5T.",
+          "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength is None or (isinstance(field_strength, float) and pd.isna(field_strength)):\n    pass  # No data available\nelif field_strength < 2.5:\n    raise ValidationWarning(f\"Field strength is {field_strength}T. ASL is SNR-limited and performs significantly better at 3T. At 1.5T, more signal averages and longer scan times are required.\")",
+          "fields": ["MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3t_pass",
+              "name": "3T field strength",
+              "data": {"MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "3T is optimal for ASL"
+            },
+            {
+              "id": "test_1_5t_warning",
+              "name": "1.5T field strength",
+              "data": {"MagneticFieldStrength": [1.5]},
+              "expectedResult": "warning",
+              "description": "1.5T requires more averages"
+            }
+          ]
+        },
+        {
+          "id": "check_repetition_time",
+          "name": "Repetition Time",
+          "description": "TR should be >3500ms to allow substantial relaxation of labeled spins between acquisitions.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\n\nif tr is None or (isinstance(tr, float) and pd.isna(tr)):\n    pass  # No data available\nelse:\n    # TR may be in ms or seconds depending on vendor\n    tr_ms = tr if tr > 100 else tr * 1000\n    if tr_ms < 3500:\n        raise ValidationWarning(f\"TR is {tr_ms:.0f} ms. For ASL, TR should typically be >3500 ms to allow substantial T1 relaxation of labeled spins between acquisitions.\")",
+          "fields": ["RepetitionTime"],
+          "testCases": [
+            {
+              "id": "test_tr_adequate",
+              "name": "Adequate TR",
+              "data": {"RepetitionTime": [4500]},
+              "expectedResult": "pass",
+              "description": "4500ms TR is adequate"
+            },
+            {
+              "id": "test_tr_short",
+              "name": "Short TR",
+              "data": {"RepetitionTime": [2500]},
+              "expectedResult": "warning",
+              "description": "2500ms may be too short"
+            }
+          ]
+        },
+        {
+          "id": "check_signal_averaging",
+          "name": "Signal Averaging",
+          "description": "Validates number of label/control repeats based on acquisition type and field strength. Uses NumberOfTemporalPositions to count volumes, then divides by 2 for ASL repeats.",
+          "implementation": "num_volumes = value[\"NumberOfTemporalPositions\"].iloc[0] if \"NumberOfTemporalPositions\" in value.columns else None\nacq_type = value[\"MRAcquisitionType\"].iloc[0] if \"MRAcquisitionType\" in value.columns else None\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0] if \"MagneticFieldStrength\" in value.columns else 3.0\n\nif num_volumes is None or (isinstance(num_volumes, float) and pd.isna(num_volumes)):\n    pass  # No temporal position data available\nelse:\n    num_volumes = int(num_volumes)\n    num_repeats = num_volumes // 2  # ASL repeats = volumes / 2 (label + control pairs)\n    is_3d = acq_type == \"3D\" if acq_type else False\n    is_3t = field_strength >= 2.5 if field_strength else True\n    \n    if is_3d:\n        # 3D techniques: 2-4 signal averages (repeats)\n        if num_repeats < 2:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically required for acceptable SNR.\")\n        elif num_repeats > 6:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically sufficient. More repeats increase scan time without proportional SNR benefit.\")\n    else:\n        # 2D techniques: 30-50 at 3T, more at 1.5T\n        if is_3t:\n            if num_repeats < 25:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 3T, 30-50 repeats are typically required for acceptable SNR.\")\n            elif num_repeats > 60:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). This exceeds typical requirements (30-50 at 3T) and may result in excessive scan time.\")\n        else:\n            # 1.5T needs even more\n            if num_repeats < 40:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 1.5T, >50 repeats are typically required due to lower SNR.\")",
+          "fields": ["NumberOfTemporalPositions", "MRAcquisitionType", "MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3d_adequate",
+              "name": "3D with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [8], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "8 volumes = 4 repeats, adequate for 3D"
+            },
+            {
+              "id": "test_3d_low",
+              "name": "3D with too few repeats",
+              "data": {"NumberOfTemporalPositions": [2], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "2 volumes = 1 repeat is too few for 3D"
+            },
+            {
+              "id": "test_2d_3t_adequate",
+              "name": "2D at 3T with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [80], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "80 volumes = 40 repeats, adequate for 2D at 3T"
+            },
+            {
+              "id": "test_2d_3t_low",
+              "name": "2D at 3T with too few repeats",
+              "data": {"NumberOfTemporalPositions": [20], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "20 volumes = 10 repeats is too few for 2D at 3T"
+            }
+          ]
+        }
+      ]
+    },
+    "ASL seizures and epilepsy": {
+      "description": "ASL for seizure and epilepsy evaluation",
+      "detailed_description": "## ASL for Seizures and Epilepsy\n\nASL can localize epileptogenic foci by detecting ictal hyperperfusion or interictal hypoperfusion without radiation exposure.\n\n### Indications\n\n- First-time acute seizure evaluation\n- Epileptogenic focus localization\n- MRI-negative epilepsy workup\n- Complement to EEG findings\n- Pre-surgical planning\n\n### Key Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Labeling duration | 1800 ms |\n| Post-labeling delay | 2000 ms |\n| Post-processing | Asymmetry indices |\n\n### Perfusion Patterns\n\n| Phase | Perfusion Pattern |\n|-------|------------------|\n| Ictal/Peri-ictal | **Hyperperfusion** |\n| Postictal | **Hypoperfusion** |\n| Interictal | **Hypoperfusion** |\n\n### Clinical Utility\n\n- Unremarkable conventional MRI in 20-40% of epilepsy surgery candidates\n- ASL can reveal functional abnormality when structural imaging is negative\n- No radiation (advantage over PET/SPECT)\n- Repeatable - can scan in different phases\n- Directs high-resolution structural imaging to suspicious regions\n\n### Interpretation\n\n1. Search for hemispheric CBF asymmetry\n2. Correlate with clinical/EEG findings\n3. Rule out vascular causes of asymmetry\n4. Consider repeat with repositioned labeling plane if ambiguous\n\n### Pitfalls\n\n- Labeling efficiency differences can cause false asymmetry\n- Correlate with MRA/contrast perfusion if available\n- Vessel geometry/tortuosity affects labeling\n\n### Reference\n\nISMRM Perfusion Study Group Clinical ASL Guidelines (2022).",
+      "tags": ["analysis:asl", "ASL", "epilepsy", "seizure", "ictal", "interictal", "PCASL", "focus", "localization"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 4,
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [3.5, 3.5],
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["ASL", "PERFUSION"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ArterialSpinLabelingType",
+          "tag": "derived",
+          "value": "PCASL",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "PostLabelDelay",
+          "tag": "derived",
+          "value": 2.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelingDuration",
+          "tag": "derived",
+          "value": 1.8,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelOffset",
+          "tag": "derived",
+          "value": -85,
+          "tolerance": 25,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "ASL should have whole-brain coverage (typically >100mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 100:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain ASL. Consider increasing number of slices.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_coverage_pass",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [4], "Count": [30]},
+              "expectedResult": "pass",
+              "description": "30 slices x 4mm = 120mm coverage"
+            },
+            {
+              "id": "test_coverage_insufficient",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [4], "Count": [20]},
+              "expectedResult": "warning",
+              "description": "20 slices x 4mm = 80mm is insufficient"
+            }
+          ]
+        },
+        {
+          "id": "check_minimum_te",
+          "name": "Minimum Echo Time",
+          "description": "Reminder to verify minimum TE is used to preserve signal from T2/T2* decay.",
+          "implementation": "te = value[\"EchoTime\"].iloc[0]\nraise ValidationWarning(f\"Echo Time is {te} ms. Verify this is the minimum TE available for your sequence - minimum TE should always be used for ASL to preserve signal from T2/T2* decay.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_reminder",
+              "name": "TE reminder",
+              "data": {"EchoTime": [14]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        },
+        {
+          "id": "check_field_strength",
+          "name": "Field Strength",
+          "description": "ASL is SNR-limited and performs significantly better at 3T than 1.5T.",
+          "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength is None or (isinstance(field_strength, float) and pd.isna(field_strength)):\n    pass  # No data available\nelif field_strength < 2.5:\n    raise ValidationWarning(f\"Field strength is {field_strength}T. ASL is SNR-limited and performs significantly better at 3T. At 1.5T, more signal averages and longer scan times are required.\")",
+          "fields": ["MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3t_pass",
+              "name": "3T field strength",
+              "data": {"MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "3T is optimal for ASL"
+            },
+            {
+              "id": "test_1_5t_warning",
+              "name": "1.5T field strength",
+              "data": {"MagneticFieldStrength": [1.5]},
+              "expectedResult": "warning",
+              "description": "1.5T requires more averages"
+            }
+          ]
+        },
+        {
+          "id": "check_repetition_time",
+          "name": "Repetition Time",
+          "description": "TR should be >3500ms to allow substantial relaxation of labeled spins between acquisitions.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\n\nif tr is None or (isinstance(tr, float) and pd.isna(tr)):\n    pass  # No data available\nelse:\n    # TR may be in ms or seconds depending on vendor\n    tr_ms = tr if tr > 100 else tr * 1000\n    if tr_ms < 3500:\n        raise ValidationWarning(f\"TR is {tr_ms:.0f} ms. For ASL, TR should typically be >3500 ms to allow substantial T1 relaxation of labeled spins between acquisitions.\")",
+          "fields": ["RepetitionTime"],
+          "testCases": [
+            {
+              "id": "test_tr_adequate",
+              "name": "Adequate TR",
+              "data": {"RepetitionTime": [4500]},
+              "expectedResult": "pass",
+              "description": "4500ms TR is adequate"
+            },
+            {
+              "id": "test_tr_short",
+              "name": "Short TR",
+              "data": {"RepetitionTime": [2500]},
+              "expectedResult": "warning",
+              "description": "2500ms may be too short"
+            }
+          ]
+        },
+        {
+          "id": "check_signal_averaging",
+          "name": "Signal Averaging",
+          "description": "Validates number of label/control repeats based on acquisition type and field strength. Uses NumberOfTemporalPositions to count volumes, then divides by 2 for ASL repeats.",
+          "implementation": "num_volumes = value[\"NumberOfTemporalPositions\"].iloc[0] if \"NumberOfTemporalPositions\" in value.columns else None\nacq_type = value[\"MRAcquisitionType\"].iloc[0] if \"MRAcquisitionType\" in value.columns else None\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0] if \"MagneticFieldStrength\" in value.columns else 3.0\n\nif num_volumes is None or (isinstance(num_volumes, float) and pd.isna(num_volumes)):\n    pass  # No temporal position data available\nelse:\n    num_volumes = int(num_volumes)\n    num_repeats = num_volumes // 2  # ASL repeats = volumes / 2 (label + control pairs)\n    is_3d = acq_type == \"3D\" if acq_type else False\n    is_3t = field_strength >= 2.5 if field_strength else True\n    \n    if is_3d:\n        # 3D techniques: 2-4 signal averages (repeats)\n        if num_repeats < 2:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically required for acceptable SNR.\")\n        elif num_repeats > 6:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically sufficient. More repeats increase scan time without proportional SNR benefit.\")\n    else:\n        # 2D techniques: 30-50 at 3T, more at 1.5T\n        if is_3t:\n            if num_repeats < 25:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 3T, 30-50 repeats are typically required for acceptable SNR.\")\n            elif num_repeats > 60:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). This exceeds typical requirements (30-50 at 3T) and may result in excessive scan time.\")\n        else:\n            # 1.5T needs even more\n            if num_repeats < 40:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 1.5T, >50 repeats are typically required due to lower SNR.\")",
+          "fields": ["NumberOfTemporalPositions", "MRAcquisitionType", "MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3d_adequate",
+              "name": "3D with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [8], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "8 volumes = 4 repeats, adequate for 3D"
+            },
+            {
+              "id": "test_3d_low",
+              "name": "3D with too few repeats",
+              "data": {"NumberOfTemporalPositions": [2], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "2 volumes = 1 repeat is too few for 3D"
+            },
+            {
+              "id": "test_2d_3t_adequate",
+              "name": "2D at 3T with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [80], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "80 volumes = 40 repeats, adequate for 2D at 3T"
+            },
+            {
+              "id": "test_2d_3t_low",
+              "name": "2D at 3T with too few repeats",
+              "data": {"NumberOfTemporalPositions": [20], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "20 volumes = 10 repeats is too few for 2D at 3T"
+            }
+          ]
+        }
+      ]
+    },
+    "ASL pediatric neonate": {
+      "description": "ASL for neonates (<1 year) with age-adapted parameters",
+      "detailed_description": "## ASL for Neonates (<1 year)\n\nASL is ideal for pediatric imaging as it avoids contrast administration. Neonates require specific parameter adaptations.\n\n### Key Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Labeling duration | 1800 ms |\n| Post-labeling delay | **2000 ms** |\n| In-plane resolution (3D) | **1.5-2.0 mm** |\n| In-plane resolution (2D) | 2.5 mm |\n| Slice thickness | 4 mm |\n\n### Physiological Considerations\n\n- **Shorter neck**: May need reduced labeling distance\n- **Higher brain water**: Affects T1 values\n- **Lower hematocrit**: Prolongs blood T1 (use up to 1850 ms for quantification)\n- **Different CBF distribution**: Brainstem, thalami, basal ganglia, sensorimotor cortex have highest CBF\n- **Cortical CBF is LOW** in newborns (increases dramatically in first years)\n\n### Practical Considerations\n\n- Use dedicated pediatric head coils\n- Higher resolution needed for smaller brain\n- \"Feed and wrap\" technique may work but noisy sequences can wake infant\n- Re-scanning is quick if motion occurs\n- Consider 2D EPI for motion-prone infants (faster)\n\n### Sedation Effects\n\n| Agent | Effect on CBF |\n|-------|---------------|\n| Propofol | Decreases |\n| Ketamine (without benzo) | Increases |\n| Narcotic gases | Variable (dose-dependent) |\n\n**Document sedation agent in report.**\n\n### Reference\n\nISMRM Perfusion Study Group Clinical ASL Guidelines (2022).",
+      "tags": ["analysis:asl", "ASL", "pediatric", "neonate", "infant", "baby", "PCASL", "neonatal"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 4,
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [2.0, 2.0],
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["ASL", "PERFUSION"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ArterialSpinLabelingType",
+          "tag": "derived",
+          "value": "PCASL",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "PostLabelDelay",
+          "tag": "derived",
+          "value": 2.0,
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelingDuration",
+          "tag": "derived",
+          "value": 1.8,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelOffset",
+          "tag": "derived",
+          "value": -85,
+          "tolerance": 25,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "ASL should have whole-brain coverage (typically >100mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 100:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain ASL. Consider increasing number of slices.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_coverage_pass",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [4], "Count": [30]},
+              "expectedResult": "pass",
+              "description": "30 slices x 4mm = 120mm coverage"
+            },
+            {
+              "id": "test_coverage_insufficient",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [4], "Count": [20]},
+              "expectedResult": "warning",
+              "description": "20 slices x 4mm = 80mm is insufficient"
+            }
+          ]
+        },
+        {
+          "id": "check_minimum_te",
+          "name": "Minimum Echo Time",
+          "description": "Reminder to verify minimum TE is used to preserve signal from T2/T2* decay.",
+          "implementation": "te = value[\"EchoTime\"].iloc[0]\nraise ValidationWarning(f\"Echo Time is {te} ms. Verify this is the minimum TE available for your sequence - minimum TE should always be used for ASL to preserve signal from T2/T2* decay.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_reminder",
+              "name": "TE reminder",
+              "data": {"EchoTime": [14]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        },
+        {
+          "id": "check_field_strength",
+          "name": "Field Strength",
+          "description": "ASL is SNR-limited and performs significantly better at 3T than 1.5T.",
+          "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength is None or (isinstance(field_strength, float) and pd.isna(field_strength)):\n    pass  # No data available\nelif field_strength < 2.5:\n    raise ValidationWarning(f\"Field strength is {field_strength}T. ASL is SNR-limited and performs significantly better at 3T. At 1.5T, more signal averages and longer scan times are required.\")",
+          "fields": ["MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3t_pass",
+              "name": "3T field strength",
+              "data": {"MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "3T is optimal for ASL"
+            },
+            {
+              "id": "test_1_5t_warning",
+              "name": "1.5T field strength",
+              "data": {"MagneticFieldStrength": [1.5]},
+              "expectedResult": "warning",
+              "description": "1.5T requires more averages"
+            }
+          ]
+        },
+        {
+          "id": "check_repetition_time",
+          "name": "Repetition Time",
+          "description": "TR should be >3500ms to allow substantial relaxation of labeled spins between acquisitions.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\n\nif tr is None or (isinstance(tr, float) and pd.isna(tr)):\n    pass  # No data available\nelse:\n    # TR may be in ms or seconds depending on vendor\n    tr_ms = tr if tr > 100 else tr * 1000\n    if tr_ms < 3500:\n        raise ValidationWarning(f\"TR is {tr_ms:.0f} ms. For ASL, TR should typically be >3500 ms to allow substantial T1 relaxation of labeled spins between acquisitions.\")",
+          "fields": ["RepetitionTime"],
+          "testCases": [
+            {
+              "id": "test_tr_adequate",
+              "name": "Adequate TR",
+              "data": {"RepetitionTime": [4500]},
+              "expectedResult": "pass",
+              "description": "4500ms TR is adequate"
+            },
+            {
+              "id": "test_tr_short",
+              "name": "Short TR",
+              "data": {"RepetitionTime": [2500]},
+              "expectedResult": "warning",
+              "description": "2500ms may be too short"
+            }
+          ]
+        },
+        {
+          "id": "check_signal_averaging",
+          "name": "Signal Averaging",
+          "description": "Validates number of label/control repeats based on acquisition type and field strength. Uses NumberOfTemporalPositions to count volumes, then divides by 2 for ASL repeats.",
+          "implementation": "num_volumes = value[\"NumberOfTemporalPositions\"].iloc[0] if \"NumberOfTemporalPositions\" in value.columns else None\nacq_type = value[\"MRAcquisitionType\"].iloc[0] if \"MRAcquisitionType\" in value.columns else None\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0] if \"MagneticFieldStrength\" in value.columns else 3.0\n\nif num_volumes is None or (isinstance(num_volumes, float) and pd.isna(num_volumes)):\n    pass  # No temporal position data available\nelse:\n    num_volumes = int(num_volumes)\n    num_repeats = num_volumes // 2  # ASL repeats = volumes / 2 (label + control pairs)\n    is_3d = acq_type == \"3D\" if acq_type else False\n    is_3t = field_strength >= 2.5 if field_strength else True\n    \n    if is_3d:\n        # 3D techniques: 2-4 signal averages (repeats)\n        if num_repeats < 2:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically required for acceptable SNR.\")\n        elif num_repeats > 6:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically sufficient. More repeats increase scan time without proportional SNR benefit.\")\n    else:\n        # 2D techniques: 30-50 at 3T, more at 1.5T\n        if is_3t:\n            if num_repeats < 25:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 3T, 30-50 repeats are typically required for acceptable SNR.\")\n            elif num_repeats > 60:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). This exceeds typical requirements (30-50 at 3T) and may result in excessive scan time.\")\n        else:\n            # 1.5T needs even more\n            if num_repeats < 40:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 1.5T, >50 repeats are typically required due to lower SNR.\")",
+          "fields": ["NumberOfTemporalPositions", "MRAcquisitionType", "MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3d_adequate",
+              "name": "3D with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [8], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "8 volumes = 4 repeats, adequate for 3D"
+            },
+            {
+              "id": "test_3d_low",
+              "name": "3D with too few repeats",
+              "data": {"NumberOfTemporalPositions": [2], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "2 volumes = 1 repeat is too few for 3D"
+            },
+            {
+              "id": "test_2d_3t_adequate",
+              "name": "2D at 3T with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [80], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "80 volumes = 40 repeats, adequate for 2D at 3T"
+            },
+            {
+              "id": "test_2d_3t_low",
+              "name": "2D at 3T with too few repeats",
+              "data": {"NumberOfTemporalPositions": [20], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "20 volumes = 10 repeats is too few for 2D at 3T"
+            }
+          ]
+        }
+      ]
+    },
+    "ASL pediatric child": {
+      "description": "ASL for children (1-10 years) with age-adapted parameters",
+      "detailed_description": "## ASL for Children (1-10 years)\n\n### Key Parameters\n\n| Age Group | PLD | Resolution (3D) | Slice Thickness |\n|-----------|-----|-----------------|----------------|\n| 1-4 years | **1500 ms** | 2.5-3 mm | 4-6 mm |\n| 5-10 years | **1500 ms** | 2.5-3.5 mm | 4-7 mm |\n\n### Notes\n\n- **Shorter PLD (1500 ms)** compared to adults due to faster arterial transit\n- Whole-brain CBF peaks in preschool children (5-8 years)\n- Cortical CBF increases dramatically from birth through early childhood\n- Consider dedicated pediatric head coils\n\n### Motion Management\n\n- 2D EPI can be used for motion-prone children\n- Lower resolution allows shorter scan times\n- Prospective motion correction if available\n- M0 map can be omitted for qualitative assessment (saves time)\n\n### CBF Changes with Development\n\n- CBF peaks at age 5-8 years (almost double adult values)\n- Then gradually decreases through adolescence\n- GM-WM CBF ratio changes during brain maturation\n\n### Reference\n\nISMRM Perfusion Study Group Clinical ASL Guidelines (2022).",
+      "tags": ["analysis:asl", "ASL", "pediatric", "child", "toddler", "PCASL"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 5,
+          "tolerance": 2,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [3.0, 3.0],
+          "tolerance": 0.5,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "PostLabelDelay",
+          "tag": "derived",
+          "value": 1.5,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["ASL", "PERFUSION"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ArterialSpinLabelingType",
+          "tag": "derived",
+          "value": "PCASL",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "LabelingDuration",
+          "tag": "derived",
+          "value": 1.8,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelOffset",
+          "tag": "derived",
+          "value": -85,
+          "tolerance": 25,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "ASL should have whole-brain coverage (typically >100mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 100:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain ASL. Consider increasing number of slices.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_coverage_pass",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [4], "Count": [30]},
+              "expectedResult": "pass",
+              "description": "30 slices x 4mm = 120mm coverage"
+            },
+            {
+              "id": "test_coverage_insufficient",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [4], "Count": [20]},
+              "expectedResult": "warning",
+              "description": "20 slices x 4mm = 80mm is insufficient"
+            }
+          ]
+        },
+        {
+          "id": "check_minimum_te",
+          "name": "Minimum Echo Time",
+          "description": "Reminder to verify minimum TE is used to preserve signal from T2/T2* decay.",
+          "implementation": "te = value[\"EchoTime\"].iloc[0]\nraise ValidationWarning(f\"Echo Time is {te} ms. Verify this is the minimum TE available for your sequence - minimum TE should always be used for ASL to preserve signal from T2/T2* decay.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_reminder",
+              "name": "TE reminder",
+              "data": {"EchoTime": [14]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        },
+        {
+          "id": "check_field_strength",
+          "name": "Field Strength",
+          "description": "ASL is SNR-limited and performs significantly better at 3T than 1.5T.",
+          "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength is None or (isinstance(field_strength, float) and pd.isna(field_strength)):\n    pass  # No data available\nelif field_strength < 2.5:\n    raise ValidationWarning(f\"Field strength is {field_strength}T. ASL is SNR-limited and performs significantly better at 3T. At 1.5T, more signal averages and longer scan times are required.\")",
+          "fields": ["MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3t_pass",
+              "name": "3T field strength",
+              "data": {"MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "3T is optimal for ASL"
+            },
+            {
+              "id": "test_1_5t_warning",
+              "name": "1.5T field strength",
+              "data": {"MagneticFieldStrength": [1.5]},
+              "expectedResult": "warning",
+              "description": "1.5T requires more averages"
+            }
+          ]
+        },
+        {
+          "id": "check_repetition_time",
+          "name": "Repetition Time",
+          "description": "TR should be >3500ms to allow substantial relaxation of labeled spins between acquisitions.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\n\nif tr is None or (isinstance(tr, float) and pd.isna(tr)):\n    pass  # No data available\nelse:\n    # TR may be in ms or seconds depending on vendor\n    tr_ms = tr if tr > 100 else tr * 1000\n    if tr_ms < 3500:\n        raise ValidationWarning(f\"TR is {tr_ms:.0f} ms. For ASL, TR should typically be >3500 ms to allow substantial T1 relaxation of labeled spins between acquisitions.\")",
+          "fields": ["RepetitionTime"],
+          "testCases": [
+            {
+              "id": "test_tr_adequate",
+              "name": "Adequate TR",
+              "data": {"RepetitionTime": [4500]},
+              "expectedResult": "pass",
+              "description": "4500ms TR is adequate"
+            },
+            {
+              "id": "test_tr_short",
+              "name": "Short TR",
+              "data": {"RepetitionTime": [2500]},
+              "expectedResult": "warning",
+              "description": "2500ms may be too short"
+            }
+          ]
+        },
+        {
+          "id": "check_signal_averaging",
+          "name": "Signal Averaging",
+          "description": "Validates number of label/control repeats based on acquisition type and field strength. Uses NumberOfTemporalPositions to count volumes, then divides by 2 for ASL repeats.",
+          "implementation": "num_volumes = value[\"NumberOfTemporalPositions\"].iloc[0] if \"NumberOfTemporalPositions\" in value.columns else None\nacq_type = value[\"MRAcquisitionType\"].iloc[0] if \"MRAcquisitionType\" in value.columns else None\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0] if \"MagneticFieldStrength\" in value.columns else 3.0\n\nif num_volumes is None or (isinstance(num_volumes, float) and pd.isna(num_volumes)):\n    pass  # No temporal position data available\nelse:\n    num_volumes = int(num_volumes)\n    num_repeats = num_volumes // 2  # ASL repeats = volumes / 2 (label + control pairs)\n    is_3d = acq_type == \"3D\" if acq_type else False\n    is_3t = field_strength >= 2.5 if field_strength else True\n    \n    if is_3d:\n        # 3D techniques: 2-4 signal averages (repeats)\n        if num_repeats < 2:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically required for acceptable SNR.\")\n        elif num_repeats > 6:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically sufficient. More repeats increase scan time without proportional SNR benefit.\")\n    else:\n        # 2D techniques: 30-50 at 3T, more at 1.5T\n        if is_3t:\n            if num_repeats < 25:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 3T, 30-50 repeats are typically required for acceptable SNR.\")\n            elif num_repeats > 60:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). This exceeds typical requirements (30-50 at 3T) and may result in excessive scan time.\")\n        else:\n            # 1.5T needs even more\n            if num_repeats < 40:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 1.5T, >50 repeats are typically required due to lower SNR.\")",
+          "fields": ["NumberOfTemporalPositions", "MRAcquisitionType", "MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3d_adequate",
+              "name": "3D with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [8], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "8 volumes = 4 repeats, adequate for 3D"
+            },
+            {
+              "id": "test_3d_low",
+              "name": "3D with too few repeats",
+              "data": {"NumberOfTemporalPositions": [2], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "2 volumes = 1 repeat is too few for 3D"
+            },
+            {
+              "id": "test_2d_3t_adequate",
+              "name": "2D at 3T with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [80], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "80 volumes = 40 repeats, adequate for 2D at 3T"
+            },
+            {
+              "id": "test_2d_3t_low",
+              "name": "2D at 3T with too few repeats",
+              "data": {"NumberOfTemporalPositions": [20], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "20 volumes = 10 repeats is too few for 2D at 3T"
+            }
+          ]
+        }
+      ]
+    },
+    "ASL pediatric adolescent": {
+      "description": "ASL for adolescents (11-17 years) with age-adapted parameters",
+      "detailed_description": "## ASL for Adolescents (11-17 years)\n\n### Key Parameters\n\n| Parameter | Value |\n|-----------|-------|\n| Labeling duration | 1800 ms |\n| Post-labeling delay | **1500 ms** |\n| In-plane resolution (3D) | 2.5-3.5 mm |\n| In-plane resolution (2D) | 3-4 mm |\n| Slice thickness | 4-8 mm |\n\n### Notes\n\n- Shorter PLD (1500 ms) compared to adults - faster transit times\n- CBF tapers from childhood peak toward adult levels\n- Parameters intermediate between children and adults\n- Less motion concern than younger children\n\n### Reference\n\nISMRM Perfusion Study Group Clinical ASL Guidelines (2022).",
+      "tags": ["analysis:asl", "ASL", "pediatric", "adolescent", "teenager", "PCASL"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 5,
+          "tolerance": 3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [3.0, 3.0],
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "list_number"
+        },
+        {
+          "field": "PostLabelDelay",
+          "tag": "derived",
+          "value": 1.5,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "3D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "ImageType",
+          "tag": "0008,0008",
+          "contains_any": ["ASL", "PERFUSION"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "ArterialSpinLabelingType",
+          "tag": "derived",
+          "value": "PCASL",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "LabelingDuration",
+          "tag": "derived",
+          "value": 1.8,
+          "tolerance": 0.3,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "LabelOffset",
+          "tag": "derived",
+          "value": -85,
+          "tolerance": 25,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_whole_brain_coverage",
+          "name": "Whole Brain Coverage",
+          "description": "ASL should have whole-brain coverage (typically >100mm in z-direction).",
+          "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nnum_slices = value[\"Count\"].iloc[0]\ncoverage = slice_thickness * num_slices\n\nif coverage < 100:\n    raise ValidationWarning(f\"Brain coverage ({coverage:.0f} mm) may be insufficient for whole-brain ASL. Consider increasing number of slices.\")",
+          "fields": ["SliceThickness"],
+          "testCases": [
+            {
+              "id": "test_coverage_pass",
+              "name": "Good coverage",
+              "data": {"SliceThickness": [4], "Count": [30]},
+              "expectedResult": "pass",
+              "description": "30 slices x 4mm = 120mm coverage"
+            },
+            {
+              "id": "test_coverage_insufficient",
+              "name": "Insufficient coverage",
+              "data": {"SliceThickness": [4], "Count": [20]},
+              "expectedResult": "warning",
+              "description": "20 slices x 4mm = 80mm is insufficient"
+            }
+          ]
+        },
+        {
+          "id": "check_minimum_te",
+          "name": "Minimum Echo Time",
+          "description": "Reminder to verify minimum TE is used to preserve signal from T2/T2* decay.",
+          "implementation": "te = value[\"EchoTime\"].iloc[0]\nraise ValidationWarning(f\"Echo Time is {te} ms. Verify this is the minimum TE available for your sequence - minimum TE should always be used for ASL to preserve signal from T2/T2* decay.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_reminder",
+              "name": "TE reminder",
+              "data": {"EchoTime": [14]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        },
+        {
+          "id": "check_field_strength",
+          "name": "Field Strength",
+          "description": "ASL is SNR-limited and performs significantly better at 3T than 1.5T.",
+          "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength is None or (isinstance(field_strength, float) and pd.isna(field_strength)):\n    pass  # No data available\nelif field_strength < 2.5:\n    raise ValidationWarning(f\"Field strength is {field_strength}T. ASL is SNR-limited and performs significantly better at 3T. At 1.5T, more signal averages and longer scan times are required.\")",
+          "fields": ["MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3t_pass",
+              "name": "3T field strength",
+              "data": {"MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "3T is optimal for ASL"
+            },
+            {
+              "id": "test_1_5t_warning",
+              "name": "1.5T field strength",
+              "data": {"MagneticFieldStrength": [1.5]},
+              "expectedResult": "warning",
+              "description": "1.5T requires more averages"
+            }
+          ]
+        },
+        {
+          "id": "check_repetition_time",
+          "name": "Repetition Time",
+          "description": "TR should be >3500ms to allow substantial relaxation of labeled spins between acquisitions.",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\n\nif tr is None or (isinstance(tr, float) and pd.isna(tr)):\n    pass  # No data available\nelse:\n    # TR may be in ms or seconds depending on vendor\n    tr_ms = tr if tr > 100 else tr * 1000\n    if tr_ms < 3500:\n        raise ValidationWarning(f\"TR is {tr_ms:.0f} ms. For ASL, TR should typically be >3500 ms to allow substantial T1 relaxation of labeled spins between acquisitions.\")",
+          "fields": ["RepetitionTime"],
+          "testCases": [
+            {
+              "id": "test_tr_adequate",
+              "name": "Adequate TR",
+              "data": {"RepetitionTime": [4500]},
+              "expectedResult": "pass",
+              "description": "4500ms TR is adequate"
+            },
+            {
+              "id": "test_tr_short",
+              "name": "Short TR",
+              "data": {"RepetitionTime": [2500]},
+              "expectedResult": "warning",
+              "description": "2500ms may be too short"
+            }
+          ]
+        },
+        {
+          "id": "check_signal_averaging",
+          "name": "Signal Averaging",
+          "description": "Validates number of label/control repeats based on acquisition type and field strength. Uses NumberOfTemporalPositions to count volumes, then divides by 2 for ASL repeats.",
+          "implementation": "num_volumes = value[\"NumberOfTemporalPositions\"].iloc[0] if \"NumberOfTemporalPositions\" in value.columns else None\nacq_type = value[\"MRAcquisitionType\"].iloc[0] if \"MRAcquisitionType\" in value.columns else None\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0] if \"MagneticFieldStrength\" in value.columns else 3.0\n\nif num_volumes is None or (isinstance(num_volumes, float) and pd.isna(num_volumes)):\n    pass  # No temporal position data available\nelse:\n    num_volumes = int(num_volumes)\n    num_repeats = num_volumes // 2  # ASL repeats = volumes / 2 (label + control pairs)\n    is_3d = acq_type == \"3D\" if acq_type else False\n    is_3t = field_strength >= 2.5 if field_strength else True\n    \n    if is_3d:\n        # 3D techniques: 2-4 signal averages (repeats)\n        if num_repeats < 2:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically required for acceptable SNR.\")\n        elif num_repeats > 6:\n            raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 3D ASL, 2-4 repeats are typically sufficient. More repeats increase scan time without proportional SNR benefit.\")\n    else:\n        # 2D techniques: 30-50 at 3T, more at 1.5T\n        if is_3t:\n            if num_repeats < 25:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 3T, 30-50 repeats are typically required for acceptable SNR.\")\n            elif num_repeats > 60:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). This exceeds typical requirements (30-50 at 3T) and may result in excessive scan time.\")\n        else:\n            # 1.5T needs even more\n            if num_repeats < 40:\n                raise ValidationWarning(f\"Number of ASL repeats is {num_repeats} ({num_volumes} volumes). For 2D ASL at 1.5T, >50 repeats are typically required due to lower SNR.\")",
+          "fields": ["NumberOfTemporalPositions", "MRAcquisitionType", "MagneticFieldStrength"],
+          "testCases": [
+            {
+              "id": "test_3d_adequate",
+              "name": "3D with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [8], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "8 volumes = 4 repeats, adequate for 3D"
+            },
+            {
+              "id": "test_3d_low",
+              "name": "3D with too few repeats",
+              "data": {"NumberOfTemporalPositions": [2], "MRAcquisitionType": ["3D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "2 volumes = 1 repeat is too few for 3D"
+            },
+            {
+              "id": "test_2d_3t_adequate",
+              "name": "2D at 3T with adequate repeats",
+              "data": {"NumberOfTemporalPositions": [80], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "pass",
+              "description": "80 volumes = 40 repeats, adequate for 2D at 3T"
+            },
+            {
+              "id": "test_2d_3t_low",
+              "name": "2D at 3T with too few repeats",
+              "data": {"NumberOfTemporalPositions": [20], "MRAcquisitionType": ["2D"], "MagneticFieldStrength": [3.0]},
+              "expectedResult": "warning",
+              "description": "20 volumes = 10 repeats is too few for 2D at 3T"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

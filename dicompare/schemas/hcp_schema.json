@@ -7,9 +7,9 @@
     "WU-Minn HCP Consortium"
   ],
   "acquisitions": {
-    "HCP_T1w_MPR": {
+    "T1-weighted 3D MPRAGE": {
       "description": "3D T1-weighted MPRAGE structural imaging",
-      "tags": ["brain", "structural", "T1-weighted"],
+      "tags": ["analysis:segmentation", "analysis:volumetry", "analysis:cortical-thickness", "brain", "structural", "T1-weighted"],
       "detailed_description": "## 3D T1-Weighted Structural Imaging (MPRAGE)\n\nHigh-resolution T1-weighted magnetization-prepared rapid acquisition gradient echo for cortical surface reconstruction and subcortical segmentation. Two T1w scans are acquired and averaged for improved SNR.\n\n### Documented Parameters (from HCP Appendix I)\n| Parameter | Value |\n|-----------|-------|\n| Sequence | tfl (MPRAGE) |\n| Acquisition Time | 7:40 |\n| Voxel Size | 0.7 \u00d7 0.7 \u00d7 0.7 mm |\n| TR | 2400 ms |\n| TE | 2.14 ms |\n| TI | 1000 ms |\n| Flip Angle | 8\u00b0 |\n| FOV Read | 224 mm |\n| FOV Phase | 100% |\n| Base Resolution | 320 |\n| Phase Resolution | 100% |\n| Slices per Slab | 256 |\n| Orientation | Sagittal |\n| Phase Encoding | A >> P |\n| PAT Mode | GRAPPA |\n| Acceleration Factor | 2 |\n| Reference Lines | 32 |\n| Fat Suppression | Water excitation fast |\n| Magnetization Prep | Non-selective IR |\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 24-25",
       "fields": [
         {
@@ -121,9 +121,9 @@
       "series": [],
       "rules": []
     },
-    "HCP_T2w_SPC": {
+    "T2-weighted 3D SPACE": {
       "description": "3D T2-weighted SPACE structural imaging",
-      "tags": ["brain", "structural", "T2-weighted"],
+      "tags": ["analysis:segmentation", "analysis:lesion-detection", "brain", "structural", "T2-weighted"],
       "detailed_description": "## 3D T2-Weighted Structural Imaging (SPACE)\n\nHigh-resolution T2-weighted 3D fast spin echo with variable flip angle for white matter lesion detection and CSF quantification. Two T2w scans are acquired and averaged for improved SNR.\n\n### Documented Parameters (from HCP Appendix I)\n| Parameter | Value |\n|-----------|-------|\n| Sequence | spc (SPACE) |\n| Acquisition Time | 8:24 |\n| Voxel Size | 0.7 \u00d7 0.7 \u00d7 0.7 mm |\n| TR | 3200 ms |\n| TE | 565 ms |\n| FOV Read | 224 mm |\n| FOV Phase | 100% |\n| Base Resolution | 320 |\n| Phase Resolution | 100% |\n| Slices per Slab | 256 |\n| Orientation | Sagittal |\n| Phase Encoding | A >> P |\n| PAT Mode | GRAPPA |\n| Acceleration Factor | 2 |\n| Reference Lines | 32 |\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 26-28",
       "fields": [
         {
@@ -214,7 +214,7 @@
       "series": [],
       "rules": []
     },
-    "HCP_SpinEchoFieldMap": {
+    "Spin-Echo Field Map": {
       "description": "Spin-echo EPI field map for fMRI distortion correction",
       "tags": ["brain", "fieldmap"],
       "detailed_description": "## Spin-Echo Field Map for fMRI\n\nSpin-echo EPI acquisitions with reversed phase encoding polarity (RL and LR) for estimating and correcting susceptibility-induced distortions in the gradient-echo fMRI data using FSL's TOPUP.\n\n### Documented Parameters (from HCP Appendix I)\n| Parameter | Value |\n|-----------|-------|\n| Sequence | cmrr_mbep2d_se (epse) |\n| Acquisition Time | 0:28 |\n| Voxel Size | 2.0 \u00d7 2.0 \u00d7 2.0 mm |\n| TR | 7060 ms |\n| TE | 58.0 ms |\n| Slices | 72 |\n| FOV Read | 208 mm |\n| FOV Phase | 86.5% |\n| Orientation | Transverse (T > C-20.0) |\n| Phase Encoding | R >> L and L >> R (paired) |\n| Multiband Factor | 1 (single-band reference) |\n| Refocus Flip Angle | 180\u00b0 |\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 39-40",
@@ -282,9 +282,9 @@
       "series": [],
       "rules": []
     },
-    "HCP_rfMRI_REST": {
+    "Resting-State fMRI": {
       "description": "Resting-state fMRI with multiband acceleration",
-      "tags": ["brain", "fMRI", "resting-state", "multiband"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "resting-state", "multiband"],
       "detailed_description": "## Resting-State Functional MRI\n\nHigh temporal resolution resting-state fMRI using gradient-echo EPI with multiband (simultaneous multi-slice) acceleration. Participants fixate on a bright crosshair on dark background with eyes open. Four runs of ~15 minutes each are acquired.\n\n### Documented Parameters (from HCP Appendix I)\n| Parameter | Value |\n|-----------|-------|\n| Sequence | cmrr_mbep2d_bold (epfid) |\n| Acquisition Time | 14:33 per run |\n| Voxel Size | 2.0 \u00d7 2.0 \u00d7 2.0 mm |\n| TR | 720 ms |\n| TE | 33.1 ms |\n| Flip Angle | 52\u00b0 |\n| Slices | 72 |\n| FOV Read | 208 mm |\n| FOV Phase | 86.5% |\n| Base Resolution | 104 |\n| Phase Resolution | 100% |\n| Orientation | Transverse (T > C-20.0) |\n| Phase Encoding | R >> L or L >> R (alternating) |\n| Multiband Factor | 8 |\n| Bandwidth | 2290 Hz/Px |\n| Echo Spacing | 0.58 ms |\n| EPI Factor | 90 |\n| Measurements | 1200 frames |\n| Fat Suppression | Fat saturation |\n\n### Phase Encoding\nWithin each session, acquisitions alternate between right-to-left (RL) and left-to-right (LR) phase encoding directions for distortion correction.\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 41-44",
       "fields": [
         {
@@ -398,9 +398,9 @@
       "series": [],
       "rules": []
     },
-    "HCP_tfMRI_WM": {
+    "Task fMRI - Working Memory (N-back)": {
       "description": "Task fMRI - Working Memory (N-back)",
-      "tags": ["brain", "fMRI", "task-based", "multiband"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "multiband"],
       "detailed_description": "## Task fMRI - Working Memory (N-back)\n\nN-back working memory task with faces, places, tools, and body parts. Includes 0-back (target matching) and 2-back (working memory) conditions.\n\n### Imaging Parameters\nSame as resting-state fMRI (from HCP Appendix I):\n| Parameter | Value |\n|-----------|-------|\n| Sequence | cmrr_mbep2d_bold |\n| Voxel Size | 2.0 \u00d7 2.0 \u00d7 2.0 mm |\n| TR | 720 ms |\n| TE | 33.1 ms |\n| Flip Angle | 52\u00b0 |\n| Slices | 72 |\n| Multiband Factor | 8 |\n| Bandwidth | 2290 Hz/Px |\n| Echo Spacing | 0.58 ms |\n| Measurements | 405 frames |\n\n### Task Design\nBlock design paradigm (preferred over event-related for efficiency).\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 37-38",
       "fields": [
         {
@@ -514,9 +514,9 @@
       "series": [],
       "rules": []
     },
-    "HCP_tfMRI_GAMBLING": {
+    "Task fMRI - Gambling (Reward)": {
       "description": "Task fMRI - Gambling (Reward Processing)",
-      "tags": ["brain", "fMRI", "task-based", "multiband"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "multiband"],
       "detailed_description": "## Task fMRI - Gambling (Reward Processing)\n\nCard guessing task measuring reward and loss processing. Participants guess if a hidden card is higher or lower than 5.\n\n### Imaging Parameters\nSame as resting-state fMRI (from HCP Appendix I):\n| Parameter | Value |\n|-----------|-------|\n| Sequence | cmrr_mbep2d_bold |\n| Voxel Size | 2.0 \u00d7 2.0 \u00d7 2.0 mm |\n| TR | 720 ms |\n| TE | 33.1 ms |\n| Flip Angle | 52\u00b0 |\n| Slices | 72 |\n| Multiband Factor | 8 |\n| Bandwidth | 2290 Hz/Px |\n| Echo Spacing | 0.58 ms |\n| Measurements | 253 frames |\n\n### Task Design\nBlock design paradigm (preferred over event-related for efficiency).\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 37-38",
       "fields": [
         {
@@ -630,9 +630,9 @@
       "series": [],
       "rules": []
     },
-    "HCP_tfMRI_MOTOR": {
+    "Task fMRI - Motor": {
       "description": "Task fMRI - Motor",
-      "tags": ["brain", "fMRI", "task-based", "multiband"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "multiband"],
       "detailed_description": "## Task fMRI - Motor\n\nVisual cues prompt finger tapping (left/right), toe squeezing (left/right), or tongue movement. Each movement block lasts 12 seconds (10 movements) preceded by 3-second cue.\n\n### Imaging Parameters\nSame as resting-state fMRI (from HCP Appendix I):\n| Parameter | Value |\n|-----------|-------|\n| Sequence | cmrr_mbep2d_bold |\n| Voxel Size | 2.0 \u00d7 2.0 \u00d7 2.0 mm |\n| TR | 720 ms |\n| TE | 33.1 ms |\n| Flip Angle | 52\u00b0 |\n| Slices | 72 |\n| Multiband Factor | 8 |\n| Bandwidth | 2290 Hz/Px |\n| Echo Spacing | 0.58 ms |\n| Measurements | 284 frames |\n\n### Task Design\nBlock design paradigm (preferred over event-related for efficiency).\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 37-38",
       "fields": [
         {
@@ -746,9 +746,9 @@
       "series": [],
       "rules": []
     },
-    "HCP_tfMRI_LANGUAGE": {
+    "Task fMRI - Language": {
       "description": "Task fMRI - Language",
-      "tags": ["brain", "fMRI", "task-based", "multiband"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "multiband"],
       "detailed_description": "## Task fMRI - Language\n\nStory comprehension vs. arithmetic task measuring semantic and phonological language processing.\n\n### Imaging Parameters\nSame as resting-state fMRI (from HCP Appendix I):\n| Parameter | Value |\n|-----------|-------|\n| Sequence | cmrr_mbep2d_bold |\n| Voxel Size | 2.0 \u00d7 2.0 \u00d7 2.0 mm |\n| TR | 720 ms |\n| TE | 33.1 ms |\n| Flip Angle | 52\u00b0 |\n| Slices | 72 |\n| Multiband Factor | 8 |\n| Bandwidth | 2290 Hz/Px |\n| Echo Spacing | 0.58 ms |\n| Measurements | 316 frames |\n\n### Task Design\nBlock design paradigm (preferred over event-related for efficiency).\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 37-38",
       "fields": [
         {
@@ -862,9 +862,9 @@
       "series": [],
       "rules": []
     },
-    "HCP_tfMRI_SOCIAL": {
+    "Task fMRI - Social Cognition": {
       "description": "Task fMRI - Social Cognition (Theory of Mind)",
-      "tags": ["brain", "fMRI", "task-based", "multiband"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "multiband"],
       "detailed_description": "## Task fMRI - Social Cognition (Theory of Mind)\n\nAnimated shapes task measuring theory of mind and social cognition abilities.\n\n### Imaging Parameters\nSame as resting-state fMRI (from HCP Appendix I):\n| Parameter | Value |\n|-----------|-------|\n| Sequence | cmrr_mbep2d_bold |\n| Voxel Size | 2.0 \u00d7 2.0 \u00d7 2.0 mm |\n| TR | 720 ms |\n| TE | 33.1 ms |\n| Flip Angle | 52\u00b0 |\n| Slices | 72 |\n| Multiband Factor | 8 |\n| Bandwidth | 2290 Hz/Px |\n| Echo Spacing | 0.58 ms |\n| Measurements | 274 frames |\n\n### Task Design\nBlock design paradigm (preferred over event-related for efficiency).\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 37-38",
       "fields": [
         {
@@ -978,9 +978,9 @@
       "series": [],
       "rules": []
     },
-    "HCP_tfMRI_RELATIONAL": {
+    "Task fMRI - Relational Processing": {
       "description": "Task fMRI - Relational Processing",
-      "tags": ["brain", "fMRI", "task-based", "multiband"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "multiband"],
       "detailed_description": "## Task fMRI - Relational Processing\n\nRelational matching task comparing relational vs. control matching conditions.\n\n### Imaging Parameters\nSame as resting-state fMRI (from HCP Appendix I):\n| Parameter | Value |\n|-----------|-------|\n| Sequence | cmrr_mbep2d_bold |\n| Voxel Size | 2.0 \u00d7 2.0 \u00d7 2.0 mm |\n| TR | 720 ms |\n| TE | 33.1 ms |\n| Flip Angle | 52\u00b0 |\n| Slices | 72 |\n| Multiband Factor | 8 |\n| Bandwidth | 2290 Hz/Px |\n| Echo Spacing | 0.58 ms |\n| Measurements | 232 frames |\n\n### Task Design\nBlock design paradigm (preferred over event-related for efficiency).\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 37-38",
       "fields": [
         {
@@ -1094,9 +1094,9 @@
       "series": [],
       "rules": []
     },
-    "HCP_tfMRI_EMOTION": {
+    "Task fMRI - Emotion Processing": {
       "description": "Task fMRI - Emotion Processing",
-      "tags": ["brain", "fMRI", "task-based", "multiband"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "multiband"],
       "detailed_description": "## Task fMRI - Emotion Processing\n\nFace matching task (Hariri task) measuring emotion processing and amygdala reactivity. Match faces showing fearful or angry expressions.\n\n### Imaging Parameters\nSame as resting-state fMRI (from HCP Appendix I):\n| Parameter | Value |\n|-----------|-------|\n| Sequence | cmrr_mbep2d_bold |\n| Voxel Size | 2.0 \u00d7 2.0 \u00d7 2.0 mm |\n| TR | 720 ms |\n| TE | 33.1 ms |\n| Flip Angle | 52\u00b0 |\n| Slices | 72 |\n| Multiband Factor | 8 |\n| Bandwidth | 2290 Hz/Px |\n| Echo Spacing | 0.58 ms |\n| Measurements | 176 frames |\n\n### Task Design\nBlock design paradigm (preferred over event-related for efficiency).\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 37-38",
       "fields": [
         {
@@ -1210,9 +1210,9 @@
       "series": [],
       "rules": []
     },
-    "HCP_dMRI": {
+    "Diffusion MRI (Multi-shell HARDI)": {
       "description": "High angular resolution diffusion imaging (HARDI) with multi-shell acquisition",
-      "tags": ["brain", "dMRI", "multiband", "HARDI"],
+      "tags": ["analysis:diffusion", "brain", "dMRI", "diffusion", "multiband", "HARDI"],
       "detailed_description": "## Diffusion MRI (HARDI)\n\nHigh angular resolution diffusion imaging with multi-shell acquisition using spin-echo EPI. Enables advanced diffusion modeling including NODDI, CSD, and high-quality tractography. Six runs are acquired with paired phase encoding directions (RL/LR).\n\n### Documented Parameters (from HCP Appendix I)\n| Parameter | Value |\n|-----------|-------|\n| Sequence | cmrr_mbep2d_diff (epse) |\n| Acquisition Time | 9:41 per run |\n| Voxel Size | 1.25 \u00d7 1.25 \u00d7 1.25 mm |\n| TR | 5520 ms |\n| TE | 89.5 ms |\n| Flip Angle | 78\u00b0 |\n| Slices | 111 |\n| FOV Read | 210 mm |\n| FOV Phase | 85.7% |\n| Base Resolution | 168 |\n| Phase Resolution | 100% |\n| Phase Partial Fourier | 6/8 |\n| Orientation | Transverse (T > C-20.0) |\n| Phase Encoding | R >> L or L >> R (paired) |\n| Multiband Factor | 3 |\n| Bandwidth | 1488 Hz/Px |\n| Echo Spacing | 0.78 ms |\n| EPI Factor | 144 |\n| Diffusion Scheme | Monopolar |\n| Refocus Flip Angle | 160\u00b0 |\n\n### Diffusion Encoding\n| b-value (s/mm\u00b2) | Directions per run |\n|-----------------|-------------------|\n| 0 | 6 (interspersed) |\n| 1000 | ~30 |\n| 2000 | ~30 |\n| 3000 | ~30 |\n| **Total** | ~95-97 per run |\n\nThree different gradient tables are used (dir95, dir96, dir97), each acquired with both RL and LR phase encoding for a total of 6 runs.\n\n### Source\nHCP S1200 Release Reference Manual - Appendix I, Page 46-50",
       "fields": [
         {

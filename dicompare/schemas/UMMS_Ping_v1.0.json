@@ -252,10 +252,10 @@
       "series": [],
       "rules": []
     },
-    "T2w-TSE": {
+    "T2-weighted 2D TSE": {
       "description": "T2-weighted turbo spin echo structural image",
       "detailed_description": "2D T2-weighted turbo spin echo (TSE) scan for detection and quantification of white matter lesions and CSF segmentation. Key parameters: TR=3000ms, TE=80ms, flip angle=90°, 0.45mm in-plane resolution, 3mm slice thickness, 560×560 matrix (reconstructed), ETL=15. Acquired with PROMO prospective motion correction to minimize motion artifacts in pediatric subjects.",
-      "tags": ["brain", "structural", "T2-weighted"],
+      "tags": ["analysis:segmentation", "analysis:lesion-detection", "brain", "structural", "T2-weighted"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -498,10 +498,10 @@
       "series": [],
       "rules": []
     },
-    "T1w-MPRAGE": {
+    "T1-weighted 3D MPRAGE": {
       "description": "T1-weighted MPRAGE structural image",
       "detailed_description": "3D T1-weighted inversion-prepared RF-spoiled gradient echo (MPRAGE) scan acquired with PROMO prospective motion correction for cortical and subcortical segmentation. Key parameters: TR=6.77ms, TE=3.13ms, flip angle=8°, 1mm in-plane resolution, 1.2mm slice thickness, 256×256 matrix, SENSE parallel imaging. This acquisition provides the primary anatomical reference for FreeSurfer-based morphometric analysis in the PING processing pipeline.",
-      "tags": ["brain", "structural", "T1-weighted"],
+      "tags": ["analysis:segmentation", "analysis:volumetry", "analysis:cortical-thickness", "brain", "structural", "T1-weighted"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -744,10 +744,10 @@
       "series": [],
       "rules": []
     },
-    "DWI-ADC": {
+    "Diffusion - ADC Map": {
       "description": "Apparent diffusion coefficient map",
       "detailed_description": "Apparent Diffusion Coefficient (ADC) map computed from the HARDI diffusion acquisition. ADC quantifies the overall magnitude of water diffusion and is sensitive to changes in tissue cellularity. Derived from the same acquisition parameters as DWI: TR=9000ms, TE=91.14ms, 2.5mm isotropic resolution. Generated on-scanner from the diffusion-weighted images using mono-exponential fitting.",
-      "tags": ["brain", "dMRI", "derived"],
+      "tags": ["analysis:diffusion", "brain", "dMRI", "diffusion", "derived"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -990,10 +990,10 @@
       "series": [],
       "rules": []
     },
-    "DWI-EADC": {
+    "Diffusion - Exponential ADC Map": {
       "description": "Exponential apparent diffusion coefficient map",
       "detailed_description": "Exponential Apparent Diffusion Coefficient (eADC) map computed from the HARDI diffusion acquisition. eADC = exp(-b×ADC) provides T2-independent diffusion contrast where high signal indicates restricted diffusion (low ADC). Useful for detecting acute pathology. Derived from the same acquisition parameters as DWI: TR=9000ms, TE=91.14ms, 2.5mm isotropic resolution, b=1000 s/mm².",
-      "tags": ["brain", "dMRI", "derived"],
+      "tags": ["analysis:diffusion", "brain", "dMRI", "diffusion", "derived"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1236,10 +1236,10 @@
       "series": [],
       "rules": []
     },
-    "DWI-FA": {
+    "Diffusion - Fractional Anisotropy Map": {
       "description": "Fractional anisotropy map",
       "detailed_description": "Fractional Anisotropy (FA) map derived from diffusion tensor fitting of the HARDI acquisition. FA ranges from 0 (isotropic diffusion) to 1 (highly directional) and is the primary metric for assessing white matter integrity in the PING developmental trajectories. Key for connectomic analysis of white matter tract development from ages 3-20. Derived from same parameters as DWI: 2.5mm isotropic resolution.",
-      "tags": ["brain", "dMRI", "derived"],
+      "tags": ["analysis:diffusion", "brain", "dMRI", "diffusion", "derived"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1482,10 +1482,10 @@
       "series": [],
       "rules": []
     },
-    "fMRI-RestingState": {
+    "Resting-State fMRI": {
       "description": "Resting-state functional MRI",
       "detailed_description": "Resting-state blood oxygenation level-dependent (BOLD) fMRI scan with integrated distortion correction for functional connectivity analysis. Key parameters: TR=2500ms, TE=30ms, flip angle=75°, 2.67mm in-plane resolution, 3mm slice thickness, 156 temporal volumes (6.5 min acquisition), SENSE factor 3, gradient echo EPI. Used for studying developing functional brain networks in pediatric subjects. Children instructed to keep eyes open and fixate on crosshair.",
-      "tags": ["brain", "fMRI", "resting-state"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "resting-state"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -2077,10 +2077,10 @@
         }
       ]
     },
-    "B0-FieldMap-HighRes": {
+    "B0 Field Map (High Resolution)": {
       "description": "B0 field map for distortion correction (high resolution)",
       "detailed_description": "High-resolution B0 field map for EPI distortion correction of diffusion-weighted images. Acquired with matching geometry to DWI: 2.5mm isotropic resolution, 96×96 matrix, spin echo sequence. Key parameters: TR=9000ms, TE=91ms, 240mm FOV. Used as part of the DISCO (Distortion Correction) pipeline to correct susceptibility-induced geometric distortions in the HARDI acquisition.",
-      "tags": ["brain", "fieldmap", "dMRI"],
+      "tags": ["brain", "fieldmap", "dMRI", "diffusion"],
       "fields": [
         {
           "field": "SequenceVariant",
@@ -2318,7 +2318,7 @@
       "series": [],
       "rules": []
     },
-    "B0-FieldMap-SENSE": {
+    "B0 Field Map (SENSE)": {
       "description": "B0 field map for distortion correction (SENSE accelerated)",
       "detailed_description": "SENSE-accelerated B0 field map for EPI distortion correction of resting-state fMRI. Acquired with matching geometry to fMRI: 2.67mm in-plane resolution, 3mm slice thickness, 96×96 matrix, SENSE factor 3. Key parameters: TR=10000ms, TE=100ms, 256mm FOV, spin echo sequence. Used for correcting susceptibility-induced geometric distortions in the resting-state BOLD acquisition.",
       "tags": ["brain", "fieldmap", "fMRI"],
@@ -2564,10 +2564,10 @@
       "series": [],
       "rules": []
     },
-    "DWI": {
+    "Diffusion-Weighted Imaging (HARDI)": {
       "description": "Diffusion-weighted imaging",
       "detailed_description": "High angular resolution diffusion imaging (HARDI) scan with integrated B0 distortion correction (DISCO) for white matter tract segmentation and diffusion parameter measurement. Protocol: 30 diffusion directions at b=1000 s/mm² plus 2 b=0 reference images (one A-P, one P-A phase encoding for distortion correction). Key parameters: TR=9000ms, TE=91.14ms, 2.5mm isotropic resolution, 96×96 matrix, spin echo EPI, fat suppression. Part of the PING connectomic analysis pipeline.",
-      "tags": ["brain", "dMRI", "HARDI"],
+      "tags": ["analysis:diffusion", "brain", "dMRI", "diffusion", "HARDI"],
       "fields": [
         {
           "field": "SequenceVariant",

@@ -1,0 +1,560 @@
+{
+  "name": "MY-RADS Myeloma Whole-Body MRI Guidelines",
+  "description": "Myeloma Response Assessment and Diagnosis System (MY-RADS) guidelines for whole-body MRI in myeloma as reported in Messiou et al. 2019.\n\nMessiou C, Hillengass J, Delorme S, et al. Guidelines for Acquisition, Interpretation, and Reporting of Whole-Body MRI in Myeloma: Myeloma Response Assessment and Diagnosis System (MY-RADS). Radiology. 2019;291(1):5-13. https://doi.org/10.1148/radiol.2019181949\n\nThe MY-RADS imaging recommendations are designed to promote standardization and diminish variations in the acquisition, interpretation, and reporting of whole-body MRI in myeloma and allow response assessment.\n\n**Protocol Timing:**\n- Core clinical protocol: ~30 minutes\n- Comprehensive protocol: ~45-50 minutes\n\n**Key Rationale:**\n- Wide anatomic coverage (vertex to knees, >100 cm) is essential because **50% of lesions would be missed by imaging the spine alone**\n- Whole-body MRI provides the largest rise in quality-adjusted life years compared with CT or FDG PET/CT\n- Contrast-enhanced imaging is NOT essential for bone marrow disease assessment\n\n**Disease Patterns:**\n- **Normal**: Age-appropriate fatty marrow signal\n- **Focal**: Discrete lesions >5 mm with abnormal signal\n- **Diffuse**: Generalized marrow infiltration (requires trephine confirmation)\n- **Focal-on-diffuse**: Focal lesions superimposed on diffuse background infiltration\n- **Micronodular/Variegated**: Tiny nodular areas (≤5 mm) with preserved normal marrow between them\n\n**Soft Tissue Disease:**\n- **Paramedullary**: Soft tissue disease in direct continuity with bone marrow disease\n- **Extramedullary**: Soft tissue disease NOT in continuity with bone marrow (e.g., ischiorectal fossa, pancreas)\n\n**ADC Interpretation Thresholds:**\n- Normal bone marrow: <600-700 µm²/s\n- Viable tumor: 700-1400 µm²/s\n- Treated/necrotic disease: ≥1400 µm²/s",
+  "version": "1.0",
+  "authors": [
+    "MY-RADS Consensus Panel",
+    "Christina Messiou",
+    "Jens Hillengass",
+    "Stefan Delorme",
+    "Frederic E. Lecouvet",
+    "Lia A. Moulopoulos",
+    "Anwar Padhani",
+    "Ashley Stewart (schema)"
+  ],
+  "acquisitions": {
+    "Spine Sagittal T1-weighted": {
+      "description": "Whole spine sagittal T1-weighted fast spin-echo",
+      "detailed_description": "## Whole Spine T1-weighted Imaging\n\nSagittal T1-weighted fast spin-echo imaging of the whole spine for detection of bone marrow disease in myeloma.\n\n### Key Parameters\n- **Orientation**: Sagittal\n- **Weighting**: T1-weighted\n- **Sequence**: Fast spin-echo (FSE/TSE) with echo train length 3-5\n- **Slice Thickness**: 4-5 mm\n- **Coverage**: Entire spine from C1 to sacrum\n\n### Purpose\nT1-weighted images are essential for detecting marrow disease. Myeloma infiltration appears as areas of low T1 signal compared to normal fatty marrow. This sequence is mandated for both core clinical and comprehensive protocols.\n\n### Alternative\nA 3D fast spin-echo T1-weighted sequence with isovolumetric thin slice acquisition enabling multiplanar reformations may be performed as an alternative (acquisition time <15 mins).",
+      "tags": ["T1-weighted", "spine", "sagittal", "myeloma", "MY-RADS", "bone marrow"],
+      "fields": [
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["SE"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "contains_any": ["SK", "SP"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "min": 4,
+          "max": 5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "min": 3,
+          "max": 5,
+          "vr": "IS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "Spine Sagittal T2 STIR": {
+      "description": "Whole spine sagittal T2-weighted STIR or fat-suppressed T2",
+      "detailed_description": "## Whole Spine T2-weighted/STIR Imaging\n\nSagittal T2-weighted imaging with fat suppression (STIR or fat-suppressed T2) of the whole spine. This sequence is **mandated for both core and comprehensive protocols**.\n\n### Key Parameters\n- **Orientation**: Sagittal\n- **Weighting**: T2-weighted with fat suppression\n- **Sequence**: STIR or fat-suppressed T2-weighted\n- **Slice Thickness**: 4-5 mm\n- **Coverage**: Entire spine (C1 to sacrum)\n\n### Purpose\n- Assess the spinal canal for encroachment by disease\n- Detect marrow infiltration and edema\n- **Critical for differentiating benign from malignant vertebral compression fractures** - MRI is the most accurate method for this differentiation\n- Evaluate for cord compression or nerve root involvement\n\n### Clinical Importance\nWhole-body MRI is the most accurate method for differentiating benign from malignant vertebral compression fractures. STIR sequences show high signal in areas of active tumor infiltration while benign osteoporotic fractures show different signal patterns.",
+      "tags": ["T2-weighted", "STIR", "spine", "sagittal", "myeloma", "MY-RADS", "fat-suppressed"],
+      "fields": [
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "min": 4,
+          "max": 5,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["SE", "IR"],
+          "vr": "CS",
+          "dataType": "list_string"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "Whole Body T1-weighted Dixon": {
+      "description": "Whole body T1-weighted gradient-echo Dixon imaging (vertex to knees)",
+      "detailed_description": "## Whole Body T1-weighted Dixon Imaging\n\nT1-weighted gradient-echo Dixon technique covering from skull vertex to knees for bone marrow and soft tissue assessment.\n\n### Key Parameters\n- **Orientation**: Axial or coronal for core protocol; **BOTH axial AND coronal** for comprehensive\n- **Weighting**: T1-weighted\n- **Sequence**: Gradient-recalled echo (GRE) with Dixon fat-water separation\n- **Slice Thickness**: 5 mm (axial may match DWI slice thickness to facilitate review)\n- **Coverage**: Vertex to knees (>100 cm)\n\n### Required Image Reconstructions\n- **Fat-only images** (mandatory)\n- **Water-only images** (mandatory)\n- In-phase images\n- Out-of-phase images (useful for bone lesion characterization)\n- **Fat fraction maps**: FF = F/(F+W) × 100% (**should ALWAYS be calculated and evaluated**)\n\n### Technical Notes - Dixon Variants\n- **2-point Dixon**: Does not correct for T2* effects from iron deposition and trabecular bone; may overestimate bone marrow fat fraction\n- **Multi-echo Dixon (≥3 echoes)**: Enables T2*-corrected fat fraction images for more accurate quantification\n- **Proton Density Weighted (PDW) Dixon**: Most accurate F% images, but source images have poor contrast and little diagnostic value - not recommended\n- **Recommendation**: Use whole-body 2-point T1W Dixon sequence, accepting potential overestimation of F%\n\n### Important Limitations\n**The performance of T1W gradient-echo sequences for detecting myeloma in bone marrow is slightly worse than (T)SE sequences.** For this reason, fat fraction images should **ALWAYS** be reconstructed and evaluated for the presence of deposits.\n\n### Purpose\n- Dixon T1-weighted images enable detection of bone marrow and visceral deposits because marrow fat and liver show high signal intensity\n- Out-of-phase images are useful for bone lesion characterization\n- Fat fraction quantification aids in differentiating normal marrow from infiltration\n- Myeloma infiltration appears as areas of reduced fat fraction compared to normal fatty marrow\n\n### Alternative\nA 3D TSE T1-weighted sequence with isovolumetric acquisition enabling multiplanar reformations may replace both spine T1 and body T1 imaging if MRI machine performance allows (<15 min acquisition).",
+      "tags": ["T1-weighted", "Dixon", "whole-body", "myeloma", "MY-RADS", "GRE"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "contains_any": ["2D", "3D"],
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["GR"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 5,
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_dixon_reconstructions",
+          "name": "Dixon Fat/Water Reconstructions",
+          "description": "Dixon imaging must produce both fat-only and water-only reconstructions. Fat fraction maps should be generated.",
+          "implementation": "image_types = value[\"ImageType\"].dropna()\nimage_type_strings = [str(it).upper() for it in image_types]\n\nhas_fat = any('F' in it or 'FAT' in it for it in image_type_strings)\nhas_water = any('W' in it or 'WATER' in it for it in image_type_strings)\nhas_in_phase = any('IN' in it for it in image_type_strings)\nhas_out_phase = any('OUT' in it or 'OPP' in it for it in image_type_strings)\n\nif not has_fat and not has_water:\n    raise ValidationWarning(\"Dixon fat-only and water-only images should be reconstructed. Could not identify fat/water images from ImageType.\")",
+          "fields": ["ImageType"],
+          "testCases": [
+            {
+              "id": "test_dixon_images",
+              "name": "Dixon with fat/water",
+              "data": {
+                "ImageType": [["ORIGINAL", "PRIMARY", "M", "FAT"], ["ORIGINAL", "PRIMARY", "M", "WATER"]]
+              },
+              "expectedResult": "pass",
+              "description": "Fat and water images present"
+            }
+          ]
+        }
+      ]
+    },
+    "Whole Body Diffusion-Weighted Imaging": {
+      "description": "Whole body axial diffusion-weighted imaging with STIR fat suppression",
+      "detailed_description": "## Whole Body Diffusion-Weighted Imaging (DWI)\n\nAxial diffusion-weighted imaging with STIR fat suppression covering from skull vertex to knees. DWI sequences are **MANDATORY** for both core and comprehensive protocols.\n\n### Sequence Parameters (from Table E1)\n\n| Parameter | Siemens 1.5T | Philips 1.5T | GE 1.5T |\n|-----------|--------------|--------------|--------|\n| Imaging plane | Axial | Axial | Axial |\n| FOV | 400 mm | 400 mm | 400 mm |\n| Matrix | 128-150 | 128-152 | 128 |\n| TR | 6000-8000 ms | 4700-8000 ms | 6625 ms |\n| TE | Minimum | Minimum | Minimum |\n| Parallel imaging | 2 | 2 | 2 |\n| NSA (low b) | reduced | 3 | reduced |\n| NSA (high b) | 4-5 | 10 | 4 |\n| Slice thickness | 5-7 mm | 5-7 mm | 5-7 mm |\n| Bandwidth | 1800 Hz/px | ~5800 Hz/px | 976 Hz/px |\n| Fat suppression | STIR TI=180ms | STIR TI=180ms | STIR TI=170ms |\n| b-values | 50-100, 800-1000 | 50-100, 800-1000 | 50-100, 800-1000 |\n| Time/station | 4:30 | 4:30 | 4:00 |\n\n### b-value Requirements\n- **Core Protocol**: 2 b-values\n  - Low: 50-100 s/mm²\n  - High: 800-900 s/mm² (up to 1000 acceptable)\n- **Comprehensive Protocol**: 3 b-values\n  - Additional intermediate: 500-600 s/mm² (stabilizes ADC calculations, improves liver/node assessment)\n\n### Required Outputs\n- ADC maps (monoexponential fitting)\n- 3D MIP reconstructions of highest b-value images (inverted gray scale)\n- MIP displayed as rotating coronal/sagittal sequence (≤3° rotation per frame)\n\n### ADC Calculation Notes\n- **IMPORTANT**: ADC calculations should NOT include b0 images, even if obtainable without time penalty\n- Use monoexponential fitting of acquired diffusion-weighted data\n- Judicious use of background noise filter - too strong may lose anatomic detail\n- Body torso outline should be retained on ADC images\n- ADC coefficient of variation in myeloma bone marrow: 2.8%\n\n### ADC Interpretation Thresholds\n- **Normal bone marrow**: <600-700 µm²/s\n- **Viable tumor**: 700-1400 µm²/s\n- **Treated/necrotic disease**: ≥1400 µm²/s\n\n### Technical Notes\n- Spin-echo EPI sequence required\n- Use surface coils (not body coil) to maximize SNR\n- STIR fat suppression required (suppresses both olefinic and aliphatic compounds)\n- Ultra-high b-values (≥1000) discouraged due to distortions and poor SNR - may be extrapolated from source images instead\n- Repeat exams should use same machine/field strength - do not mix field strengths during follow-up\n- Low b-value DWI (b50-100) can serve as anatomic T2W substitute if needed\n\n### Response Assessment Indicators\n- **Fat dot/halo signs**: Emergence of intra/peritumoral fat within/around focal lesions indicates response\n- **ADC increase ≥40%** from baseline with decreased high b-value signal suggests response\n- **ADC increase to >1400 µm²/s** suggests treated/necrotic disease\n\n### Pitfalls and False Positives\n- **T2 shine-through**: Successfully treated focal lesions may stand out on DWI due to T2 shine-through (check ADC values)\n- **T1 pseudoprogression**: Worsening T1 appearances with increasing ADC values due to bone marrow edema from cell death - actually indicates response\n- **Bone marrow hyperplasia**: Anemia, post-high-dose therapy rebound, or G-CSF administration can obscure focal lesions\n- **Respiratory motion**: Causes signal dephasing, especially affecting ribs and sternum\n- **Skull base**: Visibility impaired by susceptibility effects and adjacent high brain signal\n- **Vertebral hemangiomas**: Can mimic malignant lesions (but ADC typically >1400 µm²/s)",
+      "tags": ["DWI", "diffusion-weighted", "whole-body", "myeloma", "MY-RADS", "ADC", "STIR"],
+      "fields": [
+        {
+          "field": "MRAcquisitionType",
+          "tag": "0018,0023",
+          "value": "2D",
+          "vr": "CS",
+          "dataType": "string"
+        },
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_all": ["SE", "EP"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "min": 5,
+          "max": 7,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "RepetitionTime",
+          "tag": "0018,0080",
+          "min": 4700,
+          "max": 8000,
+          "vr": "DS",
+          "dataType": "number"
+        },
+        {
+          "field": "InversionTime",
+          "tag": "0018,0082",
+          "min": 170,
+          "max": 180,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": [
+        {
+          "id": "validate_b_values",
+          "name": "Validate b-value Coverage",
+          "description": "MY-RADS requires at least 2 b-values: low (50-100 s/mm²) and high (800-900/1000 s/mm²). Comprehensive protocol adds intermediate (500-600 s/mm²).",
+          "implementation": "b_values = value[\"DiffusionBValue\"].dropna().unique()\nb_values = sorted([float(b) for b in b_values])\n\nlow_b = any(50 <= b <= 100 for b in b_values)\nhigh_b = any(800 <= b <= 1000 for b in b_values)\nintermediate_b = any(500 <= b <= 600 for b in b_values)\n\nif not low_b:\n    raise ValidationError(f\"Missing low b-value (50-100 s/mm²). Found: {b_values}\")\nif not high_b:\n    raise ValidationError(f\"Missing high b-value (800-1000 s/mm²). Found: {b_values}\")\nif len(b_values) < 3 or not intermediate_b:\n    raise ValidationWarning(f\"Comprehensive protocol recommends 3 b-values including intermediate (500-600). Found: {b_values}\")",
+          "fields": ["DiffusionBValue"],
+          "testCases": [
+            {
+              "id": "test_complete_bvalues",
+              "name": "Complete b-values (3)",
+              "data": {"DiffusionBValue": [50, 500, 900]},
+              "expectedResult": "pass",
+              "description": "All 3 b-values present"
+            },
+            {
+              "id": "test_core_bvalues",
+              "name": "Core protocol b-values (2)",
+              "data": {"DiffusionBValue": [100, 800]},
+              "expectedResult": "warning",
+              "description": "Only 2 b-values, missing intermediate"
+            },
+            {
+              "id": "test_missing_high_b",
+              "name": "Missing high b-value",
+              "data": {"DiffusionBValue": [50, 500]},
+              "expectedResult": "fail",
+              "description": "Missing required high b-value"
+            }
+          ]
+        },
+        {
+          "id": "validate_fov_400mm",
+          "name": "Field of View ~400mm",
+          "description": "MY-RADS specifies FOV of 400 mm for whole-body DWI coverage.",
+          "implementation": "pixel_spacing = value[\"PixelSpacing\"].iloc[0]\ncolumns = value[\"Columns\"].iloc[0]\nrows = value[\"Rows\"].iloc[0]\n\nfov_col = pixel_spacing[0] * columns\nfov_row = pixel_spacing[1] * rows\nfov_max = max(fov_col, fov_row)\n\nif fov_max < 350:\n    raise ValidationError(f\"FOV too small for whole-body coverage. Found {fov_max:.0f} mm, expected ~400 mm\")\nif fov_max < 380 or fov_max > 420:\n    raise ValidationWarning(f\"FOV should be approximately 400 mm. Found {fov_max:.0f} mm\")",
+          "fields": ["PixelSpacing", "Columns", "Rows"],
+          "testCases": [
+            {
+              "id": "test_correct_fov",
+              "name": "Correct FOV 400mm",
+              "data": {"PixelSpacing": [[3.125, 3.125]], "Columns": [128], "Rows": [128]},
+              "expectedResult": "pass",
+              "description": "FOV = 400 mm"
+            },
+            {
+              "id": "test_small_fov",
+              "name": "FOV too small",
+              "data": {"PixelSpacing": [[2.0, 2.0]], "Columns": [128], "Rows": [128]},
+              "expectedResult": "fail",
+              "description": "FOV = 256 mm, too small"
+            }
+          ]
+        },
+        {
+          "id": "validate_acquisition_matrix",
+          "name": "Acquisition Matrix Size 128-152",
+          "description": "MY-RADS recommends acquired matrix size of 128-152 for DWI (before reconstruction). Siemens: 128-150, Philips: 128-152, GE: 128.",
+          "implementation": "# AcquisitionMatrix format: [freq_rows, freq_cols, phase_rows, phase_cols]\n# Non-zero values indicate the actual dimensions\nacq_matrix = value[\"AcquisitionMatrix\"].iloc[0]\n\nif acq_matrix is not None and len(acq_matrix) >= 4:\n    # Extract non-zero dimensions\n    freq_dim = acq_matrix[0] if acq_matrix[0] > 0 else acq_matrix[1]\n    phase_dim = acq_matrix[2] if acq_matrix[2] > 0 else acq_matrix[3]\n    \n    matrix_min = min(freq_dim, phase_dim)\n    matrix_max = max(freq_dim, phase_dim)\n    \n    if matrix_min < 128 or matrix_max > 160:\n        raise ValidationWarning(f\"Acquisition matrix should be 128-152. Found {freq_dim}x{phase_dim}\")",
+          "fields": ["AcquisitionMatrix"],
+          "testCases": [
+            {
+              "id": "test_correct_matrix",
+              "name": "Correct acquisition matrix",
+              "data": {"AcquisitionMatrix": [[128, 0, 0, 128]]},
+              "expectedResult": "pass",
+              "description": "Matrix 128x128"
+            },
+            {
+              "id": "test_large_matrix",
+              "name": "Matrix too large",
+              "data": {"AcquisitionMatrix": [[256, 0, 0, 256]]},
+              "expectedResult": "warning",
+              "description": "Matrix 256x256"
+            }
+          ]
+        },
+        {
+          "id": "validate_stir_fat_suppression_vendor",
+          "name": "STIR Fat Suppression TI (Vendor-Specific)",
+          "description": "DWI should use STIR fat suppression. MY-RADS specifies TI=180ms for Siemens/Philips and TI=170ms for GE.",
+          "implementation": "inversion_time = value[\"InversionTime\"].dropna()\nif len(inversion_time) == 0:\n    raise ValidationWarning(\"InversionTime not found. STIR fat suppression is required.\")\nelse:\n    ti = inversion_time.iloc[0]\n    manufacturer = value[\"Manufacturer\"].iloc[0].upper() if \"Manufacturer\" in value.columns else \"\"\n    \n    # Vendor-specific TI targets from Table E1\n    if \"GE\" in manufacturer or \"GENERAL ELECTRIC\" in manufacturer:\n        target_ti = 170\n        tolerance = 5\n    elif \"SIEMENS\" in manufacturer:\n        target_ti = 180\n        tolerance = 5\n    elif \"PHILIPS\" in manufacturer:\n        target_ti = 180\n        tolerance = 5\n    else:\n        # Unknown vendor - accept 170-180 range\n        target_ti = 175\n        tolerance = 10\n    \n    if abs(ti - target_ti) > tolerance + 10:\n        raise ValidationError(f\"STIR InversionTime should be ~{target_ti} ms for this vendor. Found {ti} ms.\")\n    elif abs(ti - target_ti) > tolerance:\n        raise ValidationWarning(f\"STIR InversionTime should be ~{target_ti} ms for this vendor. Found {ti} ms.\")",
+          "fields": ["InversionTime", "Manufacturer"],
+          "testCases": [
+            {
+              "id": "test_siemens_ti_180",
+              "name": "Siemens TI=180",
+              "data": {"InversionTime": [180], "Manufacturer": ["SIEMENS"]},
+              "expectedResult": "pass",
+              "description": "Correct TI for Siemens"
+            },
+            {
+              "id": "test_ge_ti_170",
+              "name": "GE TI=170",
+              "data": {"InversionTime": [170], "Manufacturer": ["GE MEDICAL SYSTEMS"]},
+              "expectedResult": "pass",
+              "description": "Correct TI for GE"
+            },
+            {
+              "id": "test_ge_wrong_ti",
+              "name": "GE with wrong TI",
+              "data": {"InversionTime": [200], "Manufacturer": ["GE MEDICAL SYSTEMS"]},
+              "expectedResult": "warning",
+              "description": "GE should use TI=170, not 200"
+            },
+            {
+              "id": "test_wrong_ti",
+              "name": "Incorrect TI",
+              "data": {"InversionTime": [250], "Manufacturer": ["SIEMENS"]},
+              "expectedResult": "fail",
+              "description": "TI too high"
+            }
+          ]
+        },
+        {
+          "id": "validate_parallel_imaging",
+          "name": "Parallel Imaging Factor 2",
+          "description": "MY-RADS recommends parallel imaging acceleration factor of 2.",
+          "implementation": "# Check for parallel imaging - field names vary by vendor\nparallel_factor = None\n\nif \"ParallelAcquisitionTechnique\" in value.columns:\n    pat = value[\"ParallelAcquisitionTechnique\"].dropna()\n    if len(pat) > 0 and pat.iloc[0] in [\"NONE\", \"None\", \"\"]:\n        raise ValidationWarning(\"Parallel imaging (GRAPPA/SENSE) with factor 2 is recommended.\")\n\nif \"ParallelReductionFactorInPlane\" in value.columns:\n    prf = value[\"ParallelReductionFactorInPlane\"].dropna()\n    if len(prf) > 0:\n        parallel_factor = prf.iloc[0]\n        if parallel_factor != 2:\n            raise ValidationWarning(f\"Parallel imaging factor should be 2. Found {parallel_factor}\")",
+          "fields": ["ParallelReductionFactorInPlane", "ParallelAcquisitionTechnique"],
+          "testCases": [
+            {
+              "id": "test_correct_grappa",
+              "name": "Correct parallel factor",
+              "data": {"ParallelReductionFactorInPlane": [2], "ParallelAcquisitionTechnique": ["GRAPPA"]},
+              "expectedResult": "pass",
+              "description": "GRAPPA factor 2"
+            }
+          ]
+        },
+        {
+          "id": "validate_no_ultra_high_b",
+          "name": "No Ultra-High b-values",
+          "description": "Ultra-high b-values (>=1000 s/mm²) are discouraged due to greater image distortions and the need for longer echo-times resulting in poor SNR. However, ultra-high b-value images may be extrapolated from source DWI images without scanner time penalty for detection and segmentation.",
+          "implementation": "b_values = value[\"DiffusionBValue\"].dropna().unique()\nb_values = [float(b) for b in b_values]\n\nultra_high = [b for b in b_values if b >= 1000]\nif ultra_high:\n    raise ValidationWarning(f\"Ultra-high b-values (>=1000) are discouraged due to image distortions and poor SNR. Found: {ultra_high}. Consider extrapolating from lower b-value source images instead.\")",
+          "fields": ["DiffusionBValue"],
+          "testCases": [
+            {
+              "id": "test_no_ultra_high",
+              "name": "No ultra-high b",
+              "data": {"DiffusionBValue": [50, 900]},
+              "expectedResult": "pass",
+              "description": "Standard b-values below 1000"
+            },
+            {
+              "id": "test_boundary_b1000",
+              "name": "Boundary b=1000",
+              "data": {"DiffusionBValue": [50, 1000]},
+              "expectedResult": "warning",
+              "description": "b=1000 is at the ultra-high threshold"
+            },
+            {
+              "id": "test_has_ultra_high",
+              "name": "Has ultra-high b",
+              "data": {"DiffusionBValue": [50, 900, 1500]},
+              "expectedResult": "warning",
+              "description": "Ultra-high b=1500"
+            }
+          ]
+        },
+        {
+          "id": "validate_bandwidth_vendor",
+          "name": "Receiver Bandwidth (Vendor-Specific)",
+          "description": "MY-RADS specifies vendor-specific receiver bandwidths: Siemens ~1800 Hz/px, Philips ~5800 Hz/px, GE ~976 Hz/px.",
+          "implementation": "bandwidth = value[\"PixelBandwidth\"].dropna()\nif len(bandwidth) > 0:\n    bw = bandwidth.iloc[0]\n    manufacturer = value[\"Manufacturer\"].iloc[0].upper() if \"Manufacturer\" in value.columns and not value[\"Manufacturer\"].isna().all() else \"\"\n    \n    # Vendor-specific bandwidth targets from Table E1\n    if \"SIEMENS\" in manufacturer:\n        target_bw = 1800\n        tolerance = 300\n        if abs(bw - target_bw) > tolerance * 2:\n            raise ValidationWarning(f\"PixelBandwidth should be ~{target_bw} Hz/px for Siemens. Found {bw} Hz/px.\")\n    elif \"PHILIPS\" in manufacturer:\n        target_bw = 5800\n        tolerance = 1000\n        if abs(bw - target_bw) > tolerance * 2:\n            raise ValidationWarning(f\"PixelBandwidth should be ~{target_bw} Hz/px for Philips. Found {bw} Hz/px.\")\n    elif \"GE\" in manufacturer or \"GENERAL ELECTRIC\" in manufacturer:\n        target_bw = 976\n        tolerance = 200\n        if abs(bw - target_bw) > tolerance * 2:\n            raise ValidationWarning(f\"PixelBandwidth should be ~{target_bw} Hz/px for GE. Found {bw} Hz/px.\")\n    else:\n        # Unknown vendor - just check reasonable range\n        if bw < 500 or bw > 7000:\n            raise ValidationWarning(f\"PixelBandwidth {bw} Hz/px outside typical range for WB-DWI.\")",
+          "fields": ["PixelBandwidth", "Manufacturer"],
+          "testCases": [
+            {
+              "id": "test_siemens_bw",
+              "name": "Siemens bandwidth",
+              "data": {"PixelBandwidth": [1800], "Manufacturer": ["SIEMENS"]},
+              "expectedResult": "pass",
+              "description": "Correct BW for Siemens"
+            },
+            {
+              "id": "test_philips_bw",
+              "name": "Philips bandwidth",
+              "data": {"PixelBandwidth": [5800], "Manufacturer": ["Philips"]},
+              "expectedResult": "pass",
+              "description": "Correct BW for Philips"
+            },
+            {
+              "id": "test_ge_bw",
+              "name": "GE bandwidth",
+              "data": {"PixelBandwidth": [976], "Manufacturer": ["GE MEDICAL SYSTEMS"]},
+              "expectedResult": "pass",
+              "description": "Correct BW for GE"
+            }
+          ]
+        },
+        {
+          "id": "validate_nsa_vendor",
+          "name": "Number of Averages (Vendor-Specific)",
+          "description": "MY-RADS specifies vendor-specific NSA values. Philips uses different NSA for low b (3) and high b (10). Siemens uses 4-5 for high b. GE uses 4 for high b. All vendors may reduce NSA for low b-value images.",
+          "implementation": "nsa = value[\"NumberOfAverages\"].dropna()\nif len(nsa) > 0:\n    manufacturer = value[\"Manufacturer\"].iloc[0].upper() if \"Manufacturer\" in value.columns and not value[\"Manufacturer\"].isna().all() else \"\"\n    \n    # Get unique NSA values\n    nsa_values = sorted(nsa.unique())\n    min_nsa = min(nsa_values)\n    max_nsa = max(nsa_values)\n    \n    if \"PHILIPS\" in manufacturer:\n        # Philips: 3 for low b, 10 for high b\n        if max_nsa < 8:\n            raise ValidationWarning(f\"Philips DWI typically uses NSA=10 for high b-value images. Found max NSA={max_nsa}\")\n        elif len(nsa_values) == 1 and nsa_values[0] == 10:\n            raise ValidationWarning(f\"Philips DWI typically uses lower NSA (3) for low b-value images to save time. All images have NSA={nsa_values[0]}\")\n    elif \"SIEMENS\" in manufacturer:\n        # Siemens: 4-5 for high b\n        if max_nsa < 4 or max_nsa > 6:\n            raise ValidationWarning(f\"Siemens DWI typically uses NSA=4-5 for high b-value images. Found max NSA={max_nsa}\")\n    elif \"GE\" in manufacturer or \"GENERAL ELECTRIC\" in manufacturer:\n        # GE: 4 for high b\n        if max_nsa < 3 or max_nsa > 5:\n            raise ValidationWarning(f\"GE DWI typically uses NSA=4 for high b-value images. Found max NSA={max_nsa}\")\n    else:\n        # Unknown vendor - check reasonable range\n        if min_nsa < 2 or max_nsa > 12:\n            raise ValidationWarning(f\"NumberOfAverages ({min_nsa}-{max_nsa}) outside typical range (3-10) for WB-DWI.\")",
+          "fields": ["NumberOfAverages", "Manufacturer", "DiffusionBValue"],
+          "testCases": [
+            {
+              "id": "test_philips_correct_nsa",
+              "name": "Philips correct NSA",
+              "data": {"NumberOfAverages": [3, 10], "Manufacturer": ["Philips"], "DiffusionBValue": [50, 900]},
+              "expectedResult": "pass",
+              "description": "Philips with 3 for low b, 10 for high b"
+            },
+            {
+              "id": "test_philips_uniform_nsa",
+              "name": "Philips uniform NSA",
+              "data": {"NumberOfAverages": [10, 10], "Manufacturer": ["Philips"], "DiffusionBValue": [50, 900]},
+              "expectedResult": "warning",
+              "description": "Philips should use lower NSA for low b"
+            },
+            {
+              "id": "test_siemens_correct_nsa",
+              "name": "Siemens correct NSA",
+              "data": {"NumberOfAverages": [4], "Manufacturer": ["SIEMENS"], "DiffusionBValue": [50, 900]},
+              "expectedResult": "pass",
+              "description": "Siemens with NSA=4"
+            },
+            {
+              "id": "test_ge_correct_nsa",
+              "name": "GE correct NSA",
+              "data": {"NumberOfAverages": [4], "Manufacturer": ["GE MEDICAL SYSTEMS"], "DiffusionBValue": [50, 900]},
+              "expectedResult": "pass",
+              "description": "GE with NSA=4"
+            }
+          ]
+        },
+        {
+          "id": "validate_minimum_te",
+          "name": "Verify Minimum TE",
+          "description": "MY-RADS specifies minimum TE for DWI to maximize SNR. Ultra-high b-values require longer TE which degrades image quality.",
+          "implementation": "te = value[\"EchoTime\"].dropna()\nif len(te) > 0:\n    te_val = te.iloc[0]\n    raise ValidationWarning(f\"Echo Time is {te_val} ms. MY-RADS specifies minimum TE should be used for DWI. Verify this is the minimum TE available for your sequence - longer TE results in T2 decay and reduced SNR.\")",
+          "fields": ["EchoTime"],
+          "testCases": [
+            {
+              "id": "test_te_warning",
+              "name": "TE always warns",
+              "data": {"EchoTime": [80]},
+              "expectedResult": "warning",
+              "description": "Always warns to verify minimum TE"
+            }
+          ]
+        }
+      ]
+    },
+    "Whole Body Axial T2-weighted": {
+      "description": "Whole body axial T2-weighted fast spin-echo (Comprehensive Protocol)",
+      "detailed_description": "## Whole Body T2-weighted Imaging\n\nAxial T2-weighted fast spin-echo imaging **WITHOUT fat suppression** covering from skull vertex to knees.\n\n### Protocol Level\n- **Core Clinical Protocol**: Optional\n- **Comprehensive Protocol**: Required\n\n### Key Parameters\n- **Orientation**: Axial\n- **Weighting**: T2-weighted\n- **Sequence**: Fast spin-echo (FSE/TSE) **WITHOUT fat suppression**\n- **Slice Thickness**: 5 mm contiguous\n- **Coverage**: Vertex to knees (multiple stations)\n\n### Important Note on Fat Suppression\n**Fat suppression of T2W images is NOT routinely recommended** for whole-body imaging. The non-fat-suppressed T2W images provide better anatomic reference for coregistration with DWI.\n\n### Technical Notes\n- Slice positions should preferably match DWI to facilitate image review and coregistration\n- Low b-value DWI (b50-100) can serve as anatomic T2W substitute if needed (for detection of bone/soft tissue edema, effusions, or for coregistration)\n\n### Purpose\n- Evaluate soft tissue disease and extramedullary involvement\n- Comprehensive disease assessment in conjunction with DWI\n- Detect bone/soft tissue edema and effusions\n- Provide anatomic reference for DWI interpretation",
+      "tags": ["T2-weighted", "whole-body", "myeloma", "MY-RADS"],
+      "fields": [
+        {
+          "field": "ScanningSequence",
+          "tag": "0018,0020",
+          "contains_any": ["SE"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "SequenceVariant",
+          "tag": "0018,0021",
+          "contains_any": ["SK", "SP"],
+          "vr": "CS",
+          "dataType": "list_string"
+        },
+        {
+          "field": "SliceThickness",
+          "tag": "0018,0050",
+          "value": 5,
+          "tolerance": 1,
+          "vr": "DS",
+          "dataType": "number"
+        }
+      ],
+      "series": [],
+      "rules": []
+    },
+    "Regional Assessment": {
+      "description": "Regional dedicated imaging for symptomatic or specific sites",
+      "detailed_description": "## Regional Assessment Imaging\n\nDedicated small field-of-view imaging for specific anatomic sites requiring detailed evaluation.\n\n### Protocol Level\n- **Core Clinical Protocol**: Usually not required\n- **Comprehensive Protocol**: Optional as needed\n\n### Indications\n- Symptomatic sites\n- Sites outside standard field of view\n- Suspected cord compression\n- Nerve root involvement\n- Extramedullary disease\n\n### Typical Sequences\n- Small FOV T1-weighted\n- Small FOV T2-weighted\n- Through sites of suspected spinal canal or neural foramina compromise\n\n### Purpose\nProvides high-resolution detail for specific anatomic regions when clinical concern warrants additional investigation beyond the whole-body coverage.",
+      "tags": ["regional", "myeloma", "MY-RADS", "cord compression", "extramedullary", "high-resolution"],
+      "fields": [],
+      "series": [],
+      "rules": []
+    }
+  },
+  "rules": [
+    {
+      "id": "validate_field_strength",
+      "name": "Field Strength 1.5T or 3T",
+      "description": "MY-RADS recommends 1.5T as the established platform due to robustness and availability. 3T is also acceptable with satisfactory to excellent results. Do not mix field strengths during follow-up.",
+      "implementation": "field_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength < 1.4 or field_strength > 3.1:\n    raise ValidationError(f\"Field strength should be 1.5T or 3T. Found {field_strength}T\")\nif field_strength > 2.9:\n    raise ValidationWarning(\"3T is acceptable but 1.5T is the established platform for MY-RADS due to robustness.\")",
+      "fields": ["MagneticFieldStrength"],
+      "testCases": [
+        {
+          "id": "test_1_5t",
+          "name": "1.5T field strength",
+          "data": {"MagneticFieldStrength": [1.5]},
+          "expectedResult": "pass",
+          "description": "Standard 1.5T"
+        },
+        {
+          "id": "test_3t",
+          "name": "3T field strength",
+          "data": {"MagneticFieldStrength": [3.0]},
+          "expectedResult": "warning",
+          "description": "3T acceptable but 1.5T preferred"
+        },
+        {
+          "id": "test_7t",
+          "name": "7T field strength",
+          "data": {"MagneticFieldStrength": [7.0]},
+          "expectedResult": "fail",
+          "description": "7T not validated for MY-RADS"
+        }
+      ]
+    },
+    {
+      "id": "validate_surface_coils",
+      "name": "Surface Coil Usage",
+      "description": "Surface receiver coils should be used to maximize SNR. Body coil reception is not recommended.",
+      "implementation": "if \"ReceiveCoilName\" in value.columns:\n    coil = value[\"ReceiveCoilName\"].dropna()\n    if len(coil) > 0:\n        coil_name = str(coil.iloc[0]).upper()\n        if \"BODY\" in coil_name and \"SURFACE\" not in coil_name:\n            raise ValidationWarning(\"Body coil detected. Surface coils are recommended to maximize SNR.\")",
+      "fields": ["ReceiveCoilName"],
+      "testCases": [
+        {
+          "id": "test_surface_coil",
+          "name": "Surface coil",
+          "data": {"ReceiveCoilName": ["HeadNeck_64"]},
+          "expectedResult": "pass",
+          "description": "Surface coil used"
+        },
+        {
+          "id": "test_body_coil",
+          "name": "Body coil",
+          "data": {"ReceiveCoilName": ["Body"]},
+          "expectedResult": "warning",
+          "description": "Body coil not recommended"
+        }
+      ]
+    },
+    {
+      "id": "validate_wb_coverage_100cm",
+      "name": "Whole-Body Coverage >100cm",
+      "description": "MY-RADS requires coverage from skull vertex to knees (>100 cm). Wide anatomic coverage is essential because 50% of lesions would be missed by imaging the spine alone.",
+      "implementation": "positions = value[\"ImagePositionPatient\"].dropna()\nif len(positions) > 1:\n    z_positions = [p[2] for p in positions if isinstance(p, (list, tuple)) and len(p) >= 3]\n    if z_positions:\n        z_range = abs(max(z_positions) - min(z_positions))\n        if z_range < 500:\n            raise ValidationError(f\"Anatomic coverage only {z_range:.0f} mm. MY-RADS requires vertex to knees (>1000 mm). 50% of lesions would be missed by imaging spine alone.\")\n        elif z_range < 1000:\n            raise ValidationWarning(f\"Anatomic coverage {z_range:.0f} mm. MY-RADS recommends >1000 mm (vertex to knees).\")",
+      "fields": ["ImagePositionPatient"],
+      "testCases": [
+        {
+          "id": "test_full_coverage",
+          "name": "Full WB coverage",
+          "data": {"ImagePositionPatient": [[-200, -200, 0], [-200, -200, 500], [-200, -200, 1100]]},
+          "expectedResult": "pass",
+          "description": "110 cm coverage"
+        },
+        {
+          "id": "test_spine_only",
+          "name": "Spine only coverage",
+          "data": {"ImagePositionPatient": [[-200, -200, 0], [-200, -200, 400]]},
+          "expectedResult": "fail",
+          "description": "Only 40 cm coverage"
+        }
+      ]
+    },
+    {
+      "id": "validate_contiguous_slices",
+      "name": "Contiguous Slicing",
+      "description": "MY-RADS requires contiguous (no gap) slicing for DWI and whole-body sequences.",
+      "implementation": "slice_thickness = value[\"SliceThickness\"].iloc[0]\nspacing = value[\"SpacingBetweenSlices\"].dropna()\n\nif len(spacing) > 0:\n    slice_spacing = spacing.iloc[0]\n    gap = slice_spacing - slice_thickness\n    if gap > 0.5:\n        raise ValidationError(f\"Slices should be contiguous. Found gap of {gap:.1f} mm (thickness={slice_thickness}, spacing={slice_spacing})\")",
+      "fields": ["SliceThickness", "SpacingBetweenSlices"],
+      "testCases": [
+        {
+          "id": "test_contiguous",
+          "name": "Contiguous slices",
+          "data": {"SliceThickness": [5], "SpacingBetweenSlices": [5]},
+          "expectedResult": "pass",
+          "description": "No gap"
+        },
+        {
+          "id": "test_gap",
+          "name": "Gap between slices",
+          "data": {"SliceThickness": [5], "SpacingBetweenSlices": [7]},
+          "expectedResult": "fail",
+          "description": "2mm gap"
+        }
+      ]
+    }
+  ]
+}

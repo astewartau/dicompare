@@ -192,7 +192,7 @@
     },
     "Task fMRI - Monetary Incentive Delay (MID)": {
       "description": "Monetary Incentive Delay (MID) task fMRI measuring reward processing (2 runs, ~5:42 each)",
-      "tags": ["brain", "fMRI", "task-based", "reward"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "reward"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -583,7 +583,7 @@
     },
     "T2-weighted 3D SPACE": {
       "description": "3D T2-weighted SPACE/CUBE with vNav motion correction for white matter lesion detection and CSF quantification",
-      "tags": ["brain", "structural", "T2-weighted"],
+      "tags": ["analysis:segmentation", "analysis:lesion-detection", "brain", "structural", "T2-weighted"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -799,7 +799,7 @@
     },
     "T1-weighted 3D MPRAGE": {
       "description": "3D T1-weighted MPRAGE with vNav motion correction for cortical and subcortical segmentation",
-      "tags": ["brain", "structural", "T1-weighted"],
+      "tags": ["analysis:segmentation", "analysis:volumetry", "analysis:cortical-thickness", "brain", "structural", "T1-weighted"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -988,7 +988,7 @@
     },
     "Diffusion MRI (Multi-shell HARDI)": {
       "description": "High angular resolution diffusion imaging (HARDI) with multi-shell acquisition for white matter tract segmentation",
-      "tags": ["brain", "dMRI", "diffusion", "multiband", "HARDI"],
+      "tags": ["analysis:diffusion", "brain", "dMRI", "diffusion", "multiband", "HARDI"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1749,7 +1749,7 @@
     },
     "Resting-State fMRI": {
       "description": "Resting-state fMRI with multiband acceleration (4 runs, ~7 min each)",
-      "tags": ["brain", "fMRI", "resting-state", "multiband"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "resting-state", "multiband"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1932,7 +1932,7 @@
     },
     "Task fMRI - Emotional N-back": {
       "description": "Emotional N-back (EN-back) fMRI measuring working memory and emotional processing (2 runs, ~5:13 each)",
-      "tags": ["brain", "fMRI", "task-based", "working-memory", "emotion"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "working-memory", "emotion"],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -2117,7 +2117,7 @@
     },
     "Task fMRI - Stop Signal Task (SST)": {
       "description": "Stop Signal Task (SST) fMRI measuring response inhibition (2 runs, ~5:26 each)",
-      "tags": ["brain", "fMRI", "task-based", "inhibition"],
+      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "inhibition"],
       "fields": [
         {
           "field": "SeriesDescription",
