@@ -29,7 +29,10 @@ from ..processing.parallel_utils import process_items_parallel, process_items_se
 from ..data_utils import make_dataframe_hashable, _process_dicom_metadata, prepare_session_dataframe
 
 # --- IMPORT FOR CSA header parsing ---
-from nibabel.nicom.csareader import get_csa_header
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", UserWarning)
+    from nibabel.nicom.csareader import get_csa_header
 
 pydicom.config.debug(False)
 
