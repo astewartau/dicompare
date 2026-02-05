@@ -50,7 +50,29 @@ def check_command(args) -> None:
     in_session = assign_acquisition_and_run_numbers(in_session)
 
     # Map and perform compliance check
-    session_map = map_to_json_reference(in_session, json_schema)
+    session_map, cost_details = map_to_json_reference(in_session, json_schema, return_costs=True)
+
+    # Display mapping summary with confidence
+    logger.info("")
+    logger.info("Acquisition Mapping:")
+    logger.info("-" * 80)
+    logger.info(f"  {'Reference':<30} {'Input':<30} {'Cost':>6}  {'Confidence'}")
+    logger.info("-" * 80)
+    for ref_acq in sorted(session_map.keys()):
+        in_acq = session_map[ref_acq]
+        cost = cost_details['assigned_costs'].get(ref_acq, float('nan'))
+        if cost == 0:
+            confidence = "exact"
+        elif cost < 5:
+            confidence = "high"
+        elif cost < 20:
+            confidence = "medium"
+        else:
+            confidence = "low"
+        logger.info(f"  {ref_acq:<30} {in_acq:<30} {cost:>6.1f}  {confidence}")
+    logger.info("-" * 80)
+    logger.info("")
+
     if not args.auto_yes and sys.stdin.isatty():
         session_map = interactive_mapping_to_json_reference(in_session, json_schema, initial_mapping=session_map)
 
@@ -191,6 +213,46 @@ def main() -> None:
         help="Automatically map acquisitions without prompting"
     )
 
+    # Match subcommand
+    match_parser = subparsers.add_parser(
+        "match",
+        help="Find best-matching schemas for input DICOM data"
+    )
+    match_parser.add_argument(
+        "dicoms",
+        nargs="?",
+        help="Directory containing DICOM files"
+    )
+    match_parser.add_argument(
+        "--dicoms",
+        dest="dicoms_named",
+        metavar="PATH",
+        help="Directory containing DICOM files"
+    )
+    match_parser.add_argument(
+        "--schemas",
+        nargs="+",
+        metavar="PATH",
+        help="Path(s) to schema files or directories containing schemas"
+    )
+    match_parser.add_argument(
+        "--library",
+        action="store_true",
+        help="Include bundled schema library in search"
+    )
+    match_parser.add_argument(
+        "--report",
+        metavar="PATH",
+        help="Output path for the match report (JSON)"
+    )
+    match_parser.add_argument(
+        "--top",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Number of top matches to show per acquisition (default: 5)"
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -216,6 +278,19 @@ def main() -> None:
             check_parser.error("the following arguments are required: dicoms, schema")
 
         check_command(args)
+
+    elif args.command == "match":
+        from dicompare.cli.match import match_command
+
+        args.dicoms = args.dicoms or args.dicoms_named
+
+        if not args.dicoms:
+            match_parser.error("the following arguments are required: dicoms")
+
+        if not args.schemas and not args.library:
+            match_parser.error("at least one of --schemas or --library is required")
+
+        match_command(args)
 
 
 if __name__ == "__main__":

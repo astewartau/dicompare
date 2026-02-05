@@ -7,8 +7,8 @@ dicompare is a DICOM validation tool designed to ensure compliance with study-sp
 dicompare supports DICOM session validation against templates based on:
 
 - **Reference sessions**: JSON schema files can be generated based on a reference MRI scanning session;
-- **[TESTING] domain guidelines**: Flexible guidelines for specific domains (currently [QSM](https://doi.org/10.1002/mrm.30006));
-- **[FUTURE] landmark studies**: Schema files based on landmark studies such as the [HCP](https://doi.org/10.1038/s41586-018-0579-z), [ABCD](https://doi.org/10.1016/j.dcn.2018.03.001), and [UK BioBank](https://doi.org/10.1038/s41586-018-0579-z) projects.
+- **Domain guidelines**: Flexible guidelines for specific domains (e.g. [QSM](https://doi.org/10.1002/mrm.30006), [ASL](https://doi.org/10.1002/mrm.29024), [MS/CMSC](https://doi.org/10.3174/ajnr.A7406));
+- **Landmark studies**: A bundled schema library includes protocols from [HCP](https://doi.org/10.1038/s41586-018-0579-z), [ABCD](https://doi.org/10.1016/j.dcn.2018.03.001), [UK Biobank](https://doi.org/10.1038/s41586-018-0579-z), and more.
 
 # Command-line interface (CLI) and application programming interface (API)
 
@@ -20,10 +20,11 @@ pip install dicompare
 
 ## Command-line interface (CLI)
 
-The package provides a unified `dicompare` command with two subcommands:
+The package provides a unified `dicompare` command with three subcommands:
 
 - **`dicompare build`**: Generate a JSON schema from a reference DICOM session
 - **`dicompare check`**: Validate DICOM sessions against a JSON schema
+- **`dicompare match`**: Find best-matching schemas for input DICOM data from a library
 
 ### 1. Build a JSON schema from a reference session
 
@@ -39,23 +40,39 @@ This creates a JSON schema describing the session based on default reference fie
 dicompare check /path/to/dicom/session schema.json
 ```
 
-The tool will output a compliance summary, indicating deviations from the schema.
-
-### 3. Check with report output
-
-```bash
-dicompare check /path/to/dicom/session schema.json compliance_report.json
-```
-
-This saves the compliance report to a JSON file.
-
-### 4. Automatic acquisition mapping
+The tool will output an acquisition mapping summary with confidence scores, followed by a compliance report indicating deviations from the schema. Use `--auto-yes` or `-y` to skip interactive mapping prompts:
 
 ```bash
 dicompare check /path/to/dicom/session schema.json --auto-yes
 ```
 
-Use `--auto-yes` or `-y` to automatically map acquisitions without interactive prompts.
+Save the compliance report to a JSON file by specifying a report path:
+
+```bash
+dicompare check /path/to/dicom/session schema.json compliance_report.json
+```
+
+### 3. Find best-matching schemas for your data
+
+Search across a schema library to identify which protocols best match your DICOM data:
+
+```bash
+# Search the bundled schema library
+dicompare match /path/to/dicom/session --library
+
+# Search custom schema files or directories
+dicompare match /path/to/dicom/session --schemas /path/to/schemas/
+
+# Combine bundled library and custom schemas
+dicompare match /path/to/dicom/session --library --schemas /path/to/custom_schema.json
+```
+
+This compares each input acquisition against every acquisition in the loaded schemas, ranking matches by compliance score. Options:
+
+- `--library`: Include the bundled schema library (HCP, ABCD, UK Biobank, and more)
+- `--schemas PATH [PATH ...]`: Path(s) to schema files or directories containing schemas
+- `--top N`: Number of top matches to show per acquisition (default: 5)
+- `--report PATH`: Save the match report to a JSON file
 
 ## Python API
 

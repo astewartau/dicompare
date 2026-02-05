@@ -160,3 +160,59 @@ def test_check_command_with_report(dicom_session_dir, tmp_path):
         report = json.load(f)
 
     assert isinstance(report, list)
+
+
+def test_match_command_with_library(dicom_session_dir, tmp_path):
+    """Test that match_command runs against the bundled library."""
+    from dicompare.cli.match import match_command
+
+    report_path = tmp_path / "match_report.json"
+
+    args = Namespace(
+        dicoms=str(dicom_session_dir),
+        schemas=None,
+        library=True,
+        report=str(report_path),
+        top=3
+    )
+
+    match_command(args)
+
+    assert report_path.exists()
+    with open(report_path) as f:
+        report = json.load(f)
+    assert isinstance(report, dict)
+    assert len(report) >= 1
+
+
+def test_match_command_with_custom_schema(dicom_session_dir, tmp_path):
+    """Test match_command with a custom schema file."""
+    from dicompare.cli.match import match_command
+
+    # Build a schema from the same data for a guaranteed match
+    schema_path = tmp_path / "schema.json"
+    build_command(Namespace(
+        dicoms=str(dicom_session_dir),
+        schema=str(schema_path)
+    ))
+
+    report_path = tmp_path / "match_report.json"
+    args = Namespace(
+        dicoms=str(dicom_session_dir),
+        schemas=[str(schema_path)],
+        library=False,
+        report=str(report_path),
+        top=5
+    )
+
+    match_command(args)
+
+    assert report_path.exists()
+    with open(report_path) as f:
+        report = json.load(f)
+    assert isinstance(report, dict)
+
+    # The self-built schema should produce a high score
+    for acq_name, matches in report.items():
+        assert len(matches) > 0
+        assert matches[0]['score'] > 0

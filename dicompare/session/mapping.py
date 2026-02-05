@@ -208,12 +208,22 @@ def compute_series_cost_matrix(
 
 def map_to_json_reference(
     in_session_df: pd.DataFrame,
-    ref_session: Dict[str, Any]
-) -> dict:
+    ref_session: Dict[str, Any],
+    return_costs: bool = False
+):
     """
     Automatic assignment of reference acquisitions to input acquisitions,
     including nested assignment for series within each acquisition.
-    Returns { ref_acquisition: in_acquisition }.
+
+    Args:
+        in_session_df: DataFrame of input session metadata.
+        ref_session: Reference session data in JSON format.
+        return_costs: If True, return (mapping, cost_details) tuple.
+
+    Returns:
+        If return_costs is False: dict mapping {ref_acq: in_acq}
+        If return_costs is True: tuple of (mapping, cost_details) where
+            cost_details has 'assigned_costs' mapping ref_acq -> cost.
     """
     from scipy.optimize import linear_sum_assignment
 
@@ -276,10 +286,20 @@ def map_to_json_reference(
 
     # Build map {reference_acquisition: input_acquisition}
     mapping = {}
+    assigned_costs = {}
     for row, col in zip(row_indices, col_indices):
         ref_acq = ref_acq_list[row]
         in_acq = input_acq_list[col]
         mapping[ref_acq] = in_acq
+        assigned_costs[ref_acq] = float(top_cost_matrix[row, col])
+
+    if return_costs:
+        cost_details = {
+            'assigned_costs': assigned_costs,
+            'ref_acq_list': ref_acq_list,
+            'input_acq_list': input_acq_list,
+        }
+        return mapping, cost_details
 
     return mapping
 

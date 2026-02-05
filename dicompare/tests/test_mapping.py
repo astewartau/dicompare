@@ -292,6 +292,66 @@ class TestComputeSeriesCostMatrix:
         assert cost_matrix[0, 0] == 0.0
 
 
+class TestMapToJsonReferenceReturnCosts:
+    """Tests for return_costs parameter of map_to_json_reference."""
+
+    def test_return_costs_gives_tuple(self):
+        """Test that return_costs=True returns a tuple."""
+        in_df = pd.DataFrame({
+            "Acquisition": ["acq1", "acq1", "acq2", "acq2"],
+            "EchoTime": [10, 10, 20, 20],
+        })
+        ref_session = {
+            "acquisitions": {
+                "RefA": {"fields": [{"field": "EchoTime", "value": 10}]},
+                "RefB": {"fields": [{"field": "EchoTime", "value": 20}]},
+            }
+        }
+
+        result = map_to_json_reference(in_df, ref_session, return_costs=True)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+        mapping, cost_details = result
+        assert isinstance(mapping, dict)
+        assert "RefA" in mapping
+        assert "RefB" in mapping
+        assert "assigned_costs" in cost_details
+        assert cost_details['assigned_costs']['RefA'] == 0.0
+        assert cost_details['assigned_costs']['RefB'] == 0.0
+
+    def test_default_returns_dict(self):
+        """Test that default return_costs=False returns just a dict."""
+        in_df = pd.DataFrame({
+            "Acquisition": ["acq1"],
+            "EchoTime": [10],
+        })
+        ref_session = {
+            "acquisitions": {
+                "RefA": {"fields": [{"field": "EchoTime", "value": 10}]},
+            }
+        }
+
+        result = map_to_json_reference(in_df, ref_session)
+        assert isinstance(result, dict)
+        assert "RefA" in result
+
+    def test_costs_nonzero_for_mismatch(self):
+        """Test that mismatched acquisitions have nonzero cost."""
+        in_df = pd.DataFrame({
+            "Acquisition": ["acq1"],
+            "EchoTime": [99.0],
+        })
+        ref_session = {
+            "acquisitions": {
+                "RefA": {"fields": [{"field": "EchoTime", "value": 10.0}]},
+            }
+        }
+
+        mapping, cost_details = map_to_json_reference(in_df, ref_session, return_costs=True)
+        assert cost_details['assigned_costs']['RefA'] > 0
+
+
 class TestMapToJsonReference:
     """Tests for the map_to_json_reference function."""
 
