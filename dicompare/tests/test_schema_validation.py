@@ -8,10 +8,11 @@ import pytest
 from jsonschema import ValidationError
 
 import dicompare
+from dicompare.schemas import get_bundled_schema_path, list_bundled_schemas
 
 
-# Get the schemas directory path
-SCHEMAS_DIR = Path(__file__).parent.parent.parent / "schemas"
+# Get the schemas directory path (bundled inside the package)
+SCHEMAS_DIR = Path(__file__).parent.parent / "schemas"
 
 
 class TestSchemaValidation:
@@ -175,9 +176,9 @@ class TestBuiltInSchemas:
 
     @pytest.mark.parametrize("schema_file", [
         pytest.param(f, id=f.name)
-        for f in (Path(__file__).parent.parent.parent / "schemas").glob("*.json")
-        if f.is_file()
-    ] if (Path(__file__).parent.parent.parent / "schemas").exists() else [])
+        for f in (Path(__file__).parent.parent / "schemas").glob("*.json")
+        if f.is_file() and f.name != "index.json"
+    ] if (Path(__file__).parent.parent / "schemas").exists() else [])
     def test_schema_loads_without_error(self, schema_file):
         """Test that each schema file loads without validation errors."""
         fields, schema_data, rules = dicompare.load_schema(str(schema_file))
@@ -190,9 +191,9 @@ class TestBuiltInSchemas:
 
     @pytest.mark.parametrize("schema_file", [
         pytest.param(f, id=f.name)
-        for f in (Path(__file__).parent.parent.parent / "schemas").glob("*.json")
-        if f.is_file()
-    ] if (Path(__file__).parent.parent.parent / "schemas").exists() else [])
+        for f in (Path(__file__).parent.parent / "schemas").glob("*.json")
+        if f.is_file() and f.name != "index.json"
+    ] if (Path(__file__).parent.parent / "schemas").exists() else [])
     def test_schema_validates_against_metaschema(self, schema_file):
         """Test that each schema file passes metaschema validation."""
         with open(schema_file) as f:

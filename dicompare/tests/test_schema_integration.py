@@ -12,6 +12,7 @@ import math
 from pathlib import Path
 
 import dicompare
+from dicompare.schemas import get_bundled_schema_path
 from dicompare.tests.test_dicom_factory import create_test_dicom_series, create_multi_echo_series
 from dicompare.validation import check_acquisition_compliance
 from dicompare.validation.helpers import ComplianceStatus
@@ -24,7 +25,7 @@ class TestQSMConsensusGuidelines:
     @pytest.fixture
     def qsm_schema(self):
         """Load QSM Consensus Guidelines schema."""
-        schema_path = "schemas/QSM_Consensus_Guidelines_v1.0.json"
+        schema_path = str(get_bundled_schema_path("QSM_Consensus_Guidelines_v1.0.json"))
         fields, schema, validation_rules = dicompare.load_schema(schema_path)
         return fields, schema, validation_rules
 
@@ -170,7 +171,7 @@ class TestQSMConsensusGuidelines:
 
         # Use check_session_compliance with rules
         _, schema_data, validation_rules = dicompare.load_schema(
-            "schemas/QSM_Consensus_Guidelines_v1.0.json"
+            str(get_bundled_schema_path("QSM_Consensus_Guidelines_v1.0.json"))
         )
 
         compliance = check_session_compliance(
@@ -191,7 +192,7 @@ class TestQSMConsensusGuidelines:
     def test_single_echo_qsm_fails(self, qsm_schema, invalid_qsm_single_echo):
         """Test that single-echo QSM fails validation."""
         _, schema_data, validation_rules = dicompare.load_schema(
-            "schemas/QSM_Consensus_Guidelines_v1.0.json"
+            str(get_bundled_schema_path("QSM_Consensus_Guidelines_v1.0.json"))
         )
 
         # Get the actual acquisition name from the session
@@ -220,7 +221,7 @@ class TestQSMConsensusGuidelines:
     def test_2d_qsm_fails(self, qsm_schema, invalid_qsm_2d):
         """Test that 2D QSM acquisition fails validation."""
         _, schema_data, validation_rules = dicompare.load_schema(
-            "schemas/QSM_Consensus_Guidelines_v1.0.json"
+            str(get_bundled_schema_path("QSM_Consensus_Guidelines_v1.0.json"))
         )
 
         # Get the actual acquisition name from the session
@@ -253,7 +254,7 @@ class TestUKBiobankSchema:
     @pytest.fixture
     def ukb_schema(self):
         """Load UK Biobank schema."""
-        schema_path = "schemas/UK_Biobank_v1.0.json"
+        schema_path = str(get_bundled_schema_path("UK_Biobank_v1.0.json"))
         fields, schema, validation_rules = dicompare.load_schema(schema_path)
         return fields, schema, validation_rules
 
@@ -424,7 +425,7 @@ class TestUKBiobankSchema:
     def test_dwi_session_with_rules(self, ukb_schema, valid_dwi_session):
         """Test that diffusion session validates with embedded Python rules."""
         _, schema_data, validation_rules = dicompare.load_schema(
-            "schemas/UK_Biobank_v1.0.json"
+            str(get_bundled_schema_path("UK_Biobank_v1.0.json"))
         )
 
         # Get the actual acquisition name from the session
