@@ -5,7 +5,7 @@ check-hidden = true
 # some special typo-close "words"
 ignore-regex = '\b(adRes)\b'
 # ALS = Amyotrophic Lateral Sclerosis (medical term, not typo for "also")
-ignore-words-list = 'nd,te,ALS'
+ignore-words-list = 'nd,te,ALS,Reson,infarction'
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
