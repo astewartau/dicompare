@@ -13,8 +13,8 @@ from dicompare.validation import check_acquisition_compliance
 from dicompare.validation.helpers import ComplianceStatus, create_compliance_record
 from dicompare.session import map_to_json_reference, interactive_mapping_to_json_reference, assign_acquisition_and_run_numbers
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+# Set up logging — only show warnings and errors; CLI output uses print()
+logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +33,7 @@ def build_command(args) -> None:
     serializable_schema = make_json_serializable(json_schema)
     with open(args.schema, "w") as f:
         json.dump(serializable_schema, f, indent=4)
-    logger.info(f"JSON schema saved to {args.schema}")
+    print(f"JSON schema saved to {args.schema}")
 
 
 def check_command(args) -> None:
@@ -53,11 +53,11 @@ def check_command(args) -> None:
     session_map, cost_details = map_to_json_reference(in_session, json_schema, return_costs=True)
 
     # Display mapping summary with confidence
-    logger.info("")
-    logger.info("Acquisition Mapping:")
-    logger.info("-" * 80)
-    logger.info(f"  {'Reference':<30} {'Input':<30} {'Cost':>6}  {'Confidence'}")
-    logger.info("-" * 80)
+    print()
+    print("Acquisition Mapping:")
+    print("-" * 80)
+    print(f"  {'Reference':<35} {'Input':<25} {'Cost':>6}  {'Confidence'}")
+    print("-" * 80)
     for ref_acq in sorted(session_map.keys()):
         in_acq = session_map[ref_acq]
         cost = cost_details['assigned_costs'].get(ref_acq, float('nan'))
@@ -69,23 +69,29 @@ def check_command(args) -> None:
             confidence = "medium"
         else:
             confidence = "low"
-        logger.info(f"  {ref_acq:<30} {in_acq:<30} {cost:>6.1f}  {confidence}")
-    logger.info("-" * 80)
-    logger.info("")
+        ref_display = ref_acq[:33] + ".." if len(ref_acq) > 35 else ref_acq
+        in_display = in_acq[:23] + ".." if len(in_acq) > 25 else in_acq
+        print(f"  {ref_display:<35} {in_display:<25} {cost:>6.1f}  {confidence}")
+    # Show unmapped reference acquisitions
+    for ref_acq_name in json_schema["acquisitions"]:
+        if ref_acq_name not in session_map:
+            ref_display = ref_acq_name[:33] + ".." if len(ref_acq_name) > 35 else ref_acq_name
+            print(f"  {ref_display:<35} {'(unmapped)':<25}     --  --")
+    print("-" * 80)
+    print()
 
     if not args.auto_yes and sys.stdin.isatty():
         session_map = interactive_mapping_to_json_reference(in_session, json_schema, initial_mapping=session_map)
 
-    # Check compliance for each acquisition
+    # Check compliance for each acquisition, grouped by ref acquisition
     compliance_summary = []
+    acq_groups = []  # list of (display_name, results)
+
+    unmapped_acquisitions = []
+
     for ref_acq_name, schema_acq in json_schema["acquisitions"].items():
         if ref_acq_name not in session_map:
-            compliance_summary.append(create_compliance_record(
-                field="Acquisition Mapping",
-                message=f"Reference acquisition '{ref_acq_name}' is not mapped to any input acquisition.",
-                status=ComplianceStatus.ERROR,
-                expected=f"Acquisition '{ref_acq_name}' to be mapped"
-            ))
+            unmapped_acquisitions.append(ref_acq_name)
             continue
 
         input_acq_name = session_map[ref_acq_name]
@@ -97,36 +103,85 @@ def check_command(args) -> None:
             validation_rules=acq_validation_rules
         )
         compliance_summary.extend(results)
-    compliance_df = pd.DataFrame(compliance_summary)
+        display_name = f"{ref_acq_name}  ->  {input_acq_name}"
+        acq_groups.append((display_name, results))
 
-    # If compliance_df is empty, log message and exit
-    if compliance_df.empty:
-        logger.info("Session is fully compliant with the schema model.")
+    # If no results at all
+    if not compliance_summary and not unmapped_acquisitions:
+        print("Session is fully compliant with the schema model.")
         return
 
-    # Inline summary output
-    for entry in compliance_summary:
-        if entry.get('input acquisition'):
-            acq_text = f"Acquisition: {entry.get('input acquisition')}"
-            if entry.get('reference acquisition'):
-                acq_text += f" ({entry.get('reference acquisition')})"
-            logger.info(acq_text)
-        # Handle 'field' (single) or derive from 'expected' keys
-        if entry.get('field'):
-            logger.info(f"Field: {entry.get('field')}")
-        elif entry.get('expected') and isinstance(entry.get('expected'), dict):
-            logger.info(f"Fields: {list(entry.get('expected').keys())}")
-        if entry.get('series'): logger.info(f"Series: {entry.get('series')}")
-        if entry.get('expected') is not None: logger.info(f"Expected: {entry.get('expected')}")
-        if entry.get('value') is not None: logger.info(f"Value: {entry.get('value')}")
-        if entry.get('message'): logger.info(f"Message: {entry.get('message')}")
-        logger.info("-" * 40)
+    # Print compliance results
+    verbose = getattr(args, 'verbose', False)
+
+    for display_name, results in acq_groups:
+        pass_count = sum(1 for r in results if r.get('status') == 'ok')
+        fail_count = sum(1 for r in results if r.get('status') == 'error')
+        warn_count = sum(1 for r in results if r.get('status') == 'warning')
+        na_count = sum(1 for r in results if r.get('status') == 'na')
+        total = len(results)
+
+        print(f"=== {display_name} ===")
+        parts = [f"{pass_count} passed"]
+        if fail_count: parts.append(f"{fail_count} failed")
+        if warn_count: parts.append(f"{warn_count} warnings")
+        if na_count: parts.append(f"{na_count} n/a")
+        print(f"  {', '.join(parts)} ({total} total)")
+        print()
+
+        for entry in results:
+            status = entry.get('status', '')
+            if not verbose and status == 'ok':
+                continue
+
+            field = entry.get('field', '')
+            series = entry.get('series')
+            value = entry.get('value')
+            expected = entry.get('expected')
+            message = entry.get('message', '')
+            rule_name = entry.get('rule_name')
+
+            status_label = {'ok': 'PASS', 'error': 'FAIL', 'warning': 'WARN', 'na': 'N/A'}.get(status, status.upper())
+
+            location = field
+            if series:
+                location = f"{field} [{series}]"
+            if rule_name:
+                location = f"{rule_name}: {field}" if field else rule_name
+
+            if status == 'ok' and value is not None:
+                print(f"  [{status_label}] {location} ({value})")
+            else:
+                print(f"  [{status_label}] {location}")
+            if expected is not None and status != 'ok':
+                print(f"         expected: {expected}")
+            if value is not None and status != 'ok':
+                print(f"         got:      {value}")
+            if message and status != 'ok' and message not in ('Passed.', 'OK'):
+                print(f"         {message}")
+
+        print()
+
+    if unmapped_acquisitions:
+        for acq_name in unmapped_acquisitions:
+            print(f"  [WARN] Acquisition unmapped: '{acq_name}'")
+        print()
+
+    if not verbose:
+        total_pass = sum(1 for r in compliance_summary if r.get('status') == 'ok')
+        total_fail = sum(1 for r in compliance_summary if r.get('status') == 'error')
+        if total_fail == 0 and not unmapped_acquisitions:
+            print("All checks passed.")
+        elif total_fail == 0:
+            print("All compliance checks passed.")
+        else:
+            print(f"Use --verbose to see all {total_pass + total_fail} results including passes.")
 
     # Save compliance summary to JSON
     if args.report:
         with open(args.report, "w") as f:
             json.dump(compliance_summary, f, indent=4)
-        logger.info(f"Compliance report saved to {args.report}")
+        print(f"Compliance report saved to {args.report}")
 
 
 def main() -> None:
@@ -211,6 +266,11 @@ def main() -> None:
         "--auto-yes", "-y",
         action="store_true",
         help="Automatically map acquisitions without prompting"
+    )
+    check_parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Show all results including passes (default: only failures and warnings)"
     )
 
     # Match subcommand

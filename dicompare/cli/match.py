@@ -107,12 +107,12 @@ def match_command(args) -> None:
     loaded schema and ranks by compliance score.
     """
     # Load DICOM session
-    logger.info(f"Loading DICOM session from {args.dicoms}...")
+    print(f"Loading DICOM session from {args.dicoms}...")
     in_session = load_dicom_session(session_dir=args.dicoms, show_progress=True)
     in_session = assign_acquisition_and_run_numbers(in_session)
 
     input_acquisitions = sorted(in_session["Acquisition"].unique())
-    logger.info(f"Found {len(input_acquisitions)} input acquisition(s): {input_acquisitions}")
+    print(f"Found {len(input_acquisitions)} input acquisition(s): {input_acquisitions}")
 
     # Load schemas
     all_schemas = {}
@@ -128,10 +128,10 @@ def match_command(args) -> None:
         all_schemas.update(user_schemas)
 
     if not all_schemas:
-        logger.error("No schemas loaded. Use --library for bundled schemas or --schemas <path>.")
+        print("No schemas loaded. Use --library for bundled schemas or --schemas <path>.")
         return
 
-    logger.info(f"Loaded {len(all_schemas)} schema(s).")
+    print(f"Loaded {len(all_schemas)} schema(s).")
 
     top_n = args.top
 
@@ -177,10 +177,10 @@ def match_command(args) -> None:
     # Output results
     for in_acq_name in input_acquisitions:
         matches = all_match_results[in_acq_name]
-        logger.info("")
-        logger.info(f"=== {in_acq_name} ===")
-        logger.info(f"  {'#':<4} {'Score':>6} {'Pass/Total':>12}  {'Schema':<30} {'Acquisition'}")
-        logger.info("  " + "-" * 90)
+        print()
+        print(f"=== {in_acq_name} ===")
+        print(f"  {'#':<4} {'Score':>6} {'Pass/Total':>12}  {'Schema':<30} {'Acquisition'}")
+        print("  " + "-" * 90)
 
         for rank, match in enumerate(matches, 1):
             pass_total = f"{match['pass_count']}/{match['total_count']}"
@@ -188,13 +188,13 @@ def match_command(args) -> None:
             if len(schema_display) > 28:
                 schema_display = schema_display[:25] + "..."
 
-            logger.info(
+            print(
                 f"  {rank:<4} {match['score']:>5.1f}% {pass_total:>12}  "
                 f"{schema_display:<30} {match['ref_acquisition']}"
             )
 
         if not matches:
-            logger.info("  No matching schemas found.")
+            print("  No matching schemas found.")
 
     # Save report if requested
     if hasattr(args, 'report') and args.report:
@@ -204,4 +204,4 @@ def match_command(args) -> None:
 
         with open(args.report, "w") as f:
             json.dump(report_data, f, indent=2)
-        logger.info(f"\nMatch report saved to {args.report}")
+        print(f"\nMatch report saved to {args.report}")
