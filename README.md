@@ -1,8 +1,8 @@
 # dicompare
 
-[![](img/button.png)](https://dicompare-web.vercel.app/)
+[![](img/button.png)](https://dicompare.neurodesk.org/)
 
-dicompare is a DICOM validation tool designed to ensure compliance with study-specific imaging protocols and domain-specific guidelines while preserving data privacy. It provides multiple interfaces, including support for validation directly in the browser at [dicompare-web.vercel.app](https://dicompare-web.vercel.app/), leveraging WebAssembly (WASM), Pyodide, and the underlying pip package `dicompare`. dicompare is suitable for multi-site studies and clinical environments without requiring software installation or external data uploads.
+dicompare is a DICOM validation tool designed to ensure compliance with study-specific imaging protocols and domain-specific guidelines while preserving data privacy. It provides multiple interfaces, including support for validation directly in the browser at [dicompare.neurodesk.org](https://dicompare.neurodesk.org/), leveraging WebAssembly (WASM), Pyodide, and the underlying pip package `dicompare`. dicompare is suitable for multi-site studies and clinical environments without requiring software installation or external data uploads.
 
 dicompare supports DICOM session validation against templates based on:
 
@@ -12,7 +12,7 @@ dicompare supports DICOM session validation against templates based on:
 
 # Command-line interface (CLI) and application programming interface (API)
 
-While you can run [dicompare](https://dicompare-web.vercel.app/) in your browser now without any installation, you may also use the underlying `dicompare` pip package if you wish to use the command-line interface (CLI) or application programming interface (API).
+While you can run [dicompare](https://dicompare.neurodesk.org/) in your browser now without any installation, you may also use the underlying `dicompare` pip package if you wish to use the command-line interface (CLI) or application programming interface (API).
 
 ```bash
 pip install dicompare
