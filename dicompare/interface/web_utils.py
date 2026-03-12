@@ -515,6 +515,27 @@ async def analyze_dicom_files_for_ui(
                 # Fallback to file count
                 slice_count = len(acq_df)
 
+        # Build file-to-series mapping using the same varying-field grouping as build_schema
+        series_file_mapping = {}
+        if acq_df is not None and 'DICOM_Path' in acq_df.columns and dicompare_series:
+            # Determine which fields vary across the acquisition (same logic as build_schema)
+            available_ref_fields = metadata.get('available_fields', []) if metadata else []
+            varying_fields = []
+            for field in available_ref_fields:
+                if field in acq_df.columns:
+                    unique_values = acq_df[field].dropna().unique()
+                    if len(unique_values) > 1:
+                        varying_fields.append(field)
+
+            if varying_fields:
+                groupby_key = varying_fields[0] if len(varying_fields) == 1 else varying_fields
+                for i, (_, series_group) in enumerate(acq_df.groupby(groupby_key, dropna=False), start=1):
+                    series_name = f"Series {i:02d}"
+                    series_file_mapping[series_name] = series_group['DICOM_Path'].tolist()
+            else:
+                # No varying fields - all files belong to one series
+                series_file_mapping["Series 01"] = acq_df['DICOM_Path'].tolist()
+
         ui_acquisitions.append({
             'id': unique_id,
             'protocolName': str(acq_name),
@@ -524,6 +545,7 @@ async def analyze_dicom_files_for_ui(
             'acquisitionFields': acquisition_fields,
             'seriesFields': series_fields,
             'series': series_list,
+            'seriesFileMapping': series_file_mapping,
             'metadata': {
                 'analysis_timestamp': pd.Timestamp.now().isoformat(),
                 'source': 'dicom_analysis'
