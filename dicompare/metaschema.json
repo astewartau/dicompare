@@ -66,6 +66,11 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Tags specific to this acquisition"
+        },
+        "images": {
+          "type": "array",
+          "description": "Representative images for this acquisition",
+          "items": { "$ref": "#/$defs/image" }
         }
       }
     },
@@ -155,6 +160,11 @@
           "type": "array",
           "description": "Field constraints specific to this series",
           "items": { "$ref": "#/$defs/field" }
+        },
+        "images": {
+          "type": "array",
+          "description": "Representative images for this series",
+          "items": { "$ref": "#/$defs/image" }
         }
       }
     },
@@ -220,6 +230,26 @@
           "type": "string",
           "enum": ["pass", "fail", "warning"],
           "description": "Expected outcome of the rule validation"
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "description": "Representative image for an acquisition or series",
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to a representative image file (.nii, .nii.gz, .dcm, .IMA, .png, .jpg, etc.)"
+        },
+        "label": {
+          "type": "string",
+          "description": "Short label for the image (e.g., 'Sagittal view', 'Example volume')"
+        },
+        "description": {
+          "type": "string",
+          "description": "Longer description of what the image shows"
         }
       }
     }

@@ -1154,10 +1154,14 @@ def build_schema_from_ui_acquisitions(
                     series_fields.append(field_entry)
 
             if series_fields:
-                series_data.append({
+                series_entry = {
                     'name': series.get('name', f'Series {len(series_data) + 1}'),
                     'fields': series_fields
-                })
+                }
+                series_images = series.get('images', [])
+                if series_images:
+                    series_entry['images'] = series_images
+                series_data.append(series_entry)
 
         # Build acquisition entry
         acq_entry = {
@@ -1171,6 +1175,11 @@ def build_schema_from_ui_acquisitions(
         acq_tags = acquisition.get('tags', [])
         if acq_tags:
             acq_entry['tags'] = acq_tags
+
+        # Add images if present
+        acq_images = acquisition.get('images', [])
+        if acq_images:
+            acq_entry['images'] = acq_images
 
         # Add validation rules if present
         validation_functions = acquisition.get('validationFunctions', [])
