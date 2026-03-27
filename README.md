@@ -2,21 +2,35 @@
 
 [![](img/button.png)](https://dicompare.neurodesk.org/)
 
-dicompare is a DICOM validation tool designed to ensure compliance with study-specific imaging protocols and domain-specific guidelines while preserving data privacy. It provides multiple interfaces, including support for validation directly in the browser at [dicompare.neurodesk.org](https://dicompare.neurodesk.org/), leveraging WebAssembly (WASM), Pyodide, and the underlying pip package `dicompare`. dicompare is suitable for multi-site studies and clinical environments without requiring software installation or external data uploads.
+**dicompare** is an open-source, vendor-independent tool for automated validation and comparison of MRI acquisition protocols using DICOM metadata. It enables researchers to determine whether imaging protocols implemented at different sites are truly equivalent, similar, or meaningfully different — a task that is currently manual, error-prone, and often infeasible in large, multi-site studies.
 
-dicompare supports DICOM session validation against templates based on:
+dicompare is a collaboration between the [Neurodesk](https://www.neurodesk.org/) and [Brainlife](https://brainlife.io/) groups.
 
-- **Reference sessions**: JSON schema files can be generated based on a reference MRI scanning session;
-- **Domain guidelines**: Flexible guidelines for specific domains (e.g. [QSM](https://doi.org/10.1002/mrm.30006), [ASL](https://doi.org/10.1002/mrm.29024), [MS/CMSC](https://doi.org/10.3174/ajnr.A7406));
-- **Landmark studies**: A bundled schema library includes protocols from [HCP](https://doi.org/10.1038/s41586-018-0579-z), [ABCD](https://doi.org/10.1016/j.dcn.2018.03.001), [UK Biobank](https://doi.org/10.1038/s41586-018-0579-z), and more.
+This repository contains the core Python package, which provides a command-line interface (CLI) and Python API for building, validating, and matching protocol schemas.
 
-# Command-line interface (CLI) and application programming interface (API)
+For the visual web and desktop application, see [**dicompare-web**](https://github.com/astewartau/dicompare-web) or use the live app at [dicompare.neurodesk.org](https://dicompare.neurodesk.org/) or [brainlife.io/dicompare](https://brainlife.io/dicompare).
 
-While you can run [dicompare](https://dicompare.neurodesk.org/) in your browser now without any installation, you may also use the underlying `dicompare` pip package if you wish to use the command-line interface (CLI) or application programming interface (API).
+---
+
+## What dicompare Does
+
+dicompare performs structured comparisons of DICOM files to evaluate whether imaging protocols match a target reference or schema. It works directly with DICOM metadata and does not depend on scanner manufacturer formats or proprietary exam card systems.
+
+dicompare supports validation against:
+
+- **Reference sessions** — JSON schema files generated from a reference MRI scanning session
+- **Domain guidelines** — Flexible guidelines for specific domains (e.g. [QSM](https://doi.org/10.1002/mrm.30006), [ASL](https://doi.org/10.1002/mrm.29024), [MS/CMSC](https://doi.org/10.3174/ajnr.A7406))
+- **Landmark studies** — A bundled schema library with protocols from [HCP](https://doi.org/10.1038/s41586-018-0579-z), [ABCD](https://doi.org/10.1016/j.dcn.2018.03.001), [UK Biobank](https://doi.org/10.1038/s41586-018-0579-z), and more
+
+---
+
+## Installation
 
 ```bash
 pip install dicompare
 ```
+
+Alternatively, use the [web app](https://dicompare.neurodesk.org/) or [desktop app](https://github.com/astewartau/dicompare-web/releases) for a visual interface with no installation required.
 
 ## Command-line interface (CLI)
 
@@ -206,3 +220,9 @@ print(tag_info)  # {'tag': '(0018,0081)', 'name': 'Echo Time', 'type': 'float'}
 all_tags = get_all_tags_in_dataset(dicom_metadata)
 ```
 
+## Links
+
+- [dicompare Web & Desktop App](https://github.com/astewartau/dicompare-web) — Visual interface for building, viewing, and validating protocol schemas
+- [Live App (Neurodesk)](https://dicompare.neurodesk.org/)
+- [Live App (Brainlife)](https://brainlife.io/dicompare)
+- [Report Issues](https://github.com/astewartau/dicompare-pip/issues)
