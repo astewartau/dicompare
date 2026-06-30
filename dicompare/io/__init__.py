@@ -64,6 +64,12 @@ from .lxprotocol import (
     load_lxprotocol_session,
 )
 
+# Siemens print-protocol (XML/TXT) file parsing
+from .printprot import (
+    load_printprot_file,
+    load_printprot_file_schema_format,
+)
+
 __all__ = [
     # DICOM I/O
     "get_dicom_values",
@@ -96,4 +102,7 @@ __all__ = [
     "load_lxprotocol_file",
     "load_lxprotocol_file_schema_format",
     "load_lxprotocol_session",
+    # Print-protocol (Siemens XML/TXT) file support
+    "load_printprot_file",
+    "load_printprot_file_schema_format",
 ]

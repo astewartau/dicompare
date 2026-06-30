@@ -1,0 +1,1194 @@
+
+
+                   SIEMENS MAGNETOM ConnectomA syngo MR D11
+---------------------------------------------------------------------------------
+              \\USER\saper7dev\axcal_repro\25062019-2\localizer
+          TA:0:13  PAT:Off  Voxel size:0.5×0.5×7.0 mm Rel. SNR:1.00   :fl  
+---------------------------------------------------------------------------------
+Properties
+     Prio Recon                              On 
+     Before measurement                       
+     After measurement                        
+     Load to viewer                          On 
+     Inline movie                            Off 
+     Auto store images                       On 
+     Load to stamp segments                  On 
+     Load images to graphic segments         On 
+     Auto open inline display                Off 
+     Wait for user to start                  On 
+     Start measurements                      single 
+Routine
+     Nr. of slice groups                     3 
+     Slices                                  1 
+     Dist. factor                            20 %
+     Position                                L2.4 P2.0 H0.0 mm
+     Orientation                             Sagittal 
+     Phase enc. dir.                         A >> P 
+     AutoAlign                               --- 
+     Phase oversampling                      0 %
+     FoV read                                250 mm
+     FoV phase                               100.0 %
+     Slice thickness                         7.0 mm
+     TR                                      8.6 ms
+     TE                                      4.00 ms
+     Averages                                2 
+     Concatenations                          3 
+     Filter                                  Distortion Corr.(2D), Normalize, Elliptical filter 
+     Coil elements                           HEA;HEP 
+Contrast
+     TD                                      0 ms
+     MTC                                     Off 
+     Magn. preparation                       None 
+     Flip angle                              20 deg
+     Fat suppr.                              None 
+     Water suppr.                            None 
+     SWI                                     Off 
+     Averaging mode                          Short term 
+     Measurements                            1 
+     Reconstruction                          Magnitude 
+     Multiple series                         Each measurement 
+Resolution
+     Base resolution                         256 
+     Phase resolution                        90 %
+     Phase partial Fourier                   Off 
+     Interpolation                           On 
+     PAT mode                                None 
+     Image Filter                            Off 
+     Distortion Corr.                        On 
+     TD                                      0 ms
+     Mode                                    2D 
+     Unfiltered images                       Off 
+     Prescan Normalize                       Off 
+     Normalize                               On 
+     B1 filter                               Off 
+     Raw filter                              Off 
+     Elliptical filter                       On 
+     Mode                                    Inplane 
+Geometry
+     Nr. of slice groups                     3 
+     Slices                                  1 
+     Dist. factor                            20 %
+     Position                                L2.4 P2.0 H0.0 mm
+     Phase enc. dir.                         A >> P 
+     Phase oversampling                      0 %
+     Multi-slice mode                        Sequential 
+     Series                                  Interleaved 
+     Saturation mode                         Standard 
+     Nr. of sat. regions                     0 
+     Position mode                           L-P-H 
+     Fat suppr.                              None 
+     Water suppr.                            None 
+     Special sat.                            None 
+     Special sat.                            None 
+     Set-n-Go Protocol                       Off 
+     Table position                          P 
+     Inline Composing                        Off 
+     Tim CT mode                             Off 
+System
+     Body                                    Off 
+     HEP                                     On 
+     HEA                                     On 
+     Position mode                           L-P-H 
+     Positioning mode                        REF 
+     Table position                          F 
+     Table position                          0 mm
+     MSMA                                    S - C - T 
+     Sagittal                                R >> L 
+     Coronal                                 A >> P 
+     Transversal                             F >> H 
+     Save uncombined                         Off 
+     Coil Combine Mode                       Adaptive Combine 
+     AutoAlign                               --- 
+     Auto Coil Select                        Off 
+     Shim mode                               Tune up 
+     Adjust with body coil                   Off 
+     Confirm freq. adjustment                Off 
+     Assume Dominant Fat                     Off 
+     Assume Silicone                         Off 
+     Adjustment Tolerance                    Auto 
+     ? Ref. amplitude 1H                     0.000 V
+     Position                                Isocenter 
+     Rotation                                0.00 deg
+     R >> L                                  350 mm
+     A >> P                                  263 mm
+     F >> H                                  350 mm
+     Frequency 1H                            123.200592 MHz
+     Correction factor                       1 
+     SRFExcit 1H                             62.154 V
+     Gain                                    High 
+     Table position                          0 mm
+     Img. Scale. Cor.                        1.000 
+Physio
+     1st Signal/Mode                         None 
+     Segments                                1 
+     Tagging                                 None 
+     Magn. preparation                       None 
+     Dark blood                              Off 
+     Resp. control                           Off 
+Inline
+     Inline Composing                        Off 
+     Distortion correction                   Off 
+Sequence
+     Introduction                            On 
+     Dimension                               2D 
+     Phase stabilisation                     Off 
+     Averaging mode                          Short term 
+     Multi-slice mode                        Sequential 
+     Asymmetric echo                         Allowed 
+     Contrasts                               1 
+     Bandwidth                               320 Hz/Px
+     Flow comp.                              No 
+     Allowed delay                           0 s
+     RF pulse type                           Normal 
+     Gradient mode                           Normal 
+     Excitation                              Slice-sel. 
+     RF spoiling                             On 
+     TX/RX delta frequency                   0 Hz
+     TX Nucleus                              None 
+     TX delta frequency                      0 Hz
+     Coil elements                           HEA;HEP 
+     Acquisition duration                    0 ms
+     Mode                                    Off 
+BOLD
+     Subtract                                Off 
+     Liver registration                      Off 
+     Save images                             On 
+     Autoscaling                             Off 
+     Scaling factor                          1 
+     Offset                                  0 
+     Subtrahend                              1 
+     Subtraction indices                      
+     StdDev                                  Off 
+     Std-Dev-Sag                             Off 
+     Std-Dev-Cor                             Off 
+     Std-Dev-Tra                             Off 
+     Std-Dev-Time                            Off 
+     MIP-Sag                                 Off 
+     MIP-Cor                                 Off 
+     MIP-Tra                                 Off 
+     MIP-Time                                Off 
+     Radial MIP                              Off 
+     Save original images                    On 
+     Distortion Corr.                        On 
+     Mode                                    2D 
+     Unfiltered images                       Off 
+     MapIt                                   None 
+     Contrasts                               1 
+     Save original images                    On 
+     Wash - In                               Off 
+     Wash - Out                              Off 
+     TTP                                     Off 
+     PEI                                     Off 
+     MIP - time                              Off 
+     Number of radial views                  1 
+     Axis of radial views                    L-R 
+     MPR Sag                                 Off 
+     MPR Cor                                 Off 
+     MPR Tra                                 Off 
+
+
+                   SIEMENS MAGNETOM ConnectomA syngo MR D11
+---------------------------------------------------------------------------------
+              \\USER\saper7dev\axcal_repro\25062019-2\t1_mprage_sag_iso_1mm
+          TA:5:35  PAT:2  Voxel size:1.0×1.0×1.0 mm Rel. SNR:1.00   :tfl  
+---------------------------------------------------------------------------------
+Properties
+     Prio Recon                              Off 
+     Before measurement                       
+     After measurement                        
+     Load to viewer                          On 
+     Inline movie                            Off 
+     Auto store images                       On 
+     Load to stamp segments                  Off 
+     Load images to graphic segments         Off 
+     Auto open inline display                Off 
+     Wait for user to start                  On 
+     Start measurements                      single 
+Routine
+     Nr. of slab groups                      1 
+     Slabs                                   1 
+     Dist. factor                            50 %
+     Position                                R1.5 A22.4 H35.0 mm
+     Orientation                             Sagittal 
+     Phase enc. dir.                         A >> P 
+     AutoAlign                               --- 
+     Phase oversampling                      0 %
+     Slice oversampling                      16.7 %
+     FoV read                                256 mm
+     FoV phase                               100.0 %
+     Slice thickness                         1.00 mm
+     TR                                      2300.0 ms
+     TE                                      2.00 ms
+     Averages                                1 
+     Concatenations                          1 
+     Filter                                  Distortion Corr.(3D), Prescan Normalize 
+     Coil elements                           HEA;HEP 
+Contrast
+     Magn. preparation                       Non-sel. IR 
+     TI                                      857 ms
+     Flip angle                              9 deg
+     Fat suppr.                              None 
+     Water suppr.                            None 
+     Averaging mode                          Long term 
+     Measurements                            1 
+     Reconstruction                          Magnitude 
+     Multiple series                         Each measurement 
+Resolution
+     Base resolution                         256 
+     Phase resolution                        100 %
+     Phase partial Fourier                   Off 
+     Interpolation                           Off 
+     PAT mode                                GRAPPA 
+     Accel. factor PE                        2 
+     Ref. lines PE                           36 
+     Reference scan mode                     Integrated 
+     Image Filter                            Off 
+     Distortion Corr.                        On 
+     Accel. factor 3D                        1 
+     Mode                                    3D 
+     Unfiltered images                       Off 
+     Unfiltered images                       Off 
+     Prescan Normalize                       On 
+     Normalize                               Off 
+     B1 filter                               Off 
+     Raw filter                              Off 
+     Elliptical filter                       Off 
+     Slice resolution                        100 %
+     Slice partial Fourier                   Off 
+Geometry
+     Nr. of slab groups                      1 
+     Slabs                                   1 
+     Dist. factor                            50 %
+     Position                                R1.5 A22.4 H35.0 mm
+     Phase enc. dir.                         A >> P 
+     Phase oversampling                      0 %
+     Slice oversampling                      16.7 %
+     Slices per slab                         192 
+     Multi-slice mode                        Single shot 
+     Series                                  Ascending 
+     Nr. of sat. regions                     0 
+     Position mode                           L-P-H 
+     Fat suppr.                              None 
+     Water suppr.                            None 
+     Special sat.                            None 
+     Set-n-Go Protocol                       Off 
+     Table position                          P 
+     Inline Composing                        Off 
+System
+     Body                                    Off 
+     HEP                                     On 
+     HEA                                     On 
+     Position mode                           L-P-H 
+     Positioning mode                        FIX 
+     Table position                          H 
+     Table position                          0 mm
+     MSMA                                    S - C - T 
+     Sagittal                                R >> L 
+     Coronal                                 A >> P 
+     Transversal                             F >> H 
+     Save uncombined                         Off 
+     Coil Combine Mode                       Adaptive Combine 
+     AutoAlign                               --- 
+     Auto Coil Select                        Off 
+     Shim mode                               Standard 
+     Adjust with body coil                   Off 
+     Confirm freq. adjustment                Off 
+     Assume Dominant Fat                     Off 
+     Assume Silicone                         Off 
+     Adjustment Tolerance                    Auto 
+     ? Ref. amplitude 1H                     0.000 V
+     Position                                R1.5 A22.4 H35.0 mm
+     Rotation                                0.00 deg
+     F >> H                                  256 mm
+     A >> P                                  256 mm
+     R >> L                                  192 mm
+     Frequency 1H                            123.200592 MHz
+     Correction factor                       1 
+     SLoopIRns1 1H                           587.274 V
+     Gain                                    Low 
+     Table position                          0 mm
+     Img. Scale. Cor.                        10.000 
+Physio
+     1st Signal/Mode                         None 
+     Magn. preparation                       Non-sel. IR 
+     TI                                      857 ms
+     Dark blood                              Off 
+     Resp. control                           Off 
+Inline
+     Inline Composing                        Off 
+     Distortion correction                   Off 
+Sequence
+     Introduction                            On 
+     Dimension                               3D 
+     Elliptical scanning                     Off 
+     Averaging mode                          Long term 
+     Multi-slice mode                        Single shot 
+     Reordering                              Linear 
+     Asymmetric echo                         Allowed 
+     Bandwidth                               230 Hz/Px
+     Flow comp.                              No 
+     Echo spacing                            5.9 ms
+     Turbo factor                            224 
+     RF pulse type                           Normal 
+     Gradient mode                           Normal 
+     Excitation                              Non-sel. 
+     RF spoiling                             On 
+     TX/RX delta frequency                   0 Hz
+     TX Nucleus                              None 
+     TX delta frequency                      0 Hz
+     Coil elements                           HEA;HEP 
+     Acquisition duration                    0 ms
+     Mode                                    Off 
+BOLD
+     Subtract                                Off 
+     Save images                             On 
+     Autoscaling                             Off 
+     Scaling factor                          1 
+     Offset                                  0 
+     Subtrahend                              1 
+     Subtraction indices                      
+     StdDev                                  Off 
+     Std-Dev-Sag                             Off 
+     Std-Dev-Cor                             Off 
+     Std-Dev-Tra                             Off 
+     Std-Dev-Time                            Off 
+     MIP-Sag                                 Off 
+     MIP-Cor                                 Off 
+     MIP-Tra                                 Off 
+     MIP-Time                                Off 
+     Radial MIP                              Off 
+     Save original images                    On 
+     Distortion Corr.                        On 
+     Mode                                    3D 
+     Unfiltered images                       Off 
+     Save original images                    On 
+     Number of radial views                  1 
+     Axis of radial views                    L-R 
+     MPR Sag                                 Off 
+     MPR Cor                                 Off 
+     MPR Tra                                 Off 
+
+
+                   SIEMENS MAGNETOM ConnectomA syngo MR D11
+---------------------------------------------------------------------------------
+              \\USER\saper7dev\axcal_repro\25062019-2\fast DKI
+          TA:6:15  PAT:2  Voxel size:2.5×2.5×2.5 mm Rel. SNR:1.00   :r1  
+---------------------------------------------------------------------------------
+Properties
+     Prio Recon                              Off 
+     Before measurement                       
+     After measurement                        
+     Load to viewer                          On 
+     Inline movie                            Off 
+     Auto store images                       On 
+     Load to stamp segments                  Off 
+     Load images to graphic segments         Off 
+     Auto open inline display                Off 
+     Wait for user to start                  On 
+     Start measurements                      single 
+Routine
+     Nr. of slice groups                     1 
+     Slices                                  54 
+     Dist. factor                            0 %
+     Position                                L2.4 A6.6 H0.0 mm
+     Orientation                             T > C-5.0 
+     Phase enc. dir.                         A >> P 
+     AutoAlign                               --- 
+     Phase oversampling                      0 %
+     FoV read                                220 mm
+     FoV phase                               100.0 %
+     Slice thickness                         2.5 mm
+     TR                                      3500 ms
+     TE                                      66.0 ms
+     Averages                                1 
+     Concatenations                          1 
+     Filter                                  Prescan Normalize 
+     Coil elements                           HEA;HEP 
+Contrast
+     MTC                                     Off 
+     Magn. preparation                       None 
+     Flip angle 1                            90 deg
+     Fat suppr.                              Fat sat. 
+     Fat sat. mode                           Strong 
+     Averaging mode                          Long term 
+     Delay in TR                             0 ms
+     Reconstruction                          Magnitude 
+     Multiple series                         Off 
+Resolution
+     Base resolution                         88 
+     Phase resolution                        88 %
+     Phase partial Fourier                   Off 
+     PAT mode                                GRAPPA 
+     Accel. factor PE                        2 
+     Ref. lines PE                           36 
+     Reference scan mode                     Separate 
+     Distortion Corr.                        Off 
+     Prescan Normalize                       On 
+     Normalize                               Off 
+     Raw filter                              Off 
+     Elliptical filter                       Off 
+     Dynamic Field Corr.                     Off 
+Geometry
+     Nr. of slice groups                     1 
+     Slices                                  54 
+     Dist. factor                            0 %
+     Position                                L2.4 A6.6 H0.0 mm
+     Phase enc. dir.                         A >> P 
+     Phase oversampling                      0 %
+     Multi-slice mode                        Interleaved 
+     Series                                  Interleaved 
+     Nr. of sat. regions                     0 
+     Position mode                           L-P-H 
+     Fat suppr.                              Fat sat. 
+     Special sat.                            None 
+     Fat sat. mode                           Strong 
+     Special sat.                            None 
+     Set-n-Go Protocol                       Off 
+     Table position                          P 
+     Inline Composing                        Off 
+System
+     Body                                    Off 
+     HEP                                     On 
+     HEA                                     On 
+     Position mode                           L-P-H 
+     Positioning mode                        FIX 
+     Table position                          H 
+     Table position                          0 mm
+     MSMA                                    S - C - T 
+     Sagittal                                R >> L 
+     Coronal                                 A >> P 
+     Transversal                             F >> H 
+     Coil Combine Mode                       Adaptive Combine 
+     AutoAlign                               --- 
+     Auto Coil Select                        Default 
+     Shim mode                               Standard 
+     Adjust with body coil                   Off 
+     Confirm freq. adjustment                Off 
+     Assume Dominant Fat                     Off 
+     Assume Silicone                         Off 
+     Adjustment Tolerance                    Auto 
+     ? Ref. amplitude 1H                     0.000 V
+     Position                                L2.4 A6.6 H0.0 mm
+     Rotation                                0.00 deg
+     R >> L                                  220 mm
+     A >> P                                  220 mm
+     F >> H                                  135 mm
+     Frequency 1H                            123.200592 MHz
+     Correction factor                       1 
+     ACS SincRFPulse 1H                      42.456 V
+     Gain                                    High 
+     Table position                          0 mm
+     Img. Scale. Cor.                        1.000 
+Physio
+     Magn. preparation                       None 
+     Resp. control                           Off 
+Inline
+     Inline Composing                        Off 
+     Distortion correction                   Off 
+Sequence
+     Introduction                            Off 
+     Averaging mode                          Long term 
+     Multi-slice mode                        Interleaved 
+     Bandwidth                               2272 Hz/Px
+     Optimization                            None 
+     Free echo spacing                       Off 
+     Echo spacing                            0.52 ms
+     EPI factor                              77 
+     RF pulse type                           Normal 
+     Gradient mode                           Fast 
+     Directions                              Jones31 
+     Min. Preparation                        1 TRs
+     Initial Low-B Reps                      1 
+     RF Clipping                             0 
+     Use POCS                                Off 
+     Dynamic B0 Correction                   Off 
+     Coil Combine                            Uniform Noise 
+     Grad Min Rise                           12 ms.m/T
+     Max Diff Grad                           80 mT/m
+     Small delta                             15 ms
+     SMS Factor                              2 
+     PE Shift Factor                         4 
+     Big Delta                               30 ms
+     Segmented ACS                           On 
+     TX/RX delta frequency                   0 Hz
+     TX Nucleus                              None 
+     TX delta frequency                      0 Hz
+     Coil elements                           HEA;HEP 
+     Acquisition duration                    0 ms
+BOLD
+     Delay in TR                             0 ms
+     Diffusion mode                          Free 
+     Diff. weightings                        3 
+     b-value 1                               500 s/mm²
+     Diff. weighted images                   On 
+     Trace weighted images                   Off 
+     ADC maps                                Off 
+     FA maps                                 Off 
+     Mosaic                                  On 
+     Tensor                                  Off 
+     Distortion Corr.                        Off 
+     b-Value >=                              0 s/mm²
+     Exponential ADC Maps                    Off 
+     Invert Gray Scale                       Off 
+     Calculated Image                        Off 
+     Calculated bValue                       1400 s/mm²
+
+
+                   SIEMENS MAGNETOM ConnectomA syngo MR D11
+---------------------------------------------------------------------------------
+              \\USER\saper7dev\axcal_repro\25062019-2\fast DKI_fornoise
+          TA:2:38  PAT:2  Voxel size:2.5×2.5×2.5 mm Rel. SNR:1.00   :r1  
+---------------------------------------------------------------------------------
+Properties
+     Prio Recon                              Off 
+     Before measurement                       
+     After measurement                        
+     Load to viewer                          On 
+     Inline movie                            Off 
+     Auto store images                       On 
+     Load to stamp segments                  Off 
+     Load images to graphic segments         Off 
+     Auto open inline display                Off 
+     Wait for user to start                  On 
+     Start measurements                      single 
+Routine
+     Nr. of slice groups                     1 
+     Slices                                  54 
+     Dist. factor                            0 %
+     Position                                L2.4 A6.6 H0.0 mm
+     Orientation                             T > C-5.0 
+     Phase enc. dir.                         A >> P 
+     AutoAlign                               --- 
+     Phase oversampling                      0 %
+     FoV read                                220 mm
+     FoV phase                               100.0 %
+     Slice thickness                         2.5 mm
+     TR                                      3500 ms
+     TE                                      66.0 ms
+     Averages                                1 
+     Concatenations                          1 
+     Filter                                  Prescan Normalize 
+     Coil elements                           HEA;HEP 
+Contrast
+     MTC                                     Off 
+     Magn. preparation                       None 
+     Flip angle 1                            90 deg
+     Fat suppr.                              Fat sat. 
+     Fat sat. mode                           Strong 
+     Averaging mode                          Long term 
+     Delay in TR                             0 ms
+     Reconstruction                          Magnitude 
+     Multiple series                         Off 
+Resolution
+     Base resolution                         88 
+     Phase resolution                        88 %
+     Phase partial Fourier                   Off 
+     PAT mode                                GRAPPA 
+     Accel. factor PE                        2 
+     Ref. lines PE                           36 
+     Reference scan mode                     Separate 
+     Distortion Corr.                        Off 
+     Prescan Normalize                       On 
+     Normalize                               Off 
+     Raw filter                              Off 
+     Elliptical filter                       Off 
+     Dynamic Field Corr.                     Off 
+Geometry
+     Nr. of slice groups                     1 
+     Slices                                  54 
+     Dist. factor                            0 %
+     Position                                L2.4 A6.6 H0.0 mm
+     Phase enc. dir.                         A >> P 
+     Phase oversampling                      0 %
+     Multi-slice mode                        Interleaved 
+     Series                                  Interleaved 
+     Nr. of sat. regions                     0 
+     Position mode                           L-P-H 
+     Fat suppr.                              Fat sat. 
+     Special sat.                            None 
+     Fat sat. mode                           Strong 
+     Special sat.                            None 
+     Set-n-Go Protocol                       Off 
+     Table position                          P 
+     Inline Composing                        Off 
+System
+     Body                                    Off 
+     HEP                                     On 
+     HEA                                     On 
+     Position mode                           L-P-H 
+     Positioning mode                        FIX 
+     Table position                          H 
+     Table position                          0 mm
+     MSMA                                    S - C - T 
+     Sagittal                                R >> L 
+     Coronal                                 A >> P 
+     Transversal                             F >> H 
+     Coil Combine Mode                       Adaptive Combine 
+     AutoAlign                               --- 
+     Auto Coil Select                        Default 
+     Shim mode                               Standard 
+     Adjust with body coil                   Off 
+     Confirm freq. adjustment                Off 
+     Assume Dominant Fat                     Off 
+     Assume Silicone                         Off 
+     Adjustment Tolerance                    Auto 
+     ? Ref. amplitude 1H                     0.000 V
+     Position                                L2.4 A6.6 H0.0 mm
+     Rotation                                0.00 deg
+     R >> L                                  220 mm
+     A >> P                                  220 mm
+     F >> H                                  135 mm
+     Frequency 1H                            123.200592 MHz
+     Correction factor                       1 
+     ACS SincRFPulse 1H                      42.456 V
+     Gain                                    High 
+     Table position                          0 mm
+     Img. Scale. Cor.                        1.000 
+Physio
+     Magn. preparation                       None 
+     Resp. control                           Off 
+Inline
+     Inline Composing                        Off 
+     Distortion correction                   Off 
+Sequence
+     Introduction                            Off 
+     Averaging mode                          Long term 
+     Multi-slice mode                        Interleaved 
+     Bandwidth                               2272 Hz/Px
+     Optimization                            None 
+     Free echo spacing                       Off 
+     Echo spacing                            0.52 ms
+     EPI factor                              77 
+     RF pulse type                           Normal 
+     Gradient mode                           Fast 
+     Directions                              Jones31 
+     Min. Preparation                        1 TRs
+     Initial Low-B Reps                      1 
+     RF Clipping                             0 
+     Use POCS                                Off 
+     Dynamic B0 Correction                   Off 
+     Coil Combine                            Uniform Noise 
+     Grad Min Rise                           12 ms.m/T
+     Max Diff Grad                           80 mT/m
+     Small delta                             15 ms
+     SMS Factor                              2 
+     PE Shift Factor                         4 
+     Big Delta                               30 ms
+     Segmented ACS                           On 
+     TX/RX delta frequency                   0 Hz
+     TX Nucleus                              None 
+     TX delta frequency                      0 Hz
+     Coil elements                           HEA;HEP 
+     Acquisition duration                    0 ms
+BOLD
+     Delay in TR                             0 ms
+     Diffusion mode                          Free 
+     Diff. weightings                        1 
+     b-value                                 500 s/mm²
+     Diff. weighted images                   On 
+     Trace weighted images                   On 
+     ADC maps                                Off 
+     FA maps                                 Off 
+     Mosaic                                  On 
+     Tensor                                  Off 
+     Distortion Corr.                        Off 
+     b-Value >=                              0 s/mm²
+     Exponential ADC Maps                    Off 
+     Invert Gray Scale                       Off 
+     Calculated Image                        Off 
+     Calculated bValue                       1400 s/mm²
+
+
+                   SIEMENS MAGNETOM ConnectomA syngo MR D11
+---------------------------------------------------------------------------------
+              \\USER\saper7dev\axcal_repro\25062019-2\Axon Diameter
+          TA:12:03  PAT:2  Voxel size:2.5×2.5×2.5 mm Rel. SNR:1.00   :r1  
+---------------------------------------------------------------------------------
+Properties
+     Prio Recon                              Off 
+     Before measurement                       
+     After measurement                        
+     Load to viewer                          On 
+     Inline movie                            Off 
+     Auto store images                       On 
+     Load to stamp segments                  Off 
+     Load images to graphic segments         Off 
+     Auto open inline display                Off 
+     Wait for user to start                  On 
+     Start measurements                      single 
+Routine
+     Nr. of slice groups                     1 
+     Slices                                  54 
+     Dist. factor                            0 %
+     Position                                L2.4 A6.6 H0.0 mm
+     Orientation                             T > C-5.0 
+     Phase enc. dir.                         A >> P 
+     AutoAlign                               --- 
+     Phase oversampling                      0 %
+     FoV read                                220 mm
+     FoV phase                               100.0 %
+     Slice thickness                         2.5 mm
+     TR                                      3500 ms
+     TE                                      66.0 ms
+     Averages                                1 
+     Concatenations                          1 
+     Filter                                  Prescan Normalize 
+     Coil elements                           HEA;HEP 
+Contrast
+     MTC                                     Off 
+     Magn. preparation                       None 
+     Flip angle 1                            90 deg
+     Fat suppr.                              Fat sat. 
+     Fat sat. mode                           Strong 
+     Averaging mode                          Long term 
+     Delay in TR                             0 ms
+     Reconstruction                          Magnitude 
+     Multiple series                         Off 
+Resolution
+     Base resolution                         88 
+     Phase resolution                        88 %
+     Phase partial Fourier                   Off 
+     PAT mode                                GRAPPA 
+     Accel. factor PE                        2 
+     Ref. lines PE                           36 
+     Reference scan mode                     Separate 
+     Distortion Corr.                        Off 
+     Prescan Normalize                       On 
+     Normalize                               Off 
+     Raw filter                              Off 
+     Elliptical filter                       Off 
+     Dynamic Field Corr.                     Off 
+Geometry
+     Nr. of slice groups                     1 
+     Slices                                  54 
+     Dist. factor                            0 %
+     Position                                L2.4 A6.6 H0.0 mm
+     Phase enc. dir.                         A >> P 
+     Phase oversampling                      0 %
+     Multi-slice mode                        Interleaved 
+     Series                                  Interleaved 
+     Nr. of sat. regions                     0 
+     Position mode                           L-P-H 
+     Fat suppr.                              Fat sat. 
+     Special sat.                            None 
+     Fat sat. mode                           Strong 
+     Special sat.                            None 
+     Set-n-Go Protocol                       Off 
+     Table position                          P 
+     Inline Composing                        Off 
+System
+     Body                                    Off 
+     HEP                                     On 
+     HEA                                     On 
+     Position mode                           L-P-H 
+     Positioning mode                        FIX 
+     Table position                          H 
+     Table position                          0 mm
+     MSMA                                    S - C - T 
+     Sagittal                                R >> L 
+     Coronal                                 A >> P 
+     Transversal                             F >> H 
+     Coil Combine Mode                       Adaptive Combine 
+     AutoAlign                               --- 
+     Auto Coil Select                        Default 
+     Shim mode                               Standard 
+     Adjust with body coil                   Off 
+     Confirm freq. adjustment                Off 
+     Assume Dominant Fat                     Off 
+     Assume Silicone                         Off 
+     Adjustment Tolerance                    Auto 
+     ? Ref. amplitude 1H                     0.000 V
+     Position                                L2.4 A6.6 H0.0 mm
+     Rotation                                0.00 deg
+     R >> L                                  220 mm
+     A >> P                                  220 mm
+     F >> H                                  135 mm
+     Frequency 1H                            123.200592 MHz
+     Correction factor                       1 
+     ACS SincRFPulse 1H                      42.456 V
+     Gain                                    High 
+     Table position                          0 mm
+     Img. Scale. Cor.                        1.000 
+Physio
+     Magn. preparation                       None 
+     Resp. control                           Off 
+Inline
+     Inline Composing                        Off 
+     Distortion correction                   Off 
+Sequence
+     Introduction                            Off 
+     Averaging mode                          Long term 
+     Multi-slice mode                        Interleaved 
+     Bandwidth                               2272 Hz/Px
+     Optimization                            None 
+     Free echo spacing                       Off 
+     Echo spacing                            0.52 ms
+     EPI factor                              77 
+     RF pulse type                           Normal 
+     Gradient mode                           Fast 
+     Directions                              DiffusionVectors_AxonDiameter_ERJV 
+     Min. Preparation                        1 TRs
+     Initial Low-B Reps                      1 
+     RF Clipping                             0 
+     Use POCS                                Off 
+     Dynamic B0 Correction                   Off 
+     Coil Combine                            Uniform Noise 
+     Grad Min Rise                           12 ms.m/T
+     Max Diff Grad                           280 mT/m
+     Small delta                             15 ms
+     SMS Factor                              2 
+     PE Shift Factor                         4 
+     Big Delta                               30 ms
+     Segmented ACS                           On 
+     TX/RX delta frequency                   0 Hz
+     TX Nucleus                              None 
+     TX delta frequency                      0 Hz
+     Coil elements                           HEA;HEP 
+     Acquisition duration                    0 ms
+BOLD
+     Delay in TR                             0 ms
+     Diffusion mode                          Free 
+     Diff. weightings                        1 
+     b-value                                 30450 s/mm²
+     Diff. weighted images                   On 
+     Trace weighted images                   Off 
+     ADC maps                                Off 
+     FA maps                                 Off 
+     Mosaic                                  On 
+     Tensor                                  Off 
+     Distortion Corr.                        Off 
+     b-Value >=                              0 s/mm²
+     Exponential ADC Maps                    Off 
+     Invert Gray Scale                       Off 
+     Calculated Image                        Off 
+     Calculated bValue                       1400 s/mm²
+
+
+                   SIEMENS MAGNETOM ConnectomA syngo MR D11
+---------------------------------------------------------------------------------
+              \\USER\saper7dev\axcal_repro\25062019-2\Axon Diameter - repetition
+          TA:12:03  PAT:2  Voxel size:2.5×2.5×2.5 mm Rel. SNR:1.00   :r1  
+---------------------------------------------------------------------------------
+Properties
+     Prio Recon                              Off 
+     Before measurement                       
+     After measurement                        
+     Load to viewer                          On 
+     Inline movie                            Off 
+     Auto store images                       On 
+     Load to stamp segments                  Off 
+     Load images to graphic segments         Off 
+     Auto open inline display                Off 
+     Wait for user to start                  On 
+     Start measurements                      single 
+Routine
+     Nr. of slice groups                     1 
+     Slices                                  54 
+     Dist. factor                            0 %
+     Position                                L2.4 A6.6 H0.0 mm
+     Orientation                             T > C-5.0 
+     Phase enc. dir.                         A >> P 
+     AutoAlign                               --- 
+     Phase oversampling                      0 %
+     FoV read                                220 mm
+     FoV phase                               100.0 %
+     Slice thickness                         2.5 mm
+     TR                                      3500 ms
+     TE                                      66.0 ms
+     Averages                                1 
+     Concatenations                          1 
+     Filter                                  Prescan Normalize 
+     Coil elements                           HEA;HEP 
+Contrast
+     MTC                                     Off 
+     Magn. preparation                       None 
+     Flip angle 1                            90 deg
+     Fat suppr.                              Fat sat. 
+     Fat sat. mode                           Strong 
+     Averaging mode                          Long term 
+     Delay in TR                             0 ms
+     Reconstruction                          Magnitude 
+     Multiple series                         Off 
+Resolution
+     Base resolution                         88 
+     Phase resolution                        88 %
+     Phase partial Fourier                   Off 
+     PAT mode                                GRAPPA 
+     Accel. factor PE                        2 
+     Ref. lines PE                           36 
+     Reference scan mode                     Separate 
+     Distortion Corr.                        Off 
+     Prescan Normalize                       On 
+     Normalize                               Off 
+     Raw filter                              Off 
+     Elliptical filter                       Off 
+     Dynamic Field Corr.                     Off 
+Geometry
+     Nr. of slice groups                     1 
+     Slices                                  54 
+     Dist. factor                            0 %
+     Position                                L2.4 A6.6 H0.0 mm
+     Phase enc. dir.                         A >> P 
+     Phase oversampling                      0 %
+     Multi-slice mode                        Interleaved 
+     Series                                  Interleaved 
+     Nr. of sat. regions                     0 
+     Position mode                           L-P-H 
+     Fat suppr.                              Fat sat. 
+     Special sat.                            None 
+     Fat sat. mode                           Strong 
+     Special sat.                            None 
+     Set-n-Go Protocol                       Off 
+     Table position                          P 
+     Inline Composing                        Off 
+System
+     Body                                    Off 
+     HEP                                     On 
+     HEA                                     On 
+     Position mode                           L-P-H 
+     Positioning mode                        FIX 
+     Table position                          H 
+     Table position                          0 mm
+     MSMA                                    S - C - T 
+     Sagittal                                R >> L 
+     Coronal                                 A >> P 
+     Transversal                             F >> H 
+     Coil Combine Mode                       Adaptive Combine 
+     AutoAlign                               --- 
+     Auto Coil Select                        Default 
+     Shim mode                               Standard 
+     Adjust with body coil                   Off 
+     Confirm freq. adjustment                Off 
+     Assume Dominant Fat                     Off 
+     Assume Silicone                         Off 
+     Adjustment Tolerance                    Auto 
+     ? Ref. amplitude 1H                     0.000 V
+     ! Position                              L2.4 A6.6 H0.0 mm
+     ! Rotation                              0.00 deg
+     ! R >> L                                220 mm
+     ! A >> P                                220 mm
+     ! F >> H                                135 mm
+     Frequency 1H                            123.200592 MHz
+     Correction factor                       1 
+     ACS SincRFPulse 1H                      42.456 V
+     Gain                                    High 
+     Table position                          0 mm
+     Img. Scale. Cor.                        1.000 
+Physio
+     Magn. preparation                       None 
+     Resp. control                           Off 
+Inline
+     Inline Composing                        Off 
+     Distortion correction                   Off 
+Sequence
+     Introduction                            Off 
+     Averaging mode                          Long term 
+     Multi-slice mode                        Interleaved 
+     Bandwidth                               2272 Hz/Px
+     Optimization                            None 
+     Free echo spacing                       Off 
+     Echo spacing                            0.52 ms
+     EPI factor                              77 
+     RF pulse type                           Normal 
+     Gradient mode                           Fast 
+     Directions                              DiffusionVectors_AxonDiameter_ERJV 
+     Min. Preparation                        1 TRs
+     Initial Low-B Reps                      1 
+     RF Clipping                             0 
+     Use POCS                                Off 
+     Dynamic B0 Correction                   Off 
+     Coil Combine                            Uniform Noise 
+     Grad Min Rise                           12 ms.m/T
+     Max Diff Grad                           280 mT/m
+     Small delta                             15 ms
+     SMS Factor                              2 
+     PE Shift Factor                         4 
+     Big Delta                               30 ms
+     Segmented ACS                           On 
+     TX/RX delta frequency                   0 Hz
+     TX Nucleus                              None 
+     TX delta frequency                      0 Hz
+     Coil elements                           HEA;HEP 
+     Acquisition duration                    0 ms
+BOLD
+     Delay in TR                             0 ms
+     Diffusion mode                          Free 
+     Diff. weightings                        1 
+     b-value                                 30450 s/mm²
+     Diff. weighted images                   On 
+     Trace weighted images                   Off 
+     ADC maps                                Off 
+     FA maps                                 Off 
+     Mosaic                                  On 
+     Tensor                                  Off 
+     Distortion Corr.                        Off 
+     b-Value >=                              0 s/mm²
+     Exponential ADC Maps                    Off 
+     Invert Gray Scale                       Off 
+     Calculated Image                        Off 
+     Calculated bValue                       1400 s/mm²
+
+
+                   SIEMENS MAGNETOM ConnectomA syngo MR D11
+---------------------------------------------------------------------------------
+              \\USER\saper7dev\axcal_repro\25062019-2\nonDWI-PA
+          TA:1:24  PAT:2  Voxel size:2.5×2.5×2.5 mm Rel. SNR:1.00   :r1  
+---------------------------------------------------------------------------------
+Properties
+     Prio Recon                              Off 
+     Before measurement                       
+     After measurement                        
+     Load to viewer                          On 
+     Inline movie                            Off 
+     Auto store images                       On 
+     Load to stamp segments                  Off 
+     Load images to graphic segments         Off 
+     Auto open inline display                Off 
+     Wait for user to start                  On 
+     Start measurements                      single 
+Routine
+     Nr. of slice groups                     1 
+     Slices                                  54 
+     Dist. factor                            0 %
+     Position                                L2.4 A6.6 H0.0 mm
+     Orientation                             T > C-5.0 
+     Phase enc. dir.                         A >> P 
+     AutoAlign                               --- 
+     Phase oversampling                      0 %
+     FoV read                                220 mm
+     FoV phase                               100.0 %
+     Slice thickness                         2.5 mm
+     TR                                      3500 ms
+     TE                                      66.0 ms
+     Averages                                10 
+     Concatenations                          1 
+     Filter                                  Prescan Normalize 
+     Coil elements                           HEA;HEP 
+Contrast
+     MTC                                     Off 
+     Magn. preparation                       None 
+     Flip angle 1                            90 deg
+     Fat suppr.                              Fat sat. 
+     Fat sat. mode                           Strong 
+     Averaging mode                          Long term 
+     Delay in TR                             0 ms
+     Reconstruction                          Magnitude 
+     Multiple series                         Off 
+Resolution
+     Base resolution                         88 
+     Phase resolution                        88 %
+     Phase partial Fourier                   Off 
+     PAT mode                                GRAPPA 
+     Accel. factor PE                        2 
+     Ref. lines PE                           36 
+     Reference scan mode                     Separate 
+     Distortion Corr.                        Off 
+     Prescan Normalize                       On 
+     Normalize                               Off 
+     Raw filter                              Off 
+     Elliptical filter                       Off 
+     Dynamic Field Corr.                     Off 
+Geometry
+     Nr. of slice groups                     1 
+     Slices                                  54 
+     Dist. factor                            0 %
+     Position                                L2.4 A6.6 H0.0 mm
+     Phase enc. dir.                         A >> P 
+     Phase oversampling                      0 %
+     Multi-slice mode                        Interleaved 
+     Series                                  Interleaved 
+     Nr. of sat. regions                     0 
+     Position mode                           L-P-H 
+     Fat suppr.                              Fat sat. 
+     Special sat.                            None 
+     Fat sat. mode                           Strong 
+     Special sat.                            None 
+     Set-n-Go Protocol                       Off 
+     Table position                          P 
+     Inline Composing                        Off 
+System
+     Body                                    Off 
+     HEP                                     On 
+     HEA                                     On 
+     Position mode                           L-P-H 
+     Positioning mode                        FIX 
+     Table position                          H 
+     Table position                          0 mm
+     MSMA                                    S - C - T 
+     Sagittal                                R >> L 
+     Coronal                                 A >> P 
+     Transversal                             F >> H 
+     Coil Combine Mode                       Adaptive Combine 
+     AutoAlign                               --- 
+     Auto Coil Select                        Default 
+     Shim mode                               Standard 
+     Adjust with body coil                   Off 
+     Confirm freq. adjustment                Off 
+     Assume Dominant Fat                     Off 
+     Assume Silicone                         Off 
+     Adjustment Tolerance                    Auto 
+     ? Ref. amplitude 1H                     0.000 V
+     Position                                L2.4 A6.6 H0.0 mm
+     Rotation                                0.00 deg
+     R >> L                                  220 mm
+     A >> P                                  220 mm
+     F >> H                                  135 mm
+     Frequency 1H                            123.200592 MHz
+     Correction factor                       1 
+     ACS SincRFPulse 1H                      42.456 V
+     Gain                                    High 
+     Table position                          0 mm
+     Img. Scale. Cor.                        1.000 
+Physio
+     Magn. preparation                       None 
+     Resp. control                           Off 
+Inline
+     Inline Composing                        Off 
+     Distortion correction                   Off 
+Sequence
+     Introduction                            Off 
+     Averaging mode                          Long term 
+     Multi-slice mode                        Interleaved 
+     Bandwidth                               2272 Hz/Px
+     Optimization                            None 
+     Free echo spacing                       Off 
+     Echo spacing                            0.52 ms
+     EPI factor                              77 
+     RF pulse type                           Normal 
+     Gradient mode                           Fast 
+     Directions                              Jones31 
+     Min. Preparation                        1 TRs
+     Initial Low-B Reps                      1 
+     RF Clipping                             0 
+     Use POCS                                Off 
+     Dynamic B0 Correction                   Off 
+     Coil Combine                            Uniform Noise 
+     Grad Min Rise                           12 ms.m/T
+     Max Diff Grad                           280 mT/m
+     Small delta                             15 ms
+     SMS Factor                              2 
+     PE Shift Factor                         4 
+     Big Delta                               30 ms
+     Segmented ACS                           On 
+     TX/RX delta frequency                   0 Hz
+     TX Nucleus                              None 
+     TX delta frequency                      0 Hz
+     Coil elements                           HEA;HEP 
+     Acquisition duration                    0 ms
+BOLD
+     Delay in TR                             0 ms
+     Diffusion mode                          Free 
+     Diff. weightings                        1 
+     b-value                                 0 s/mm²
+     Diff. weighted images                   On 
+     Trace weighted images                   Off 
+     ADC maps                                Off 
+     FA maps                                 Off 
+     Mosaic                                  On 
+     Tensor                                  Off 
+     Distortion Corr.                        Off 
+     b-Value >=                              0 s/mm²
+     Exponential ADC Maps                    Off 
+     Invert Gray Scale                       Off 
+     Calculated Image                        Off 
+     Calculated bValue                       1400 s/mm²

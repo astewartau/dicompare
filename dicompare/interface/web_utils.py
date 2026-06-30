@@ -721,7 +721,7 @@ def load_protocol_for_ui(
     Args:
         file_content: Binary content of the protocol file
         file_name: Name of the file
-        file_type: Type of protocol file ('pro', 'exar1', 'examcard', 'lxprotocol')
+        file_type: Type of protocol file ('pro', 'exar1', 'examcard', 'lxprotocol', 'printprot')
 
     Returns:
         List of UI-ready acquisition dictionaries with:
@@ -733,7 +733,8 @@ def load_protocol_for_ui(
     """
     from ..io import (
         load_pro_file_schema_format, load_exar_file,
-        load_examcard_file_schema_format, load_lxprotocol_file_schema_format
+        load_examcard_file_schema_format, load_lxprotocol_file_schema_format,
+        load_printprot_file_schema_format
     )
     from ..schema import get_tag_info
     from pydicom.datadict import dictionary_VR
@@ -894,10 +895,11 @@ def load_protocol_for_ui(
         'pro': '.pro',
         'exar1': '.exar1',
         'examcard': '.ExamCard',
-        'lxprotocol': ''
+        'lxprotocol': '',
+        'printprot': ''
     }
     suffix = suffix_map.get(file_type, '')
-    mode = 'wb' if file_type in ['exar1', 'examcard'] else 'w'
+    mode = 'wb' if file_type in ['exar1', 'examcard', 'printprot'] else 'w'
 
     with tempfile.NamedTemporaryFile(mode=mode, suffix=suffix, delete=False) as f:
         if mode == 'wb':
@@ -941,6 +943,13 @@ def load_protocol_for_ui(
             result = []
             for idx, scan_data in enumerate(scans):
                 result.append(_convert_to_ui_acquisition(scan_data, 'ge_lxprotocol', idx))
+            return make_json_serializable(result)
+
+        elif file_type == 'printprot':
+            scans = load_printprot_file_schema_format(temp_path)
+            result = []
+            for idx, scan_data in enumerate(scans):
+                result.append(_convert_to_ui_acquisition(scan_data, 'siemens_printprot', idx))
             return make_json_serializable(result)
 
         else:
