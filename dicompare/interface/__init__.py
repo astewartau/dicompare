@@ -9,6 +9,7 @@ from .web_utils import (
     analyze_dicom_files_for_ui,
     validate_acquisition_direct,
     load_protocol_for_ui,
+    load_gradient_file_for_ui,
     search_dicom_dictionary,
     build_schema_from_ui_acquisitions,
 )
@@ -18,6 +19,7 @@ __all__ = [
     'analyze_dicom_files_for_ui',
     'validate_acquisition_direct',
     'load_protocol_for_ui',
+    'load_gradient_file_for_ui',
     'search_dicom_dictionary',
     'build_schema_from_ui_acquisitions',
 ]

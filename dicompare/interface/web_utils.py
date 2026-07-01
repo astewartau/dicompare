@@ -959,6 +959,65 @@ def load_protocol_for_ui(
         os.unlink(temp_path)
 
 
+def load_gradient_file_for_ui(
+    files: Dict[str, str],
+    b_max: Optional[float] = None
+) -> Dict[str, Any]:
+    """
+    Derive diffusion descriptor fields from a gradient file and return them as
+    UI-ready derived fields, ready to merge into an acquisition.
+
+    The raw gradient content is consumed to compute descriptors and then
+    discarded — dicompare schemas store validation requirements, not files.
+
+    Args:
+        files: Mapping of kind -> text content. Either {'dvs': <text>} or
+            {'bvec': <text>, 'bval': <text>}.
+        b_max: The acquisition's max b-value (DiffusionBValue). Required for
+            'dvs' (b-values are magnitude-modulated); ignored for bvec/bval.
+
+    Returns:
+        {"fields": [ {tag, name, keyword, value, vr, level, dataType,
+                      fieldType, validationRule}, ... ]}
+        where every field is a derived diffusion descriptor.
+    """
+    from ..io import descriptors_from_dvs, descriptors_from_bvec_bval
+
+    if 'dvs' in files:
+        if b_max is None:
+            raise ValueError("b_max (DiffusionBValue) is required to interpret a .dvs file")
+        descriptors = descriptors_from_dvs(files['dvs'], float(b_max))
+    elif 'bvec' in files and 'bval' in files:
+        descriptors = descriptors_from_bvec_bval(files['bvec'], files['bval'])
+    else:
+        raise ValueError("Provide either {'dvs': ...} or {'bvec': ..., 'bval': ...}")
+
+    def _data_type(value: Any) -> str:
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return 'number'
+        if isinstance(value, list):
+            if value and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in value):
+                return 'list_number'
+            return 'list_string'
+        return 'string'
+
+    fields = []
+    for name, value in descriptors.items():
+        fields.append({
+            'tag': None,
+            'name': name,
+            'keyword': name,
+            'value': value,
+            'vr': 'LO',
+            'level': 'acquisition',
+            'dataType': _data_type(value),
+            'fieldType': 'derived',
+            'validationRule': {'type': 'exact'},
+        })
+
+    return make_json_serializable({"fields": fields})
+
+
 def search_dicom_dictionary(query: str, limit: int = 20) -> List[Dict[str, Any]]:
     """
     Search DICOM dictionary for fields matching the query.

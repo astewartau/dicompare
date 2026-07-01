@@ -70,6 +70,17 @@ from .printprot import (
     load_printprot_file_schema_format,
 )
 
+# Diffusion gradient encoding (.dvs / bvec / bval)
+from .gradients import (
+    parse_dvs,
+    parse_bval,
+    parse_bvec,
+    dvs_to_bvec_bval,
+    derive_diffusion_descriptors,
+    descriptors_from_dvs,
+    descriptors_from_bvec_bval,
+)
+
 __all__ = [
     # DICOM I/O
     "get_dicom_values",
@@ -105,4 +116,12 @@ __all__ = [
     # Print-protocol (Siemens XML/TXT) file support
     "load_printprot_file",
     "load_printprot_file_schema_format",
+    # Diffusion gradient encoding
+    "parse_dvs",
+    "parse_bval",
+    "parse_bvec",
+    "dvs_to_bvec_bval",
+    "derive_diffusion_descriptors",
+    "descriptors_from_dvs",
+    "descriptors_from_bvec_bval",
 ]
