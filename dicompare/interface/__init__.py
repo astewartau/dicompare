@@ -10,6 +10,7 @@ from .web_utils import (
     validate_acquisition_direct,
     load_protocol_for_ui,
     load_gradient_file_for_ui,
+    attach_gradient_files_to_acquisitions,
     search_dicom_dictionary,
     build_schema_from_ui_acquisitions,
 )
@@ -20,6 +21,7 @@ __all__ = [
     'validate_acquisition_direct',
     'load_protocol_for_ui',
     'load_gradient_file_for_ui',
+    'attach_gradient_files_to_acquisitions',
     'search_dicom_dictionary',
     'build_schema_from_ui_acquisitions',
 ]

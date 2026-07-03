@@ -1018,6 +1018,138 @@ def load_gradient_file_for_ui(
     return make_json_serializable({"fields": fields})
 
 
+# ============================================================================
+# Gradient-to-acquisition binding
+# ============================================================================
+
+def _gradient_file_kind(name: str) -> Optional[str]:
+    """Classify a gradient file by extension: 'dvs', 'bvec', 'bval', or None."""
+    lower = name.lower()
+    if lower.endswith('.dvs'):
+        return 'dvs'
+    if lower.endswith('.bvec'):
+        return 'bvec'
+    if lower.endswith('.bval'):
+        return 'bval'
+    return None
+
+
+def _gradient_base_name(name: str) -> str:
+    """Strip directory and extension: 'a/b/Foo.dvs' -> 'Foo'."""
+    base = name.replace('\\', '/').split('/')[-1]
+    dot = base.rfind('.')
+    return base[:dot] if dot > 0 else base
+
+
+def _acq_field_value(acquisition: Dict[str, Any], name: str) -> Any:
+    """Read an acquisition field value by keyword (or name)."""
+    for field in acquisition.get('acquisitionFields', []) or []:
+        if (field.get('keyword') or field.get('name')) == name:
+            return field.get('value')
+    return None
+
+
+def _is_diffusion_acquisition(acquisition: Dict[str, Any]) -> bool:
+    return (_acq_field_value(acquisition, 'DiffusionBValue') is not None
+            or _acq_field_value(acquisition, 'DiffusionDirectionSet') is not None)
+
+
+def _merge_descriptor_fields(existing: List[Dict[str, Any]], incoming: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Merge derived descriptor fields, replacing any existing same-named ones."""
+    names = {(f.get('keyword') or f.get('name')) for f in incoming}
+    kept = [f for f in (existing or []) if (f.get('keyword') or f.get('name')) not in names]
+    return kept + incoming
+
+
+def attach_gradient_files_to_acquisitions(
+    acquisitions: List[Dict[str, Any]],
+    files: List[Dict[str, str]],
+) -> Dict[str, Any]:
+    """
+    Bind diffusion gradient files (.dvs / .bvec+.bval) to the acquisitions they
+    describe and merge the derived descriptors in. This is the shared binder used
+    by the web app and the embed; it matches a gradient file to an acquisition,
+    supplies the max b-value, derives descriptors, and merges them.
+
+    Args:
+        acquisitions: UI-acquisition dicts (with ``acquisitionFields``). These are
+            the candidate acquisitions to bind against; callers pass a pre-scoped
+            subset (e.g. only reference or only test-data acquisitions) when needed.
+        files: List of ``{"name": str, "content": str}`` for each .dvs/.bvec/.bval.
+
+    Returns:
+        {
+            "acquisitions": [...same list with descriptors merged in place...],
+            "bound": [{"protocolName": str, "id": Any, "descriptors": [field names]}],
+            "unmatched": [basename, ...]   # gradient groups that matched nothing
+        }
+
+    Matching rules (mirrors the web binding):
+        - a .dvs binds to every acquisition whose ``DiffusionDirectionSet`` equals
+          the file's basename; if none match, it binds to the sole diffusion
+          acquisition if there is exactly one;
+        - a .bvec/.bval pair (same basename) binds to the sole diffusion
+          acquisition;
+        - for a .dvs, the max b-value is taken from the target's
+          ``DiffusionBValue``; bvec/bval carry absolute b-values already.
+    """
+    # Group by basename so a .bvec and its .bval pair up; a .dvs stands alone.
+    groups: Dict[str, Dict[str, str]] = {}
+    for f in files:
+        kind = _gradient_file_kind(f.get('name', ''))
+        if not kind:
+            continue
+        groups.setdefault(_gradient_base_name(f['name']), {})[kind] = f.get('content', '')
+
+    diffusion_acqs = [a for a in acquisitions if _is_diffusion_acquisition(a)]
+    bound: List[Dict[str, Any]] = []
+    unmatched: List[str] = []
+
+    for base_name, files_by_type in groups.items():
+        if 'dvs' in files_by_type:
+            targets = [a for a in acquisitions if _acq_field_value(a, 'DiffusionDirectionSet') == base_name]
+            if not targets and len(diffusion_acqs) == 1:
+                targets = [diffusion_acqs[0]]
+        elif 'bvec' in files_by_type and 'bval' in files_by_type:
+            targets = [diffusion_acqs[0]] if len(diffusion_acqs) == 1 else []
+        else:
+            unmatched.append(base_name)  # incomplete (need both .bvec and .bval)
+            continue
+
+        if not targets:
+            unmatched.append(base_name)
+            continue
+
+        for target in targets:
+            b_max: Optional[float] = None
+            if 'dvs' in files_by_type:
+                raw = _acq_field_value(target, 'DiffusionBValue')
+                try:
+                    b_max = float(raw)
+                except (TypeError, ValueError):
+                    unmatched.append(base_name)
+                    continue
+            try:
+                derived = load_gradient_file_for_ui(files_by_type, b_max)['fields']
+            except Exception:
+                unmatched.append(base_name)
+                continue
+            target['acquisitionFields'] = _merge_descriptor_fields(
+                target.get('acquisitionFields', []), derived
+            )
+            bound.append({
+                'protocolName': target.get('protocolName'),
+                'id': target.get('id'),
+                'descriptors': [(f.get('keyword') or f.get('name')) for f in derived],
+            })
+
+    return make_json_serializable({
+        "acquisitions": acquisitions,
+        "bound": bound,
+        "unmatched": unmatched,
+    })
+
+
 def search_dicom_dictionary(query: str, limit: int = 20) -> List[Dict[str, Any]]:
     """
     Search DICOM dictionary for fields matching the query.
