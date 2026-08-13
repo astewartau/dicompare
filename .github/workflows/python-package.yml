@@ -37,4 +37,6 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest and coverage
       run: |
-        pytest --cov=dicompare --cov-report=term-missing --cov-fail-under=90
+        # Coverage gate (fail_under) is configured in pyproject.toml so the
+        # threshold and the omit list stay in one place.
+        pytest --cov=dicompare --cov-report=term-missing

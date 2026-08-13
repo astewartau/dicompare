@@ -14,15 +14,20 @@ asyncio_mode = "strict"
 source = ["dicompare"]
 omit = [
     "dicompare/tests/*",
+    # web_utils is the browser/Pyodide interface layer: it carries module-level
+    # session globals and only runs meaningfully inside a Pyodide runtime, so it
+    # is exercised by the web app's integration tests rather than unit tests here.
+    # Everything else -- including the core io/ parsers -- is measured.
     "dicompare/interface/web_utils.py",
-    "dicompare/io/examcard.py",
-    "dicompare/io/pro.py",
-    "dicompare/io/dicom.py",
-    "dicompare/cli/*",
-    "dicompare/session/mapping.py",
 ]
 
 [tool.coverage.report]
+# Realistic gate reflecting what the suite actually covers today (~69% excluding
+# the browser glue above). Raise this as coverage of the io/ parsers improves;
+# do not lower it. The previous 90% figure was only attainable by omitting the
+# four largest, most complex modules from measurement.
+fail_under = 65
+show_missing = true
 exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.:",
