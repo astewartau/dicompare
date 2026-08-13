@@ -12,7 +12,7 @@ This module is based on the parse_siemens_pro.py script and integrates
 """
 
 from pathlib import Path
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any, Optional, Tuple, Union, List
 from twixtools.twixprot import parse_buffer
 import itertools
 
@@ -1484,6 +1484,76 @@ def _extract_protocol_text_from_xprotocol(json_text: str) -> Optional[str]:
     return None
 
 
+def _describe_exar_contents(exar_path: str) -> Tuple[str, bool]:
+    """
+    Summarize what an EXAR archive actually contains, for error reporting.
+
+    Args:
+        exar_path: Path to the .exar1 file
+
+    Returns:
+        Tuple of (human-readable summary, whether any EdfProtocol entries exist)
+    """
+    try:
+        conn = sqlite3.connect(exar_path)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT InstanceType, COUNT(*) FROM Instance GROUP BY InstanceType")
+        type_counts = cursor.fetchall()
+
+        # Folder/item names are stored as EdfString content: {"Texts": {"en": ...}}
+        names = []
+        cursor.execute("""
+            SELECT c.Data FROM Instance i
+            JOIN Content c ON i.ContentHash = c.Hash
+            WHERE i.InstanceType = 'EdfString'
+        """)
+        for (data,) in cursor.fetchall():
+            decompressed = _decompress_raw_deflate(data)
+            if not decompressed:
+                continue
+            text = decompressed.decode('utf-8', errors='replace')
+            json_start = text.find('{')
+            if json_start < 0:
+                continue
+            try:
+                name = json.loads(text[json_start:]).get('Texts', {}).get('en')
+            except json.JSONDecodeError:
+                continue
+            if name:
+                names.append(name)
+
+        # Scanner software version from the branch baseline,
+        # e.g. "MAJORVERSION:VA60A, PROTOCOL:66010002, ..."
+        version = None
+        cursor.execute("SELECT Baseline FROM Branch WHERE Baseline LIKE '%MAJORVERSION%'")
+        row = cursor.fetchone()
+        if row:
+            for part in row[0].split(','):
+                key, _, value = part.strip().partition(':')
+                if key == 'MAJORVERSION':
+                    version = value
+                    break
+
+        conn.close()
+    except sqlite3.Error:
+        return "", False
+
+    has_protocols = any(t == 'EdfProtocol' for t, _ in type_counts)
+
+    parts = []
+    if version:
+        parts.append(f"software version {version}")
+    if type_counts:
+        parts.append("contains only: " + ", ".join(f"{n}x {t}" for t, n in type_counts))
+    else:
+        parts.append("contains no entries at all")
+    if names:
+        parts.append("folder tree: " + " / ".join(names))
+
+    return "; ".join(parts), has_protocols
+
+
 def _extract_protocols_from_exar(exar_path: str) -> List[str]:
     """
     Extract protocol text content from a .exar1 file.
@@ -1568,7 +1638,26 @@ def load_exar_file(exar_file_path: str) -> List[Dict[str, Any]]:
     protocol_texts = _extract_protocols_from_exar(exar_file_path)
 
     if not protocol_texts:
-        raise Exception(f"No protocols found in EXAR file: {exar_file_path}")
+        details, has_protocol_entries = _describe_exar_contents(exar_file_path)
+        if has_protocol_entries:
+            message = (
+                f"No protocols could be read from EXAR file '{exar_path.name}': the archive "
+                f"contains protocol entries, but none of them could be decoded"
+            )
+        else:
+            message = (
+                f"No protocols found in EXAR file '{exar_path.name}': the archive was read "
+                f"successfully, but it contains no protocol (EdfProtocol) entries"
+            )
+        if details:
+            message += f" ({details})"
+        if not has_protocol_entries:
+            message += (
+                ". This usually means the export itself was empty — when exporting from "
+                "Dot Cockpit, make sure the programs/protocols themselves are selected, "
+                "not just a folder."
+            )
+        raise Exception(message)
 
     results = []
 
