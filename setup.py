@@ -23,7 +23,7 @@ setup(
         ]
     },
     install_requires=[
-        "pydicom==2.4.4",
+        "pydicom>=2.4.5,<3",
         "pandas",
         "tabulate",
         "scipy",
