@@ -22,15 +22,20 @@ setup(
             "dicompare=dicompare.cli.main:main",
         ]
     },
+    # Lower bounds only (no upper caps except pydicom, which has breaking changes
+    # in 3.0). Floors are kept at or below the versions bundled by Pyodide 0.27.0
+    # — pandas 2.2.3 / scipy 1.14.1 / numpy 2.0.2 / tqdm 4.66.2 / jsonschema 4.21.1
+    # — because the web build resolves the compiled packages from Pyodide, so a
+    # floor above those would break `micropip.install('dicompare')` in the browser.
     install_requires=[
         "pydicom>=2.4.5,<3",
-        "pandas",
-        "tabulate",
-        "scipy",
-        "tqdm",
-        "nibabel",
-        "twixtools",
-        "jsonschema"
+        "pandas>=2.0",
+        "tabulate>=0.9.0",
+        "scipy>=1.10",
+        "tqdm>=4.60",
+        "nibabel>=5.0.0",
+        "twixtools>=0.24",
+        "jsonschema>=4.18",
     ],
     extras_require={
         "interactive": ["curses"],
