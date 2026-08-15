@@ -14,30 +14,21 @@ from ..io import make_json_serializable
 
 logger = logging.getLogger(__name__)
 
-# Global session cache for DataFrame reuse across API calls
-_current_session_df = None
-_current_session_metadata = None
-_current_analysis_result = None
 
-def _cache_session(session_df: pd.DataFrame, metadata: Dict[str, Any], analysis_result: Dict[str, Any]):
-    """Cache session data for reuse across API calls."""
-    global _current_session_df, _current_session_metadata, _current_analysis_result
-    _current_session_df = session_df.copy() if session_df is not None else None
-    _current_session_metadata = metadata.copy() if metadata else {}
-    _current_analysis_result = analysis_result.copy() if analysis_result else {}
-
-def _get_cached_session() -> Tuple[pd.DataFrame, Dict[str, Any], Dict[str, Any]]:
-    """Get cached session data."""
-    return _current_session_df, _current_session_metadata, _current_analysis_result
-
-
-async def analyze_dicom_files_for_web(
+async def _analyze_dicom_session_core(
     dicom_files: Dict[str, bytes],
     reference_fields: List[str] = None,
     progress_callback: Optional[callable] = None
-) -> Dict[str, Any]:
+) -> Tuple[Dict[str, Any], Optional[pd.DataFrame], Dict[str, Any]]:
     """
     Complete DICOM analysis pipeline optimized for web interface.
+
+    Shared core for ``analyze_dicom_files_for_web`` (which returns only the
+    JSON-serializable web result) and ``analyze_dicom_files_for_ui`` (which also
+    needs the parsed session DataFrame). Returns a
+    ``(web_result, session_df, metadata)`` tuple so callers get the DataFrame
+    directly instead of via a module-level cache. On error, ``session_df`` is
+    ``None`` and ``metadata`` is ``{}``.
 
     This function replaces the 155-line analyzeDicomFiles() function in pyodideService.ts
     by providing a single, comprehensive call that handles all DICOM processing.
@@ -251,13 +242,12 @@ async def analyze_dicom_files_for_web(
         session_df = assign_acquisition_and_run_numbers(session_df)
         print(f"Assigned acquisitions: {session_df['Acquisition'].unique().tolist()}")
 
-        # Cache DataFrame with Acquisition column for reuse across API calls
+        # Metadata describing the parsed session, returned alongside the DataFrame.
         metadata = {
             'total_files': len(dicom_files),
             'reference_fields': reference_fields,
             'available_fields': available_fields
         }
-        _cache_session(session_df, metadata, None)
 
         # Progress: Building schema (85%)
         if progress_callback:
@@ -296,7 +286,7 @@ async def analyze_dicom_files_for_web(
             'message': f'Successfully analyzed {len(dicom_files)} DICOM files'
         }
 
-        return make_json_serializable(web_result)
+        return make_json_serializable(web_result), session_df, metadata
 
     except Exception as e:
         import traceback
@@ -309,7 +299,32 @@ async def analyze_dicom_files_for_web(
             'field_summary': {},
             'status': 'error',
             'message': f'Error analyzing DICOM files: {str(e)}'
-        }
+        }, None, {}
+
+
+async def analyze_dicom_files_for_web(
+    dicom_files: Dict[str, bytes],
+    reference_fields: List[str] = None,
+    progress_callback: Optional[callable] = None
+) -> Dict[str, Any]:
+    """
+    Complete DICOM analysis pipeline optimized for web interface.
+
+    Thin wrapper over :func:`_analyze_dicom_session_core` that returns only the
+    JSON-serializable web result (acquisitions, field summary, status, message).
+
+    Args:
+        dicom_files: Dictionary mapping filenames to DICOM file bytes
+        reference_fields: List of DICOM fields to analyze (uses DEFAULT_DICOM_FIELDS if None)
+        progress_callback: Optional callback for progress updates
+
+    Returns:
+        Dict with 'acquisitions', 'total_files', 'field_summary', 'status', 'message'.
+    """
+    web_result, _session_df, _metadata = await _analyze_dicom_session_core(
+        dicom_files, reference_fields, progress_callback
+    )
+    return web_result
 
 
 async def analyze_dicom_files_for_ui(
@@ -336,14 +351,14 @@ async def analyze_dicom_files_for_ui(
     from pydicom.datadict import dictionary_VR
     import json
 
-    # Call the base analysis function
-    result = await analyze_dicom_files_for_web(dicom_files, None, progress_callback)
+    # Call the base analysis function, which also hands back the parsed session
+    # DataFrame and metadata that this UI wrapper needs.
+    result, session_df, metadata = await _analyze_dicom_session_core(
+        dicom_files, None, progress_callback
+    )
 
     if result.get('status') == 'error':
         raise RuntimeError(result.get('message', 'DICOM analysis failed'))
-
-    # Get cached session for additional data
-    session_df, metadata, _ = _get_cached_session()
 
     # Helper to get VR for a field
     def _get_vr_for_field(field_name: str) -> str:
