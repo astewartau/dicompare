@@ -1155,17 +1155,22 @@ def search_dicom_dictionary(query: str, limit: int = 20) -> List[Dict[str, Any]]
         List of matching field dictionaries with:
         - tag, name, keyword, vr, vm, description, suggested_data_type
     """
-    from pydicom.datadict import keyword_for_tag, dictionary_VR, dictionary_VM, dictionary_description
+    from pydicom.datadict import DicomDictionary, dictionary_VR, dictionary_VM, dictionary_description
     from ..schema.tags import VR_TO_DATA_TYPE
 
     query_lower = query.lower()
     results = []
     count = 0
 
-    # Search through pydicom's keyword dictionary
-    for tag_int, keyword in keyword_for_tag.items():
+    # Search through pydicom's DICOM dictionary (tag_int -> (VR, VM, name,
+    # is_retired, keyword)). Note keyword_for_tag is a function, not a mapping.
+    for tag_int, entry in DicomDictionary.items():
         if count >= limit:
             break
+
+        keyword = entry[4]
+        if not keyword:
+            continue
 
         # Convert tag to string format
         tag_str = f"{tag_int:08X}"
@@ -1244,10 +1249,11 @@ def build_schema_from_ui_acquisitions(
             actual_value = field.get('value')
             validation_rule = field.get('validationRule', {})
 
-            # Handle complex value objects
+            # Handle complex value objects (read nested validationRule before
+            # unwrapping the scalar value out of the dict)
             if isinstance(actual_value, dict) and ('validationRule' in actual_value or 'dataType' in actual_value):
-                actual_value = actual_value.get('value')
                 validation_rule = actual_value.get('validationRule', validation_rule)
+                actual_value = actual_value.get('value')
 
             # Apply validation rules to create flat structure
             rule_type = validation_rule.get('type', 'exact') if validation_rule else 'exact'
