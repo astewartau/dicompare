@@ -732,7 +732,7 @@ def load_protocol_for_ui(
         - metadata
     """
     from ..io import (
-        load_pro_file_schema_format, load_exar_file,
+        load_pro_file_schema_format, load_exar_file_schema_format,
         load_examcard_file_schema_format, load_lxprotocol_file_schema_format,
         load_printprot_file_schema_format
     )
@@ -915,19 +915,12 @@ def load_protocol_for_ui(
             return make_json_serializable([_convert_to_ui_acquisition(schema_data, 'siemens_protocol', 0)])
 
         elif file_type == 'exar1':
-            protocols = load_exar_file(temp_path)
-            # load_exar_file returns flat format, need to convert
+            # Use schema format so multi-echo / magnitude-phase acquisitions are
+            # expanded into series (matching the .pro path), rather than collapsed
+            # into a single row holding tuples of echo times.
+            protocols = load_exar_file_schema_format(temp_path)
             result = []
-            for idx, proto in enumerate(protocols):
-                # Convert flat format to schema format structure
-                schema_format = {
-                    'acquisition_info': {
-                        'protocol_name': proto.get('ProtocolName', proto.get('tProtocolName', f'Protocol_{idx}')),
-                        'source_type': 'exar1'
-                    },
-                    'fields': [{'field': k, 'value': v} for k, v in proto.items()],
-                    'series': []
-                }
+            for idx, schema_format in enumerate(protocols):
                 result.append(_convert_to_ui_acquisition(schema_format, 'siemens_exar', idx))
             return make_json_serializable(result)
 
