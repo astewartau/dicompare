@@ -655,7 +655,7 @@ def test_load_dicom_pasl_bolus_labeling_duration(tmp_path, monkeypatch):
 def test_load_dicom_ascconv_coil_and_accel(tmp_path, monkeypatch):
     ds = _make_base_dataset()
     ds.Manufacturer = "SIEMENS"
-    path = _write_dataset(ds, tmp_path / "sie.dcm")
+    path = _write_dataset(ds, tmp_path / "scan.dcm")
     monkeypatch.setattr(dio, "_extract_ascconv", lambda ds: {
         "ucCoilCombineMode": 2,
         "sPat": {"lAccelFactPE": 3},

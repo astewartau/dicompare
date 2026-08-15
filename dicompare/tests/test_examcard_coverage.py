@@ -445,7 +445,7 @@ class TestMappingBranches:
         assert dicom_fields["NumberOfSlices"] == 30
 
     def test_tr_combined_string_bad_first_part(self):
-        # RepetitionTime missing and first part unparseable -> ValueError swallowed.
+        # RepetitionTime missing and first part not parsable -> ValueError swallowed.
         dicom_fields = {}
         params = {"IF_act_rep_time_echo_time": "notanumber / 4.6"}
         _calculate_derived_fields(dicom_fields, params)

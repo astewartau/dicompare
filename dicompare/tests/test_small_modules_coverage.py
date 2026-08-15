@@ -361,7 +361,7 @@ def test_check_acquisition_compliance_series_min_only_and_contains_any():
             {"name": "MinOnly", "fields": [{"field": "EchoTime", "min": 100}]},
             {"name": "MaxOnly", "fields": [{"field": "EchoTime", "max": -1}]},
             {"name": "AnyS", "fields": [{"field": "ImageType", "contains_any": ["FOO", "BAR"]}]},
-            {"name": "AllS", "fields": [{"field": "ImageType", "contains_all": ["FOO", "BAR"]}]},
+            {"name": "AllOf", "fields": [{"field": "ImageType", "contains_all": ["FOO", "BAR"]}]},
         ]
     }
     results = check_acquisition_compliance(df, schema, acquisition_name="A")
@@ -369,7 +369,7 @@ def test_check_acquisition_compliance_series_min_only_and_contains_any():
     assert ">= 100" in msgs["MinOnly"]
     assert "<= -1" in msgs["MaxOnly"]
     assert "contains any of" in msgs["AnyS"]
-    assert "contains all of" in msgs["AllS"]
+    assert "contains all of" in msgs["AllOf"]
 
 
 def test_check_acquisition_compliance_validation_model_class_instantiated():
