@@ -27,8 +27,6 @@ from dicompare.interface.web_utils import (
     build_schema_from_ui_acquisitions,
     attach_gradient_files_to_acquisitions,
     make_json_serializable,
-    _cache_session,
-    _get_cached_session,
     _gradient_file_kind,
     _gradient_base_name,
     _acq_field_value,
@@ -976,17 +974,14 @@ class TestAnalyzeDicomFilesForWebProgress:
         )
         metadata = {"available_fields": ["FlipAngle"]}
 
-        async def fake_web(*args, **kwargs):
-            return web_result
+        async def fake_core(*args, **kwargs):
+            return web_result, session_df, metadata
 
         # Patch dictionary_VR to raise so the VR-lookup exception fallback
         # (lines 357-359) is also exercised.
         with mock.patch(
-            "dicompare.interface.web_utils.analyze_dicom_files_for_web",
-            side_effect=fake_web,
-        ), mock.patch(
-            "dicompare.interface.web_utils._get_cached_session",
-            return_value=(session_df, metadata, None),
+            "dicompare.interface.web_utils._analyze_dicom_session_core",
+            side_effect=fake_core,
         ), mock.patch(
             "pydicom.datadict.dictionary_VR", side_effect=KeyError("boom")
         ):
@@ -1034,15 +1029,12 @@ class TestAnalyzeDicomFilesForWebProgress:
         )
         metadata = {"available_fields": ["EchoTime"]}
 
-        async def fake_web(*args, **kwargs):
-            return web_result
+        async def fake_core(*args, **kwargs):
+            return web_result, session_df, metadata
 
         with mock.patch(
-            "dicompare.interface.web_utils.analyze_dicom_files_for_web",
-            side_effect=fake_web,
-        ), mock.patch(
-            "dicompare.interface.web_utils._get_cached_session",
-            return_value=(session_df, metadata, None),
+            "dicompare.interface.web_utils._analyze_dicom_session_core",
+            side_effect=fake_core,
         ):
             result = await analyze_dicom_files_for_ui({"x.dcm": b"x"})
 
@@ -1054,7 +1046,7 @@ class TestAnalyzeDicomFilesForWebProgress:
 
 
 # ---------------------------------------------------------------------------
-# Small pure helpers + session cache
+# Small pure helpers
 # ---------------------------------------------------------------------------
 
 class TestHelpers:
@@ -1106,25 +1098,6 @@ class TestHelpers:
     def test_merge_descriptor_fields_handles_none_existing(self):
         merged = _merge_descriptor_fields(None, [{"keyword": "A", "value": 1}])
         assert merged == [{"keyword": "A", "value": 1}]
-
-    def test_session_cache_roundtrip(self):
-        df = pd.DataFrame({"Acquisition": ["a"], "EchoTime": [5]})
-        meta = {"total_files": 1}
-        analysis = {"status": "success"}
-        _cache_session(df, meta, analysis)
-        cached_df, cached_meta, cached_analysis = _get_cached_session()
-        pd.testing.assert_frame_equal(cached_df, df)
-        assert cached_meta == meta
-        assert cached_analysis == analysis
-        # It should be a copy, not the same object.
-        assert cached_df is not df
-
-    def test_session_cache_with_none(self):
-        _cache_session(None, None, None)
-        cached_df, cached_meta, cached_analysis = _get_cached_session()
-        assert cached_df is None
-        assert cached_meta == {}
-        assert cached_analysis == {}
 
 
 # ---------------------------------------------------------------------------
