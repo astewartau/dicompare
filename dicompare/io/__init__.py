@@ -48,6 +48,7 @@ from .pro import (
 # Siemens .exar1 file parsing
 from .pro import (
     load_exar_file,
+    load_exar_file_schema_format,
     load_exar_session,
 )
 
@@ -105,6 +106,7 @@ __all__ = [
     "load_pro_session",
     # EXAR file support
     "load_exar_file",
+    "load_exar_file_schema_format",
     "load_exar_session",
     # ExamCard file support
     "load_examcard_file",

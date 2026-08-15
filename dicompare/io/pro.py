@@ -430,6 +430,36 @@ def _decode_partial_fourier(mode: Union[int, str]) -> float:
     return pf_mapping.get(mode_str, 1.0)  # Default to full if unknown
 
 
+def _nominal_field_strength(b0: Union[int, float]) -> float:
+    """
+    Map a Siemens nominal B0 value to the marketed field strength.
+
+    Siemens .pro/.exar1 files store the *true* main field in flNominalB0
+    (e.g. 2.89362 T for a "3T" scanner, 1.494 T for a "1.5T" scanner).
+    DICOM MagneticFieldStrength (0018,0087), and every field-strength-keyed
+    validation rule, expects the rounded marketed value (3.0, 1.5, ...).
+
+    Args:
+        b0: Raw nominal B0 in Tesla from flNominalB0
+
+    Returns:
+        Nearest standard clinical field strength, or the value rounded to
+        3 decimals if it is not close to any known strength.
+    """
+    if not isinstance(b0, (int, float)):
+        return b0
+
+    # Standard clinical/research field strengths in Tesla
+    known_strengths = [0.35, 0.55, 1.0, 1.5, 3.0, 7.0, 9.4, 10.5, 11.7]
+
+    # Snap to a known strength if within 10% (2.89362 -> 3.0, 1.494 -> 1.5)
+    for strength in known_strengths:
+        if abs(b0 - strength) <= 0.10 * strength:
+            return strength
+
+    return round(float(b0), 3)
+
+
 def _extract_unique_b_values(b_value_array: list) -> list:
     """
     Extract unique b-values from Siemens sDiffusion.alBValue array.
@@ -509,14 +539,32 @@ def _decode_sequence_type(pro_data: Dict[str, Any]) -> Union[str, List[str]]:
         else:
             base_sequence = "GR"
     
-    # Check for inversion recovery preparation
+    # Check for inversion recovery preparation.
+    # ucInversion enum: 1 = off, 4 = default/reapply (not IR), while 2 (MPRAGE-style
+    # volume inversion) and >=8 (e.g. 8 = slice-selective FLAIR, 16 = MP2RAGE) are real
+    # inversion-recovery modes. Only 1 and 4 are non-IR in observed protocols.
     ucInversion = extract_nested_value(pro_data, "sPrepPulses.ucInversion")
-    
-    # If ucInversion == 2, this sequence uses inversion recovery
-    if ucInversion == 2:
+
+    if ucInversion == 2 or (isinstance(ucInversion, int) and ucInversion >= 8):
         return [base_sequence, "IR"]
     else:
         return base_sequence
+
+
+def _physio_signal_method(pro_data: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]]:
+    """
+    Return the selected physiological (lSignal1, lMethod1) selectors.
+
+    lSignal1 bitmask: 1=None, 2=ECG, 4=Pulse, 8=External, 16=Respiratory.
+    lMethod1: 1=None, others = triggered / gated / retro-gated.
+
+    Both being 1 (or absent) means no physiological synchronisation is active. These
+    are the only reliable indicators - the per-sensor lTriggerPulses/lRespGateThreshold
+    fields carry non-zero defaults on every protocol.
+    """
+    signal = extract_nested_value(pro_data, "sPhysioImaging.lSignal1")
+    method = extract_nested_value(pro_data, "sPhysioImaging.lMethod1")
+    return signal, method
 
 
 def _detect_scan_options(pro_data: Dict[str, Any]) -> list:
@@ -530,32 +578,31 @@ def _detect_scan_options(pro_data: Dict[str, Any]) -> list:
         List of ScanOptions strings
     """
     scan_options = []
-    
+
     # Phase Encode Reordering (PER)
     reordering = extract_nested_value(pro_data, "sKSpace.unReordering")
     if reordering and reordering != 1:  # 1 = linear, others = reordered
         scan_options.append("PER")
-    
-    # Respiratory Gating (RG)
-    resp_gate = extract_nested_value(pro_data, "sPhysioImaging.sPhysioResp.lRespGateThreshold")
-    if resp_gate and resp_gate > 0:
-        scan_options.append("RG")
-    
-    # Cardiac Gating (CG)
-    cardiac_trigger = extract_nested_value(pro_data, "sPhysioImaging.sPhysioECG.lTriggerPulses")
-    if cardiac_trigger and cardiac_trigger > 0:
-        scan_options.append("CG")
-    
-    # Peripheral Pulse Gating (PPG)
-    pulse_trigger = extract_nested_value(pro_data, "sPhysioImaging.sPhysioPulse.lTriggerPulses")
-    if pulse_trigger and pulse_trigger > 0:
-        scan_options.append("PPG")
-    
-    # Flow Compensation (FC)
+
+    # Physiological gating - only when a physio signal AND method are actually selected.
+    # lSignal1 bitmask: 1=None, 2=ECG, 4=Pulse, 8=External, 16=Respiratory.
+    # lMethod1: 1=None (anything else = triggered/gated/retro-gated).
+    # The per-sensor lTriggerPulses/lRespGateThreshold fields default to 1/20 on every
+    # protocol, so they cannot be used to decide whether gating is on.
+    physio_signal, physio_method = _physio_signal_method(pro_data)
+    if physio_signal not in (None, 0, 1) and physio_method not in (None, 0, 1):
+        if physio_signal & 16:  # Respiratory Gating (RG)
+            scan_options.append("RG")
+        if physio_signal & 2:   # Cardiac Gating (CG)
+            scan_options.append("CG")
+        if physio_signal & 4:   # Peripheral Pulse Gating (PPG)
+            scan_options.append("PPG")
+
+    # Flow Compensation (FC). Per-echo acFlowComp values default to 1 (= off); a value
+    # greater than 1 selects a flow-compensation mode (e.g. 16 on TOF, 2 on field maps).
     flow_comp = extract_nested_value(pro_data, "acFlowComp")
     if flow_comp and isinstance(flow_comp, list):
-        # Check if any echo has flow compensation enabled
-        if any(fc > 0 for fc in flow_comp if fc is not None):
+        if any(fc > 1 for fc in flow_comp if fc is not None):
             scan_options.append("FC")
     
     # Partial Fourier - Frequency (PFF)
@@ -568,21 +615,29 @@ def _detect_scan_options(pro_data: Dict[str, Any]) -> list:
     if pf_phase and pf_phase < 16:  # 16 = off, < 16 = partial Fourier
         scan_options.append("PFP")
     
-    # Spatial Presaturation (SP)
-    # Check various saturation pulse types
-    fat_sat = extract_nested_value(pro_data, "sPrepPulses.ucFatSat")
-    water_sat = extract_nested_value(pro_data, "sPrepPulses.ucWaterSat")
-    
-    # Regional saturation pulses
+    # Fat/water saturation - correct Siemens keys are ucFatSatMode / ucWaterSatMode
+    # (value 1 = off, >1 = on). The old ucFatSat/ucWaterSat keys never exist, so fat
+    # saturation was never detected.
+    fat_sat = extract_nested_value(pro_data, "sPrepPulses.ucFatSatMode")
+    water_sat = extract_nested_value(pro_data, "sPrepPulses.ucWaterSatMode")
+
+    # Regional (spatial) saturation bands. The sRSatArray always contains default,
+    # empty slots ({"ulShape": 1}); only elements with a real slab thickness are actual
+    # saturation bands.
     rsat_elements = extract_nested_value(pro_data, "sRSatArray.asElm") or []
-    
-    if (fat_sat and fat_sat > 1) or (water_sat and water_sat > 1) or len(rsat_elements) > 0:
+    real_rsat = [
+        e for e in rsat_elements
+        if isinstance(e, dict) and (e.get("dThickness") or 0) > 0
+    ]
+
+    # Spatial Presaturation (SP) - regional sat bands or water suppression
+    if (water_sat and water_sat > 1) or len(real_rsat) > 0:
         scan_options.append("SP")
-    
-    # Fat Saturation (FS) - more specific than SP
+
+    # Fat Saturation (FS)
     if fat_sat and fat_sat > 1:
         scan_options.append("FS")
-    
+
     return scan_options
 
 
@@ -687,8 +742,8 @@ def _detect_sequence_variant(pro_data: Dict[str, Any]) -> Optional[list]:
         if (inversion_mode and inversion_mode > 4) or meaningful_ti:
             variants.append("MP")
     
-    # MTC (magnetization transfer contrast) - check for MT pulses
-    mtc_mode = extract_nested_value(pro_data, "sPrepPulses.ucMTC")
+    # MTC (magnetization transfer contrast) - correct key is lMTCMode (1 = off, >1 = on)
+    mtc_mode = extract_nested_value(pro_data, "sPrepPulses.lMTCMode")
     if mtc_mode and mtc_mode > 1:
         variants.append("MTC")
     
@@ -812,7 +867,9 @@ PRO_TO_DICOM_MAPPING = {
     # Matrix dimensions (corrected - .pro files use different names than MATLAB examples)
     "sKSpace.lBaseResolution": "Rows",             # Base resolution = readout direction = DICOM Rows
     "sKSpace.lPhaseEncodingLines": "Columns",      # Phase encoding lines = DICOM Columns
-    "sKSpace.lImagesPerSlab": "NumberOfTemporalPositions",  # For 3D/4D sequences
+    # NumberOfTemporalPositions is derived from lRepetitions in calculate_other_dicom_fields.
+    # lImagesPerSlab is a *spatial* (3D partition) count, NOT a temporal one - mapping it here
+    # produced spurious NumberOfTemporalPositions/TemporalResolution for static 3D scans.
     
     # RF parameters
     "adFlipAngleDegree.0": "FlipAngle",
@@ -830,7 +887,7 @@ PRO_TO_DICOM_MAPPING = {
     "sSpecPara.lPhaseEncodingType": ("InPlanePhaseEncodingDirection", lambda x: "ROW" if x == 1 else "COL"),
     
     # Scanner hardware - only real DICOM fields
-    "sProtConsistencyInfo.flNominalB0": "MagneticFieldStrength",
+    "sProtConsistencyInfo.flNominalB0": ("MagneticFieldStrength", lambda x: _nominal_field_strength(x)),
     "sTXSPEC.asNucleusInfo.0.tNucleus": "ImagedNucleus",
     "ulVersion": ("SoftwareVersion", lambda x: _decode_siemens_version(x)),
     
@@ -846,13 +903,14 @@ PRO_TO_DICOM_MAPPING = {
     "sStudyArray.asElm.0.tStudyDescription": "StudyDescription",
     
     # Sequence options and flags
-    "sAngio.ucTOFInflow": ("TimeOfFlightContrast", lambda x: "YES" if x > 1 else "NO"),
+    # TimeOfFlightContrast is derived in calculate_other_dicom_fields: ucTOFInflow reads 4
+    # (its default) on virtually every protocol, so the raw value cannot indicate TOF.
     "sAngio.ucPCFlowMode": ("AngioFlag", lambda x: "Y" if x > 2 else "N"),
-    
-    # Triggering/Gating
-    "sPhysioImaging.sPhysioECG.lTriggerPulses": ("TriggerSourceOrType", lambda x: "ECG" if x > 0 else None),
-    "sPhysioImaging.sPhysioECG.lTriggerWindow": "TriggerTime",
-    
+
+    # Triggering/Gating is derived in calculate_other_dicom_fields, gated on the physio
+    # signal/method selectors. The per-sensor lTriggerPulses fields default to 1 on every
+    # protocol, so they cannot be used to detect whether gating is actually enabled.
+
     # Diffusion parameters
     "sDiffusion.alBValue": ("DiffusionBValue", lambda x: _extract_unique_b_values(x) if x else None),
 }
@@ -1070,11 +1128,14 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
         if total_readout_time > 0:
             dicom_data["BandwidthPerPixelPhaseEncode"] = 1.0 / total_readout_time
             
-    # Calculate ImagingFrequency from nominal B0 (if available)
-    b0_field = dicom_data.get("MagneticFieldStrength")
-    if b0_field and "ImagingFrequency" not in dicom_data:
-        # Approximate proton frequency: 42.58 MHz/T for 1H
-        dicom_data["ImagingFrequency"] = b0_field * 42.58
+    # Calculate ImagingFrequency from the TRUE main field, not the rounded
+    # marketed MagneticFieldStrength (e.g. 2.89362 T -> 123.2 MHz, not 3.0 T -> 127.7 MHz)
+    true_b0 = extract_nested_value(pro_data, "sProtConsistencyInfo.flNominalB0")
+    if true_b0 is None:
+        true_b0 = dicom_data.get("MagneticFieldStrength")
+    if true_b0 and "ImagingFrequency" not in dicom_data:
+        # Proton gyromagnetic ratio: 42.577 MHz/T for 1H
+        dicom_data["ImagingFrequency"] = true_b0 * 42.577
         
     # Calculate SliceThickness and MRAcquisitionType - handle 2D vs 3D sequences
     if "SliceThickness" not in dicom_data:
@@ -1218,18 +1279,19 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
         if uses_inversion:
             inversion_times_raw = extract_nested_value(pro_data, "alTI")
             if inversion_times_raw is not None:
-                # Convert from microseconds to seconds
+                # Convert from microseconds to milliseconds (DICOM InversionTime is in ms,
+                # like EchoTime/RepetitionTime)
                 if isinstance(inversion_times_raw, list):
-                    inversion_times_s = [t/1000000.0 for t in inversion_times_raw if t != 0]
+                    inversion_times_ms = [t/1000.0 for t in inversion_times_raw if t != 0]
                     # Return single value if only one, array if multiple
-                    if len(inversion_times_s) == 1:
-                        dicom_data["InversionTime"] = inversion_times_s[0]
-                    elif len(inversion_times_s) > 1:
-                        dicom_data["InversionTime"] = inversion_times_s
+                    if len(inversion_times_ms) == 1:
+                        dicom_data["InversionTime"] = inversion_times_ms[0]
+                    elif len(inversion_times_ms) > 1:
+                        dicom_data["InversionTime"] = inversion_times_ms
                 else:
                     # Single inversion time, only if non-zero
                     if inversion_times_raw != 0:
-                        dicom_data["InversionTime"] = inversion_times_raw / 1000000.0
+                        dicom_data["InversionTime"] = inversion_times_raw / 1000.0
         
     # Generate ImageType
     if "ImageType" not in dicom_data:
@@ -1248,16 +1310,22 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
         epi_factor = extract_nested_value(pro_data, "sFastImaging.lEPIFactor") or 1
         sequence_type = extract_nested_value(pro_data, "ucSequenceType") or 1
         echo_times = extract_nested_value(pro_data, "alTE") or []
-        
+        contrasts = extract_nested_value(pro_data, "lContrasts")
+
+        # Number of active echoes, honouring lContrasts (alTE is padded with unused slots)
+        num_echoes = len(echo_times) if isinstance(echo_times, list) else 1
+        if contrasts and contrasts > 0:
+            num_echoes = min(num_echoes, contrasts)
+
         if turbo_factor > 1:
             # TSE/FSE sequence - RF echo train, no gradient echoes
             gradient_echo_train_length = 0
         elif epi_factor > 1:
             # EPI sequence - gradient echo train based on EPI factor
             gradient_echo_train_length = epi_factor
-        elif isinstance(echo_times, list) and len(echo_times) > 1 and sequence_type == 1:
+        elif num_echoes > 1 and sequence_type == 1:
             # Multi-echo GRE (Flash) - all echoes are gradient echoes
-            gradient_echo_train_length = len(echo_times)
+            gradient_echo_train_length = num_echoes
         elif sequence_type == 1:  # Flash/GRE
             # Single-echo GRE - one gradient echo
             gradient_echo_train_length = 1
@@ -1295,15 +1363,51 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
             
         dicom_data["EchoTrainLength"] = echo_train_length
         
+    # NumberOfTemporalPositions - only dynamic (multi-measurement) sequences have >1.
+    # Siemens lRepetitions counts repetitions in addition to the first measurement, so
+    # the number of temporal positions is lRepetitions + 1. Static scans have no
+    # lRepetitions and get a single temporal position.
+    if "NumberOfTemporalPositions" not in dicom_data:
+        repetitions = extract_nested_value(pro_data, "lRepetitions")
+        if repetitions and repetitions > 0:
+            dicom_data["NumberOfTemporalPositions"] = repetitions + 1
+        else:
+            dicom_data["NumberOfTemporalPositions"] = 1
+
     # Calculate TemporalResolution for dynamic/multi-temporal sequences
     if "TemporalResolution" not in dicom_data:
         temporal_positions = dicom_data.get("NumberOfTemporalPositions", 1)
         tr_values = extract_nested_value(pro_data, "alTR") or []
-        
+
         if temporal_positions > 1 and tr_values:
             # Convert from microseconds to milliseconds for temporal resolution
             temporal_resolution = tr_values[0] / 1000.0
             dicom_data["TemporalResolution"] = temporal_resolution
+
+    # TimeOfFlightContrast - ucTOFInflow defaults to 4 on every protocol and cannot
+    # distinguish TOF angiography, so rely on the sequence/protocol name (with the raw
+    # value only as a strong secondary signal).
+    if "TimeOfFlightContrast" not in dicom_data:
+        protocol_name = (extract_nested_value(pro_data, "tProtocolName") or "").lower()
+        sequence_name = (extract_nested_value(pro_data, "tSequenceFileName") or "").lower()
+        tof_inflow = extract_nested_value(pro_data, "sAngio.ucTOFInflow") or 0
+        is_tof = "tof" in protocol_name or "tof" in sequence_name or tof_inflow > 4
+        dicom_data["TimeOfFlightContrast"] = "YES" if is_tof else "NO"
+
+    # Triggering/Gating - only emit when a physio signal + method are actually selected.
+    if "TriggerSourceOrType" not in dicom_data:
+        physio_signal, physio_method = _physio_signal_method(pro_data)
+        if physio_signal not in (None, 0, 1) and physio_method not in (None, 0, 1):
+            signal_sources = {2: ("ECG", "sPhysioECG"), 4: ("PULSE", "sPhysioPulse"),
+                              8: ("EXT", "sPhysioExt"), 16: ("RESP", "sPhysioResp")}
+            for bit, (source, sensor) in signal_sources.items():
+                if physio_signal & bit:
+                    dicom_data["TriggerSourceOrType"] = source
+                    window = extract_nested_value(
+                        pro_data, f"sPhysioImaging.{sensor}.lTriggerWindow")
+                    if window is not None and "TriggerTime" not in dicom_data:
+                        dicom_data["TriggerTime"] = window
+                    break
 
 
 # --------------------------------------------------------------------------
@@ -1678,6 +1782,72 @@ def load_exar_file(exar_file_path: str) -> List[Dict[str, Any]]:
 
         except Exception as e:
             # Log warning but continue with other protocols
+            protocol_name = "Unknown"
+            if 'tProtocolName' in protocol_text:
+                import re
+                match = re.search(r'tProtocolName\s*=\s*"([^"]+)"', protocol_text)
+                if match:
+                    protocol_name = match.group(1)
+            print(f"Warning: Failed to parse protocol '{protocol_name}': {e}")
+            continue
+
+    return results
+
+
+def load_exar_file_schema_format(exar_file_path: str) -> List[Dict[str, Any]]:
+    """
+    Load a Siemens .exar1 file into schema-compatible format, one entry per protocol.
+
+    Unlike load_exar_file (which returns a flat dict per protocol), this expands
+    series-determining parameters (echo times, magnitude/phase image types,
+    inversion times) into an explicit series list, exactly like
+    load_pro_file_schema_format does for .pro files. This is what validation and
+    the web UI need so that, e.g., a multi-echo acquisition is seen as multiple
+    echoes rather than a single row holding a tuple of echo times.
+
+    Args:
+        exar_file_path: Path to the .exar1 protocol file
+
+    Returns:
+        List of schema-format dictionaries (acquisition_info, fields, series),
+        one per protocol in the archive.
+
+    Raises:
+        FileNotFoundError: If the specified file path does not exist
+        Exception: If the file cannot be parsed
+    """
+    exar_path = Path(exar_file_path)
+    if not exar_path.exists():
+        raise FileNotFoundError(f"Protocol file not found: {exar_file_path}")
+
+    protocol_texts = _extract_protocols_from_exar(exar_file_path)
+
+    if not protocol_texts:
+        # Reuse the same rich diagnostics as load_exar_file
+        load_exar_file(exar_file_path)
+        return []
+
+    results = []
+
+    for protocol_text in protocol_texts:
+        try:
+            parsed_data = parse_buffer(protocol_text)
+
+            flat_dicom_data = apply_pro_to_dicom_mapping(parsed_data)
+            calculate_other_dicom_fields(flat_dicom_data, parsed_data)
+
+            schema_result = _convert_flat_to_schema_format(
+                flat_dicom_data, parsed_data, exar_file_path
+            )
+
+            # Tag as coming from an .exar1 archive rather than a bare .pro file
+            schema_result["acquisition_info"]["source_type"] = "exar1"
+            schema_result["acquisition_info"]["exar_path"] = str(exar_file_path)
+            schema_result["acquisition_info"]["exar_filename"] = exar_path.name
+
+            results.append(schema_result)
+
+        except Exception as e:
             protocol_name = "Unknown"
             if 'tProtocolName' in protocol_text:
                 import re

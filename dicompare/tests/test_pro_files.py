@@ -262,5 +262,151 @@ class TestProFileFieldExtraction:
         assert has_timing, "No timing parameters found in .pro file"
 
 
+class TestNominalFieldStrength:
+    """Tests for mapping Siemens flNominalB0 to marketed MagneticFieldStrength."""
+
+    def test_snaps_true_b0_to_marketed_value(self):
+        """A 3T scanner reports flNominalB0 ~2.8936 T; DICOM expects 3.0."""
+        from dicompare.io.pro import _nominal_field_strength
+
+        assert _nominal_field_strength(2.89362001419) == 3.0
+        assert _nominal_field_strength(1.494) == 1.5
+        assert _nominal_field_strength(6.98) == 7.0
+
+    def test_exact_marketed_values_unchanged(self):
+        from dicompare.io.pro import _nominal_field_strength
+
+        for strength in (1.5, 3.0, 7.0):
+            assert _nominal_field_strength(strength) == strength
+
+    def test_unknown_field_strength_passes_through(self):
+        """Values not near any standard strength are preserved (rounded)."""
+        from dicompare.io.pro import _nominal_field_strength
+
+        assert _nominal_field_strength(2.0) == 2.0
+
+    def test_pro_file_reports_nominal_field_strength(self):
+        """End-to-end: a parsed .pro reports the marketed field strength,
+        while ImagingFrequency stays consistent with the true B0."""
+        pro_file = FIXTURES_DIR / "PRODUCT__ep2d_bold__p2_sms1.pro"
+        result = load_pro_file(str(pro_file))
+
+        # Marketed value, not the raw ~2.8936 T
+        assert result["MagneticFieldStrength"] == 3.0
+        # ImagingFrequency derives from the true B0 (~123.2 MHz at 3T), not 3.0*42.58
+        assert abs(result["ImagingFrequency"] - 123.2) < 1.0
+
+
+class TestScanOptionAndFlagDetection:
+    """Regression tests for false positives caused by treating Siemens defaults as 'on'.
+
+    Every protocol in a real archive carries non-zero physio trigger defaults,
+    ucTOFInflow=4, acFlowComp=1 and lImagesPerSlab, so the old detections fired
+    on essentially every scan.
+    """
+
+    def _base(self):
+        # A minimal static, non-gated, non-TOF GRE protocol
+        return {
+            "tProtocolName": "gre_static",
+            "sPhysioImaging": {"lSignal1": 1, "lMethod1": 1,
+                               "sPhysioECG": {"lTriggerPulses": 1, "lTriggerWindow": 5},
+                               "sPhysioResp": {"lRespGateThreshold": 20}},
+            "sAngio": {"ucTOFInflow": 4, "ucPCFlowMode": 2},
+            "acFlowComp": [1.0, 1.0],
+            "sPrepPulses": {"ucFatSatMode": 2},
+            "sRSatArray": {"asElm": [{"ulShape": 1}, {"ulShape": 1}]},
+        }
+
+    def test_no_gating_when_no_physio_signal_selected(self):
+        from dicompare.io.pro import _detect_scan_options
+        opts = _detect_scan_options(self._base())
+        assert "RG" not in opts and "CG" not in opts and "PPG" not in opts
+
+    def test_cardiac_gating_detected_when_selected(self):
+        from dicompare.io.pro import _detect_scan_options
+        data = self._base()
+        data["sPhysioImaging"]["lSignal1"] = 2   # ECG
+        data["sPhysioImaging"]["lMethod1"] = 4   # gated
+        assert "CG" in _detect_scan_options(data)
+
+    def test_fat_sat_uses_correct_key(self):
+        from dicompare.io.pro import _detect_scan_options
+        assert "FS" in _detect_scan_options(self._base())          # ucFatSatMode=2 -> on
+        data = self._base()
+        data["sPrepPulses"]["ucFatSatMode"] = 1                    # off
+        assert "FS" not in _detect_scan_options(data)
+
+    def test_empty_rsat_slots_do_not_trigger_sp(self):
+        from dicompare.io.pro import _detect_scan_options
+        assert "SP" not in _detect_scan_options(self._base())
+        data = self._base()
+        data["sRSatArray"]["asElm"][0]["dThickness"] = 40.0        # a real sat band
+        assert "SP" in _detect_scan_options(data)
+
+    def test_flow_comp_default_not_flagged(self):
+        from dicompare.io.pro import _detect_scan_options
+        assert "FC" not in _detect_scan_options(self._base())      # all 1.0 = off
+        data = self._base()
+        data["acFlowComp"] = [1.0, 16.0]                           # a real FC mode
+        assert "FC" in _detect_scan_options(data)
+
+    def test_tof_default_not_flagged_but_name_is(self):
+        from dicompare.io.pro import calculate_other_dicom_fields
+        d = {}
+        calculate_other_dicom_fields(d, self._base())
+        assert d["TimeOfFlightContrast"] == "NO"
+        d2 = {}
+        calculate_other_dicom_fields(d2, {**self._base(), "tProtocolName": "TOF_3D_neck"})
+        assert d2["TimeOfFlightContrast"] == "YES"
+
+    def test_temporal_positions_from_repetitions_not_partitions(self):
+        from dicompare.io.pro import calculate_other_dicom_fields
+        # Static 3D scan: many partitions, no repetitions -> a single temporal position
+        d = {}
+        calculate_other_dicom_fields(d, {**self._base(), "sKSpace": {"lImagesPerSlab": 176}})
+        assert d["NumberOfTemporalPositions"] == 1
+        # Dynamic scan: lRepetitions drives temporal positions
+        d2 = {}
+        calculate_other_dicom_fields(d2, {**self._base(), "lRepetitions": 494})
+        assert d2["NumberOfTemporalPositions"] == 495
+
+
+class TestInversionRecovery:
+    """Regression tests for inversion-recovery detection and InversionTime units."""
+
+    def test_mprage_inversion_time_in_milliseconds(self):
+        """alTI is stored in microseconds; DICOM InversionTime must be in ms."""
+        from dicompare.io.pro import calculate_other_dicom_fields
+        d = {}
+        # ucInversion=2 (MPRAGE volume inversion), TI = 1.1 s
+        calculate_other_dicom_fields(d, {
+            "ucSequenceType": 1,
+            "sPrepPulses": {"ucInversion": 2},
+            "alTI": [1100000],
+        })
+        assert d["InversionTime"] == 1100.0
+
+    def test_flair_slice_selective_inversion_detected(self):
+        """ucInversion=8 (e.g. FLAIR) is inversion recovery and must yield IR + TI."""
+        from dicompare.io.pro import calculate_other_dicom_fields, _decode_sequence_type
+        data = {"ucSequenceType": 8, "sPrepPulses": {"ucInversion": 8},
+                "alTI": [1800000]}
+        assert "IR" in _decode_sequence_type(data)
+        d = {}
+        calculate_other_dicom_fields(d, data)
+        assert d["InversionTime"] == 1800.0
+
+    def test_non_ir_default_not_flagged(self):
+        """ucInversion=4 is a default/reapply value, not inversion recovery."""
+        from dicompare.io.pro import calculate_other_dicom_fields, _decode_sequence_type
+        data = {"ucSequenceType": 1, "sPrepPulses": {"ucInversion": 4},
+                "alTI": [300000]}
+        assert _decode_sequence_type(data) == "GR"
+        d = {}
+        calculate_other_dicom_fields(d, data)
+        assert "InversionTime" not in d
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
