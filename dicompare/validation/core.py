@@ -11,6 +11,54 @@ import math
 from ..utils import make_hashable
 from .helpers import ComplianceStatus
 
+try:  # numpy is a hard dependency (pandas requires it); guard just in case
+    import numpy as np
+except Exception:  # pragma: no cover
+    np = None
+
+# Modules that validation-rule authors may import inside their `implementation`
+# code. These are safe, side-effect-free numerical/text utilities. Anything not
+# listed here (os, sys, subprocess, socket, importlib, ...) is blocked.
+ALLOWED_RULE_MODULES = frozenset({
+    'ast', 're', 'math', 'statistics', 'numpy', 'pandas', 'json',
+    'datetime', 'itertools', 'collections', 'fractions', 'decimal',
+})
+
+
+def _as_list(value):
+    """
+    Coerce a field value into a plain Python list.
+
+    List-valued fields (e.g. DiffusionBValues, PixelSpacing) arrive inside
+    validation rules as tuples (they must be hashable for grouping/uniqueness).
+    Tuples are already indexable and iterable, so this helper is only a
+    convenience for authors who want an explicit list. It also tolerates a
+    string repr like "[0, 1000, 3000]" so hand-written test data still works.
+
+    Args:
+        value: A tuple, list, string repr of a list, or scalar.
+
+    Returns:
+        list: The value as a list ([] for None; [value] for a scalar).
+    """
+    import ast as _ast
+
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.startswith('[') and stripped.endswith(']'):
+            try:
+                parsed = _ast.literal_eval(stripped)
+                if isinstance(parsed, (list, tuple)):
+                    return list(parsed)
+            except (ValueError, SyntaxError):
+                pass
+        return [value]
+    return [value]
+
 
 class ValidationError(Exception):
     """
@@ -249,6 +297,21 @@ class BaseValidationModel:
                             "passed": False,
                             "status": ComplianceStatus.ERROR.value,
                         })
+                    except Exception as e:
+                        # Defense in depth: a buggy rule (e.g. one raising a raw
+                        # Python exception rather than ValidationError) must not
+                        # abort the whole compliance run. Report it as an error
+                        # for this rule and keep validating the rest.
+                        errors.append({
+                            "acquisition": acquisition,
+                            "field": ", ".join(field_names),
+                            "rule_name": validator_func._rule_name,
+                            "expected": validator_func._rule_message,
+                            "value": str(grouped.to_dict(orient="list")),
+                            "message": f"Rule raised an unexpected error: {type(e).__name__}: {e}",
+                            "passed": False,
+                            "status": ComplianceStatus.ERROR.value,
+                        })
 
         overall_success = len(errors) == 0
         return overall_success, errors, warnings, passes
@@ -260,14 +323,26 @@ def safe_exec_rule(code: str, context: Dict[str, Any]) -> Any:
     
     This function provides a sandboxed environment for executing validation rules
     embedded in JSON schemas, with access only to approved functions and modules.
-    
+
+    Available namespace inside a rule's ``implementation``:
+        - ``value``: a pandas DataFrame of the unique value combinations for the
+          rule's fields (plus a ``Count`` column). ``value["Field"]`` is a Series.
+        - List-valued fields (e.g. DiffusionBValues, PixelSpacing) appear as
+          **tuples** (they must be hashable for grouping/uniqueness). Tuples are
+          indexable and iterable exactly like lists, so no parsing is needed; use
+          ``as_list(value["Field"][i])`` if you specifically want a list.
+        - Pre-injected: ``pd``, ``np`` (numpy), ``math``, ``ast``, ``re``,
+          ``statistics``, ``as_list``, ``ValidationError``, ``ValidationWarning``.
+        - ``import`` is permitted only for a safe whitelist
+          (see ``ALLOWED_RULE_MODULES``); importing os/sys/etc. is blocked.
+
     Args:
         code (str): The Python code to execute.
         context (Dict[str, Any]): Local variables available to the code.
-        
+
     Returns:
         Any: The result of the code execution.
-        
+
     Raises:
         ValidationError: If the code raises a validation error.
         Exception: If the code raises any other exception.
@@ -289,11 +364,30 @@ def safe_exec_rule(code: str, context: Dict[str, Any]) -> Any:
         }
     }
 
+    # Allow `import` statements, but only for a whitelist of safe, side-effect-free
+    # numerical/text modules. This lets rules do e.g. `import numpy as np` or
+    # `import ast` (both used by published schemas) while still blocking os/sys/etc.
+    def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+        root = name.split('.')[0]
+        if level != 0 or root not in ALLOWED_RULE_MODULES:
+            raise ImportError(
+                f"Import of '{name}' is not allowed in validation rules. "
+                f"Allowed modules: {', '.join(sorted(ALLOWED_RULE_MODULES))}."
+            )
+        return builtins.__import__(name, globals, locals, fromlist, level)
+    safe_builtins['__import__'] = _safe_import
+
     allowed_globals = {
         '__builtins__': safe_builtins,
         'ValidationError': ValidationError,
         'ValidationWarning': ValidationWarning,
         'pd': pd,
+        # Pre-injected safe modules so rules can use them without an explicit import.
+        'np': np,
+        'ast': __import__('ast'),
+        're': __import__('re'),
+        'statistics': __import__('statistics'),
+        'as_list': _as_list,
         'math': math,
         'abs': abs,
         'len': len,

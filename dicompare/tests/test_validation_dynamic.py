@@ -268,9 +268,93 @@ def test_dynamic_model_reference_fields():
     ]
     
     model = create_validation_model_from_rules("Test", rules)
-    
+
     # Check that all referenced fields are captured
     assert "Field1" in model.reference_fields
     assert "Field2" in model.reference_fields
     assert "Field3" in model.reference_fields
     assert len(model.reference_fields) == 3
+
+
+def test_safe_exec_rule_allows_whitelisted_imports():
+    """Whitelisted modules (numpy, ast, re) can be imported inside a rule."""
+    code = (
+        "import numpy as np\n"
+        "import ast\n"
+        "import re\n"
+        "value = int(np.array([1, 2, 3]).sum())\n"
+    )
+    assert safe_exec_rule(code, {'value': None}) == 6
+
+
+def test_safe_exec_rule_blocks_dangerous_imports():
+    """Non-whitelisted modules (os) are blocked with ImportError."""
+    with pytest.raises(ImportError):
+        safe_exec_rule("import os\n", {'value': None})
+
+
+def test_safe_exec_rule_preinjected_modules():
+    """np/ast/re/statistics/as_list are available without an explicit import."""
+    code = (
+        "vals = as_list(value)\n"          # tuple/list/str -> list
+        "value = int(np.array(vals).sum())\n"
+    )
+    assert safe_exec_rule(code, {'value': (1, 2, 3)}) == 6
+
+
+def test_validate_wraps_unexpected_rule_exceptions():
+    """A rule raising a raw exception is reported as an error, not a crash."""
+    rules = [{
+        "id": "boom",
+        "name": "Boom",
+        "fields": ["EchoTime"],
+        "implementation": "raise RuntimeError('kaboom')",
+    }]
+    model = create_validation_model_from_rules("Test", rules)
+    df = pd.DataFrame([{"Acquisition": "Test", "EchoTime": 5.0}])
+    success, errors, warnings, passes = model.validate(df)
+    assert success is False
+    assert len(errors) == 1
+    assert "kaboom" in errors[0]["message"]
+
+
+def test_run_rule_test_case_list_fields_are_tuples():
+    """run_rule_test_case mirrors production: list cells arrive as tuples."""
+    from dicompare.interface import run_rule_test_case
+
+    rule = {
+        "id": "shells",
+        "name": "Two high shells",
+        "fields": ["DiffusionBValues"],
+        "implementation": (
+            "bvals = value['DiffusionBValues'][0]\n"
+            "assert isinstance(bvals, tuple)\n"
+            "if len([b for b in bvals if b > 5000]) < 2:\n"
+            "    raise ValidationError('need >=2 high b-values')\n"
+        ),
+    }
+    ok = run_rule_test_case(rule, {"DiffusionBValues": [[0, 5990, 30450]]})
+    assert ok["result"] == "pass"
+
+    bad = run_rule_test_case(rule, {"DiffusionBValues": [[0, 1000, 3000]]})
+    assert bad["result"] == "fail"
+    assert "high b-values" in bad["message"]
+
+
+def test_run_rule_test_case_reports_warning():
+    """ValidationWarning surfaces as a 'warning' result."""
+    from dicompare.interface import run_rule_test_case
+
+    rule = {
+        "id": "warn",
+        "name": "Warn",
+        "fields": ["EchoTime"],
+        "implementation": (
+            "n = value['EchoTime'].nunique()\n"
+            "if n < 3:\n"
+            "    raise ValidationWarning(f'only {n} echoes')\n"
+        ),
+    }
+    res = run_rule_test_case(rule, {"EchoTime": [1, 2]})
+    assert res["result"] == "warning"
+    assert "2 echoes" in res["message"]

@@ -13,6 +13,7 @@ from .web_utils import (
     attach_gradient_files_to_acquisitions,
     search_dicom_dictionary,
     build_schema_from_ui_acquisitions,
+    run_rule_test_case,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     'attach_gradient_files_to_acquisitions',
     'search_dicom_dictionary',
     'build_schema_from_ui_acquisitions',
+    'run_rule_test_case',
 ]

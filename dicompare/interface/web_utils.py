@@ -1423,3 +1423,84 @@ def build_schema_from_ui_acquisitions(
     }
 
     return make_json_serializable(schema)
+
+
+def run_rule_test_case(
+    rule: Dict[str, Any],
+    test_data: Dict[str, Any],
+    acquisition_name: str = "test",
+) -> Dict[str, Any]:
+    """
+    Run a single validation rule against one test case.
+
+    This uses the SAME execution path as real compliance checking
+    (``create_validation_model_from_rules`` -> ``safe_exec_rule``) and the SAME
+    data representation (list-valued cells become tuples via ``make_hashable``,
+    values grouped into a DataFrame). It exists so the schema builder's
+    "Test function" button exercises a rule exactly as it will run in production,
+    instead of a bespoke, more permissive environment that can mask real bugs
+    (blocked imports, tuple-vs-string list cells, etc.).
+
+    Args:
+        rule: Rule dict with at least ``id``, ``fields`` and ``implementation``
+            (optionally ``name`` / ``description``).
+        test_data: Mapping of field name -> list of per-row cell values. A cell
+            may itself be a list for list-valued fields (e.g. DiffusionBValues).
+            Column lengths may differ; shorter columns are padded with ``None``.
+        acquisition_name: Label used for the synthetic acquisition.
+
+    Returns:
+        Dict with ``result`` ('pass' | 'warning' | 'fail'), ``passed`` (bool),
+        ``message`` (str) and ``status`` (compliance status string).
+    """
+    from ..utils import make_hashable
+    from ..validation.core import create_validation_model_from_rules
+
+    norm_rule = {
+        'id': rule.get('id') or 'test_rule',
+        'name': rule.get('name', rule.get('id', 'test_rule')),
+        'description': rule.get('description', ''),
+        'fields': list(rule.get('fields', [])),
+        'implementation': rule.get('implementation', ''),
+    }
+
+    # Determine the number of rows across all provided columns.
+    col_lengths = [len(v) for v in test_data.values() if isinstance(v, list)]
+    n_rows = max(col_lengths) if col_lengths else 1
+
+    rows = []
+    for i in range(n_rows):
+        row = {'Acquisition': acquisition_name}
+        for field, values in test_data.items():
+            if isinstance(values, list):
+                cell = values[i] if i < len(values) else None
+            else:
+                cell = values
+            row[field] = make_hashable(cell)
+        rows.append(row)
+
+    session_df = pd.DataFrame(rows)
+
+    model = create_validation_model_from_rules(acquisition_name, [norm_rule])
+    _success, errors, warnings, passes = model.validate(session_df)
+
+    if errors:
+        return {
+            'result': 'fail',
+            'passed': False,
+            'message': errors[0].get('message', ''),
+            'status': errors[0].get('status', 'error'),
+        }
+    if warnings:
+        return {
+            'result': 'warning',
+            'passed': True,
+            'message': warnings[0].get('message', ''),
+            'status': warnings[0].get('status', 'warning'),
+        }
+    return {
+        'result': 'pass',
+        'passed': True,
+        'message': passes[0].get('message', 'OK') if passes else 'OK',
+        'status': 'ok',
+    }
