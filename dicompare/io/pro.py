@@ -879,7 +879,11 @@ PRO_TO_DICOM_MAPPING = {
     # Parallel imaging
     "sPat.lAccelFactPE": "ParallelReductionFactorInPlane",
     "sPat.lAccelFact3D": "SliceAccelerationFactor",
-    "sPat.ucPATMode": ("ParallelAcquisitionTechnique", lambda x: "GRAPPA" if x == 2 else "SENSE" if x == 1 else None),
+    # ucPATMode is the IDEA PATSelMode enum (1 none, 2 GRAPPA, 4 mSENSE); the
+    # registry maps 1 -> None so unaccelerated scans drop the field like real
+    # DICOM does. (Previously 1 was mislabelled "SENSE".)
+    "sPat.ucPATMode": ("ParallelAcquisitionTechnique",
+        lambda x: _decode_field("ParallelAcquisitionTechnique", "siemens.pro.ucPATMode", x)),
     "sSliceAcceleration.lMultiBandFactor": "MultibandFactor",
     
     # Bandwidth - PixelBandwidth calculated separately with proper formula
@@ -978,11 +982,13 @@ def apply_pro_to_dicom_mapping(pro_data: Dict[str, Any]) -> Dict[str, Any]:
         value = extract_nested_value(pro_data, pro_field)
         
         if value is not None:
-            # Apply converter function if provided
+            # Apply converter function if provided. A converter returning None
+            # means "this code carries no information" (e.g. ucPATMode 1 = PAT
+            # off, where real DICOM omits the field) — drop it.
             if converter is not None:
                 value = converter(value)
-
-            dicom_data[dicom_field] = value
+            if value is not None:
+                dicom_data[dicom_field] = value
     
     # Add default or calculated DICOM fields that are not directly mappable
     calculate_other_dicom_fields(dicom_data, pro_data)

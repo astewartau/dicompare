@@ -137,6 +137,20 @@ _DEFS: List[FieldDef] = [
         # SMASH) are rarely what vendors write.
         keyword="ParallelAcquisitionTechnique", tag="0018,9078", vr="CS",
         vocabulary=("GRAPPA", "SENSE", "mSENSE", "SMASH", "PILS", "ASSET", "ARC"),
+        encodings={
+            # Siemens .pro sPat.ucPATMode — enum PATSelMode in the IDEA
+            # SeqDefines.h (via FreeSurfer read_meas_prot.m): 0x01 none,
+            # 0x02 GRAPPA, 0x04 (m)SENSE, 0x08 2D-PAT. Product SMS-framework
+            # sequences use 0x20 (slice-acceleration mode) even with MB=1.
+            # 0x01 and 0x20 map to None (drop): real DICOM omits the field on
+            # unaccelerated scans, dcm2niix likewise emits no technique for
+            # 0x20, and the quantitative info lives in
+            # ParallelReductionFactorInPlane / MultibandFactor anyway.
+            # (Previous behaviour labelled both 1 and 32 as "SENSE".)
+            # 0x08 is deliberately unmapped until we know what DICOM reports
+            # for it — decode() keeps the raw value and logs a warning.
+            "siemens.pro.ucPATMode": {1: None, 2: "GRAPPA", 4: "mSENSE", 32: None},
+        },
     ),
     FieldDef(
         keyword="DiffusionHemisphereCoverage", value_type="string",

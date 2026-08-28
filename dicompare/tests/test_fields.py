@@ -39,6 +39,18 @@ class TestDecode:
         assert decode("InPlanePhaseEncodingDirection", "siemens.pro.lPhaseEncodingType", 1) == "ROW"
         assert decode("InPlanePhaseEncodingDirection", "siemens.pro.lPhaseEncodingType", 2) == "COL"
 
+    def test_siemens_pat_mode(self):
+        # IDEA PATSelMode enum: 1 none, 2 GRAPPA, 4 (m)SENSE. "None" maps to
+        # None (drop the field — real DICOM omits it on unaccelerated scans).
+        assert decode("ParallelAcquisitionTechnique", "siemens.pro.ucPATMode", 1) is None
+        assert decode("ParallelAcquisitionTechnique", "siemens.pro.ucPATMode", 2) == "GRAPPA"
+        assert decode("ParallelAcquisitionTechnique", "siemens.pro.ucPATMode", 4) == "mSENSE"
+        # 0x20: product SMS-framework mode; technique dropped, factors carry
+        # the quantitative info.
+        assert decode("ParallelAcquisitionTechnique", "siemens.pro.ucPATMode", 32) is None
+        # 0x08 (2D-PAT) is deliberately unmapped: raw value kept and logged.
+        assert decode("ParallelAcquisitionTechnique", "siemens.pro.ucPATMode", 8) == 8
+
 
 class TestCheckValue:
     def test_canonical_value_ok(self):

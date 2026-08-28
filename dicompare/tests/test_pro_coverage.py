@@ -405,9 +405,21 @@ class TestApplyProToDicomMapping:
         d = apply_pro_to_dicom_mapping({"sPat": {"ucPATMode": 2}})
         assert d["ParallelAcquisitionTechnique"] == "GRAPPA"
 
-    def test_pat_mode_sense(self):
+    def test_pat_mode_msense(self):
+        # IDEA PATSelMode: 0x04 is (m)SENSE.
+        d = apply_pro_to_dicom_mapping({"sPat": {"ucPATMode": 4}})
+        assert d["ParallelAcquisitionTechnique"] == "mSENSE"
+
+    def test_pat_mode_none_drops_field(self):
+        # 0x01 means PAT off; real DICOM omits the field entirely.
         d = apply_pro_to_dicom_mapping({"sPat": {"ucPATMode": 1}})
-        assert d["ParallelAcquisitionTechnique"] == "SENSE"
+        assert "ParallelAcquisitionTechnique" not in d
+
+    def test_pat_mode_slice_accel_drops_field(self):
+        # 0x20: product SMS-framework mode; no technique emitted (factors
+        # carry the quantitative info), matching dcm2niix behaviour.
+        d = apply_pro_to_dicom_mapping({"sPat": {"ucPATMode": 32}})
+        assert "ParallelAcquisitionTechnique" not in d
 
     def test_phase_encoding_row(self):
         d = apply_pro_to_dicom_mapping({"sSpecPara": {"lPhaseEncodingType": 1}})
