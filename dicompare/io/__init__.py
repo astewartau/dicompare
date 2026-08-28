@@ -46,7 +46,7 @@ from .pro import (
 )
 
 # Siemens .exar1 file parsing
-from .pro import (
+from .exar import (
     load_exar_file,
     load_exar_file_schema_format,
     load_exar_session,
