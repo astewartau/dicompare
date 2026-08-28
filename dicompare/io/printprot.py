@@ -25,12 +25,12 @@ protocol, each with ``acquisition_info``, ``fields`` and ``series``.
 """
 
 import re
-import itertools
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ..fields import validate_fields as _validate_fields
+from .protocol_common import convert_to_schema_format, sort_output_fields
 
 
 # ============================================================================
@@ -461,29 +461,17 @@ def apply_printprot_to_dicom_mapping(protocol: Dict[str, Any]) -> Dict[str, Any]
     return _sort_output_fields(dicom_fields)
 
 
+_DERIVED_NAMES = set(PRINTPROT_TO_DERIVED_MAPPING.values()) | {
+    "PercentPhaseFieldOfView",
+    "PhaseEncodingDirectionPositive",
+}
+
+
 def _sort_output_fields(dicom_fields: Dict[str, Any]) -> Dict[str, Any]:
     """Order known DICOM fields first, other DICOM fields alphabetically, then
     derived/custom fields alphabetically last."""
-    order_index = {f: i for i, f in enumerate(DICOM_FIELD_ORDER)}
-    derived_names = set(PRINTPROT_TO_DERIVED_MAPPING.values()) | {
-        "PercentPhaseFieldOfView",
-        "PhaseEncodingDirectionPositive",
-    }
-
-    ordered, other, derived = [], [], []
-    for key in dicom_fields:
-        if key in derived_names:
-            derived.append(key)
-        elif key in order_index:
-            ordered.append(key)
-        else:
-            other.append(key)
-
-    ordered.sort(key=lambda k: order_index[k])
-    other.sort()
-    derived.sort()
-
-    return {k: dicom_fields[k] for k in ordered + other + derived}
+    return sort_output_fields(dicom_fields, DICOM_FIELD_ORDER,
+                              is_last_group=_DERIVED_NAMES.__contains__)
 
 
 # ============================================================================
@@ -499,50 +487,13 @@ def _extract_series_parameters(dicom_fields: Dict[str, Any]) -> Dict[str, List]:
     return series_params
 
 
-def _generate_series_combinations(series_params: Dict[str, List]) -> List[Dict[str, Any]]:
-    """Generate series combinations from varying parameters (cartesian product)."""
-    if not series_params:
-        return []
-
-    param_names = list(series_params.keys())
-    value_lists = [series_params[name] for name in param_names]
-
-    series_list = []
-    for i, combo in enumerate(itertools.product(*value_lists)):
-        series_fields = [
-            {"field": param_names[j], "value": combo[j]} for j in range(len(param_names))
-        ]
-        series_list.append({"name": f"Series {i + 1:02d}", "fields": series_fields})
-
-    return series_list
-
-
 def _convert_to_schema_format(
     dicom_fields: Dict[str, Any], protocol_name: str, source_path: str
 ) -> Dict[str, Any]:
     """Convert DICOM fields to the dicompare schema-compatible format."""
-    series_params = _extract_series_parameters(dicom_fields)
-    series_list = _generate_series_combinations(series_params)
-    series_varying = set(series_params.keys())
-
-    acquisition_fields = []
-    for field_name, value in dicom_fields.items():
-        if field_name in series_varying:
-            continue
-        if value is None or value == "":
-            continue
-        acquisition_fields.append({"field": field_name, "value": value})
-
-    return {
-        "acquisition_info": {
-            "protocol_name": protocol_name,
-            "source_type": "printprot",
-            "printprot_path": str(source_path),
-            "printprot_filename": Path(source_path).name,
-        },
-        "fields": acquisition_fields,
-        "series": series_list,
-    }
+    return convert_to_schema_format(
+        dicom_fields, protocol_name, "printprot", source_path,
+        series_params=_extract_series_parameters(dicom_fields))
 
 
 # ============================================================================

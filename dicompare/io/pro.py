@@ -17,6 +17,7 @@ from twixtools.twixprot import parse_buffer
 import itertools
 
 from ..fields import decode as _decode_field, validate_fields as _validate_fields
+from .protocol_common import generate_series_combinations
 
 def load_pro_file(pro_file_path: str) -> Dict[str, Any]:
     """
@@ -236,58 +237,9 @@ def _determine_image_types_for_series(recon_mode: int, dicom_data: Dict[str, Any
 
 
 def _generate_series_combinations(series_params: Dict[str, List]) -> List[Dict[str, Any]]:
-    """
-    Generate all series combinations using cartesian product of parameters.
-    
-    Args:
-        series_params: Dictionary of series-varying parameters
-        
-    Returns:
-        List of series dictionaries
-    """
-    if not series_params:
-        return []
-    
-    # Get parameter names and values in consistent order
-    param_names = []
-    param_values = []
-    
-    # Priority order: EchoTime, ImageType, InversionTime
-    for param_name in ["EchoTime", "ImageType", "InversionTime"]:
-        if param_name in series_params:
-            param_names.append(param_name)
-            param_values.append(series_params[param_name])
-    
-    # Add any other parameters
-    for param_name, values in series_params.items():
-        if param_name not in param_names:
-            param_names.append(param_name)
-            param_values.append(values)
-    
-    # Generate all combinations
-    if not param_values:
-        return []
-    
-    combinations = list(itertools.product(*param_values))
-    
-    # Convert to series format
-    series_list = []
-    for i, combination in enumerate(combinations, 1):
-        series = {
-            "name": f"Series {i:02d}",
-            "fields": []
-        }
-        
-        for param_idx, value in enumerate(combination):
-            field_name = param_names[param_idx]
-            series["fields"].append({
-                "field": field_name,
-                "value": value
-            })
-        
-        series_list.append(series)
-    
-    return series_list
+    """Generate all series combinations using cartesian product of parameters."""
+    return generate_series_combinations(
+        series_params, priority=("EchoTime", "ImageType", "InversionTime"))
 
 
 def _classify_fields(dicom_data: Dict[str, Any], series_params: Dict[str, List]) -> tuple:

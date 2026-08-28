@@ -396,10 +396,12 @@ from dicompare.io.printprot import (
     _parse_header_title,
     apply_printprot_to_dicom_mapping,
     _extract_series_parameters,
-    _generate_series_combinations,
     _read_content,
     load_printprot_file,
     load_printprot_file_schema_format,
+)
+from dicompare.io.protocol_common import (
+    generate_series_combinations as _generate_series_combinations,
 )
 
 

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Optional, Tuple, Union
 
 from ..fields import FIELD_REGISTRY as _FIELD_REGISTRY, validate_fields as _validate_fields
+from .protocol_common import convert_to_schema_format, sort_output_fields
 
 if TYPE_CHECKING:
     import pandas
@@ -907,96 +908,19 @@ def _calculate_derived_fields(dicom_fields: Dict[str, Any], params: Dict[str, An
 
 
 def _sort_output_fields(dicom_fields: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Sort output fields in standard DICOM order.
-
-    Standard DICOM fields are ordered according to DICOM_FIELD_ORDER,
-    followed by any other DICOM fields alphabetically,
-    then Philips-specific fields alphabetically at the end.
-
-    Args:
-        dicom_fields: Dictionary of field names to values
-
-    Returns:
-        Ordered dictionary with fields in standard order
-    """
-    # Create order index for known fields
-    order_index = {field: i for i, field in enumerate(DICOM_FIELD_ORDER)}
-
-    # Separate fields into categories
-    ordered_dicom = []      # Fields in DICOM_FIELD_ORDER
-    other_dicom = []        # Other DICOM fields (not Philips_)
-    philips_fields = []     # Philips_ prefixed fields
-
-    for key in dicom_fields.keys():
-        if key.startswith('Philips_'):
-            philips_fields.append(key)
-        elif key in order_index:
-            ordered_dicom.append(key)
-        else:
-            other_dicom.append(key)
-
-    # Sort each category
-    ordered_dicom.sort(key=lambda k: order_index[k])
-    other_dicom.sort()
-    philips_fields.sort()
-
-    # Build ordered result
-    result = {}
-    for key in ordered_dicom + other_dicom + philips_fields:
-        result[key] = dicom_fields[key]
-
-    return result
+    """Order known DICOM fields first, other DICOM fields alphabetically,
+    then Philips-specific fields alphabetically last."""
+    return sort_output_fields(dicom_fields, DICOM_FIELD_ORDER,
+                              is_last_group=lambda k: k.startswith('Philips_'))
 
 
 def _convert_to_schema_format(dicom_fields: Dict[str, Any], raw_data: Dict[str, Any],
                               scan_name: str, examcard_path: str) -> Dict[str, Any]:
-    """
-    Convert DICOM fields to schema-compatible format.
-
-    Args:
-        dicom_fields: DICOM-compatible field dictionary
-        raw_data: Raw scan data from parsing
-        scan_name: Name of the scan
-        examcard_path: Path to source ExamCard file
-
-    Returns:
-        Schema-compatible dictionary
-    """
-    # Extract series-varying parameters (e.g., multiple echo times)
-    series_params = _extract_series_parameters(dicom_fields, raw_data)
-
-    # Generate series combinations
-    series_list = _generate_series_combinations(series_params)
-
-    # Build acquisition-level fields (excluding series-varying ones)
-    acquisition_fields = []
-    series_varying_keys = set(series_params.keys())
-
-    for field_name, value in dicom_fields.items():
-        # Skip metadata and series-varying fields
-        if field_name in ["ExamCard_Path", "ExamCard_FileName", "ScanName"]:
-            continue
-        if field_name in series_varying_keys:
-            continue
-        if value is None or value == "":
-            continue
-
-        acquisition_fields.append({
-            "field": field_name,
-            "value": value
-        })
-
-    return {
-        "acquisition_info": {
-            "protocol_name": scan_name,
-            "source_type": "examcard",
-            "examcard_path": str(examcard_path),
-            "examcard_filename": Path(examcard_path).name
-        },
-        "fields": acquisition_fields,
-        "series": series_list
-    }
+    """Convert DICOM fields to schema-compatible format."""
+    return convert_to_schema_format(
+        dicom_fields, scan_name, "examcard", examcard_path,
+        series_params=_extract_series_parameters(dicom_fields, raw_data),
+        skip_fields=("ExamCard_Path", "ExamCard_FileName", "ScanName"))
 
 
 def _extract_series_parameters(dicom_fields: Dict[str, Any], raw_data: Dict[str, Any]) -> Dict[str, List]:
@@ -1026,36 +950,3 @@ def _extract_series_parameters(dicom_fields: Dict[str, Any], raw_data: Dict[str,
     return series_params
 
 
-def _generate_series_combinations(series_params: Dict[str, List]) -> List[Dict[str, Any]]:
-    """
-    Generate series combinations from varying parameters.
-
-    Args:
-        series_params: Dictionary of parameter names to value lists
-
-    Returns:
-        List of series dictionaries
-    """
-    if not series_params:
-        return []
-
-    # Get all parameter names and their value lists
-    param_names = list(series_params.keys())
-    value_lists = [series_params[name] for name in param_names]
-
-    # Generate all combinations
-    series_list = []
-    for i, combo in enumerate(itertools.product(*value_lists)):
-        series_fields = []
-        for j, param_name in enumerate(param_names):
-            series_fields.append({
-                "field": param_name,
-                "value": combo[j]
-            })
-
-        series_list.append({
-            "name": f"Series {i+1:02d}",
-            "fields": series_fields
-        })
-
-    return series_list

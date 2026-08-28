@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Optional, Union
 
 from ..fields import FIELD_REGISTRY as _FIELD_REGISTRY, validate_fields as _validate_fields
+from .protocol_common import convert_to_schema_format, sort_output_fields
 
 if TYPE_CHECKING:
     import pandas
@@ -511,84 +512,15 @@ def _map_ge_sequence(pseq: str) -> Optional[str]:
 
 
 def _sort_output_fields(dicom_fields: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Sort output fields in standard DICOM order.
-
-    Standard DICOM fields are ordered according to DICOM_FIELD_ORDER,
-    followed by any other DICOM fields alphabetically,
-    then GE-specific fields alphabetically at the end.
-
-    Args:
-        dicom_fields: Dictionary of field names to values
-
-    Returns:
-        Ordered dictionary with fields in standard order
-    """
-    # Create order index for known fields
-    order_index = {field: i for i, field in enumerate(DICOM_FIELD_ORDER)}
-
-    # Separate fields into categories
-    ordered_dicom = []      # Fields in DICOM_FIELD_ORDER
-    other_dicom = []        # Other DICOM fields (not GE_)
-    ge_fields = []          # GE_ prefixed fields
-
-    for key in dicom_fields.keys():
-        if key.startswith('GE_'):
-            ge_fields.append(key)
-        elif key in order_index:
-            ordered_dicom.append(key)
-        else:
-            other_dicom.append(key)
-
-    # Sort each category
-    ordered_dicom.sort(key=lambda k: order_index[k])
-    other_dicom.sort()
-    ge_fields.sort()
-
-    # Build ordered result
-    result = {}
-    for key in ordered_dicom + other_dicom + ge_fields:
-        result[key] = dicom_fields[key]
-
-    return result
+    """Order known DICOM fields first, other DICOM fields alphabetically,
+    then GE-specific fields alphabetically last."""
+    return sort_output_fields(dicom_fields, DICOM_FIELD_ORDER,
+                              is_last_group=lambda k: k.startswith('GE_'))
 
 
 def _convert_to_schema_format(dicom_fields: Dict[str, Any], raw_params: Dict[str, Any],
                               scan_name: str, lxprotocol_path: str) -> Dict[str, Any]:
-    """
-    Convert DICOM fields to schema-compatible format.
-
-    Args:
-        dicom_fields: DICOM-compatible field dictionary
-        raw_params: Raw LxProtocol parameters
-        scan_name: Name of the scan
-        lxprotocol_path: Path to source LxProtocol file
-
-    Returns:
-        Schema-compatible dictionary
-    """
-    # Build acquisition-level fields
-    acquisition_fields = []
-
-    for field_name, value in dicom_fields.items():
-        # Skip metadata fields
-        if field_name in ["LxProtocol_Path", "LxProtocol_FileName", "ScanName"]:
-            continue
-        if value is None or value == "":
-            continue
-
-        acquisition_fields.append({
-            "field": field_name,
-            "value": value
-        })
-
-    return {
-        "acquisition_info": {
-            "protocol_name": scan_name,
-            "source_type": "lxprotocol",
-            "lxprotocol_path": str(lxprotocol_path),
-            "lxprotocol_filename": Path(lxprotocol_path).name
-        },
-        "fields": acquisition_fields,
-        "series": []
-    }
+    """Convert DICOM fields to schema-compatible format."""
+    return convert_to_schema_format(
+        dicom_fields, scan_name, "lxprotocol", lxprotocol_path,
+        skip_fields=("LxProtocol_Path", "LxProtocol_FileName", "ScanName"))

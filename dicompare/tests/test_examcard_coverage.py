@@ -42,9 +42,11 @@ from dicompare.io.examcard import (
     _get_item_content,
     _get_info_for_node,
     _extract_series_parameters,
-    _generate_series_combinations,
     _convert_to_schema_format,
     _sort_output_fields,
+)
+from dicompare.io.protocol_common import (
+    generate_series_combinations as _generate_series_combinations,
 )
 
 
