@@ -118,6 +118,52 @@ class TestApplyMapping:
         assert "Inline movie" not in result
         assert "InlineMovie" not in result
 
+    def test_phase_encoding_transversal(self):
+        # A/P phase on a transversal slice runs along image columns; the
+        # console display value must become the DICOM defined term.
+        proto = self._protocol({
+            ("Routine", "Orientation"): "T > C-5.0",
+            ("Routine", "Phase enc. dir."): "A >> P",
+        })
+        result = apply_printprot_to_dicom_mapping(proto)
+        assert result["InPlanePhaseEncodingDirection"] == "COL"
+        assert result["PhaseEncodingDirectionPositive"] == 1
+
+    def test_phase_encoding_reversed_polarity(self):
+        proto = self._protocol({
+            ("Routine", "Orientation"): "Transversal",
+            ("Routine", "Phase enc. dir."): "P >> A",
+        })
+        result = apply_printprot_to_dicom_mapping(proto)
+        assert result["InPlanePhaseEncodingDirection"] == "COL"
+        assert result["PhaseEncodingDirectionPositive"] == 0
+
+    def test_phase_encoding_sagittal(self):
+        # A/P is the in-plane horizontal (row) axis for sagittal slices.
+        proto = self._protocol({
+            ("Routine", "Orientation"): "Sagittal",
+            ("Routine", "Phase enc. dir."): "A >> P",
+        })
+        result = apply_printprot_to_dicom_mapping(proto)
+        assert result["InPlanePhaseEncodingDirection"] == "ROW"
+
+    def test_phase_encoding_rl_orientation_independent(self):
+        # R/L phase is ROW in every orientation where it is in-plane; no
+        # Orientation parameter needed. Polarity is only defined for A/P.
+        proto = self._protocol({("Routine", "Phase enc. dir."): "R >> L"})
+        result = apply_printprot_to_dicom_mapping(proto)
+        assert result["InPlanePhaseEncodingDirection"] == "ROW"
+        assert "PhaseEncodingDirectionPositive" not in result
+
+    def test_phase_encoding_ap_unknown_orientation_kept(self):
+        # Without an Orientation value, A/P cannot be resolved to ROW/COL;
+        # the original display value is kept (and flagged by the schema lint)
+        # but the polarity is still recorded.
+        proto = self._protocol({("Routine", "Phase enc. dir."): "A >> P"})
+        result = apply_printprot_to_dicom_mapping(proto)
+        assert result["InPlanePhaseEncodingDirection"] == "A >> P"
+        assert result["PhaseEncodingDirectionPositive"] == 1
+
 
 class TestDetectFormat:
     def test_xml(self):

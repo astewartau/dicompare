@@ -101,6 +101,54 @@ DICOM_FIELD_ORDER = [
 # Match "b-value" or "b-value 1", "b-value 2", ... (the per-weighting rows).
 _BVALUE_RE = re.compile(r"^b-value(?:\s+(\d+))?$", re.IGNORECASE)
 
+# Console phase-encoding display value, e.g. "A >> P".
+_PE_DISPLAY_RE = re.compile(r"^\s*([APRLHF])\s*>>\s*([APRLHF])\s*$")
+
+_PE_AXES = {
+    ("A", "P"): "AP", ("P", "A"): "AP",
+    ("R", "L"): "RL", ("L", "R"): "RL",
+    ("H", "F"): "HF", ("F", "H"): "HF",
+}
+
+
+def _convert_phase_encoding_direction(
+    display: Any, orientation: Optional[str]
+) -> Tuple[Optional[str], Optional[int]]:
+    """
+    Convert a console phase-encoding display value ("A >> P") to the DICOM
+    InPlanePhaseEncodingDirection defined term (ROW/COL) plus, where defined,
+    the Siemens polarity flag (PhaseEncodingDirectionPositive: A>>P=1, P>>A=0).
+
+    R/L phase runs along image rows and H/F along image columns in every
+    standard orientation in which the axis is in-plane, so those convert
+    unconditionally. A/P is in-plane horizontal for sagittal slices (ROW) but
+    vertical for transversal slices (COL), so it needs the protocol's
+    "Orientation" value; obliques like "T > C-5.0" use the primary letter.
+
+    Returns:
+        (rowcol, positive) — either element is None when not determinable.
+    """
+    m = _PE_DISPLAY_RE.match(str(display).upper())
+    if not m:
+        return None, None
+    first = m.group(1)
+    axis = _PE_AXES.get((first, m.group(2)))
+    if axis is None:
+        return None, None
+
+    positive = {"A": 1, "P": 0}[first] if axis == "AP" else None
+    if axis == "RL":
+        return "ROW", positive
+    if axis == "HF":
+        return "COL", positive
+
+    primary = (orientation or "").strip()[:1].upper()
+    if primary == "T":
+        return "COL", positive
+    if primary == "S":
+        return "ROW", positive
+    return None, positive
+
 
 # ============================================================================
 # Value parsing
@@ -324,6 +372,7 @@ def apply_printprot_to_dicom_mapping(protocol: Dict[str, Any]) -> Dict[str, Any]
     base_resolution: Optional[float] = None
     fov_read: Optional[float] = None
     fov_phase: Optional[float] = None
+    orientation: Optional[str] = None
     seen_labels = set()
 
     for (card_name, label), raw_value in params.items():
@@ -345,6 +394,8 @@ def apply_printprot_to_dicom_mapping(protocol: Dict[str, Any]) -> Dict[str, Any]
             fov_read = float(value)
         elif label == "FoV phase" and isinstance(value, (int, float)):
             fov_phase = float(value)
+        elif label == "Orientation" and orientation is None and isinstance(value, str):
+            orientation = value
 
         # Avoid clobbering an already-set label from an earlier card.
         if label in seen_labels:
@@ -375,6 +426,17 @@ def apply_printprot_to_dicom_mapping(protocol: Dict[str, Any]) -> Dict[str, Any]
     if fov_phase is not None:
         dicom_fields["PercentPhaseFieldOfView"] = _coerce_number(fov_phase)
 
+    # Phase encoding: the console shows a display value ("A >> P") that DICOM
+    # never stores; convert to ROW/COL and keep the polarity (which ROW/COL
+    # cannot express, but Siemens CSA data reports) as a derived field.
+    pe = dicom_fields.get("InPlanePhaseEncodingDirection")
+    if isinstance(pe, str) and pe not in ("ROW", "COL"):
+        rowcol, positive = _convert_phase_encoding_direction(pe, orientation)
+        if rowcol is not None:
+            dicom_fields["InPlanePhaseEncodingDirection"] = rowcol
+        if positive is not None:
+            dicom_fields["PhaseEncodingDirectionPositive"] = positive
+
     # b-values: a single value goes to acquisition-level DiffusionBValue;
     # multiple distinct values become series (handled downstream).
     unique_bvalues = sorted(set(bvalues))
@@ -393,6 +455,7 @@ def _sort_output_fields(dicom_fields: Dict[str, Any]) -> Dict[str, Any]:
     order_index = {f: i for i, f in enumerate(DICOM_FIELD_ORDER)}
     derived_names = set(PRINTPROT_TO_DERIVED_MAPPING.values()) | {
         "PercentPhaseFieldOfView",
+        "PhaseEncodingDirectionPositive",
     }
 
     ordered, other, derived = [], [], []
