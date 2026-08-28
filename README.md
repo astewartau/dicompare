@@ -34,11 +34,12 @@ Alternatively, use the [web app](https://dicompare.neurodesk.org/) or [desktop a
 
 ## Command-line interface (CLI)
 
-The package provides a unified `dicompare` command with three subcommands:
+The package provides a unified `dicompare` command with four subcommands:
 
 - **`dicompare build`**: Generate a JSON schema from a reference DICOM session
 - **`dicompare check`**: Validate DICOM sessions against a JSON schema
 - **`dicompare match`**: Find best-matching schemas for input DICOM data from a library
+- **`dicompare lint`**: Check a schema for problems before sharing or submitting it
 
 ### 1. Build a JSON schema from a reference session
 
@@ -88,6 +89,30 @@ This compares each input acquisition against every acquisition in the loaded sch
 - `--top N`: Number of top matches to show per acquisition (default: 5)
 - `--report PATH`: Save the match report to a JSON file
 
+### 4. Lint a schema
+
+```bash
+dicompare lint schema.json
+```
+
+Checks a schema against the dicompare metaschema and best practices:
+
+- field constraints are compared against the **canonical field registry**
+  (console display strings like `A >> P`, raw vendor codes, and
+  out-of-vocabulary values will never match real DICOM data)
+- exact matches on continuous physical parameters (e.g. `EchoTime`) are
+  flagged as brittle
+- rule structure is verified (valid Python, unique rule/test ids, no reads of
+  undeclared fields)
+- **every rule test case is executed** through the same validation path used
+  in production — including the check that a schema's own example values pass
+  its own rules
+
+Errors exit non-zero (suitable as a CI gate — the
+[dicompare-web](https://github.com/astewartau/dicompare-web) schema-submission
+workflow runs this on every community submission); warnings are informational.
+Use `--format json` or `--format markdown` for machine-readable output.
+
 ## Python API
 
 The `dicompare` package provides a comprehensive Python API for programmatic schema generation, validation, and DICOM processing.
@@ -116,16 +141,30 @@ dicom_data = load_dicom(
 )
 ```
 
-**Load Siemens .pro files:**
+**Load vendor protocol files:**
+
+Every supported protocol format has a matching importer family
+(`load_<source>_file`, `load_<source>_file_schema_format`, and where
+applicable `load_<source>_session`):
 
 ```python
-from dicompare import load_pro_session
-
-pro_session = load_pro_session(
-    session_dir="/path/to/pro/files",
-    show_progress=True
+from dicompare import (
+    load_pro_file,         # Siemens .pro (raw MrPhoenixProtocol)
+    load_exar_file,        # Siemens .exar1 exports
+    load_printprot_file,   # Siemens "MR print protocol" (XML/TXT console export)
+    load_examcard_file,    # Philips ExamCard
+    load_lxprotocol_file,  # GE LxProtocol
 )
+
+protocols = load_printprot_file("AxonDiameterProtocol.txt")
 ```
+
+All importers translate vendor-specific values (raw enum codes, console
+display strings, unit conventions) to the canonical DICOM vocabulary via the
+field registry, so a schema built from any source validates cleanly against
+real DICOM data. Diffusion gradient files (`.dvs`, `.bvec`/`.bval`) can be
+attached to derive shell descriptors (`DiffusionBValues`,
+`DirectionsPerShell`, ...).
 
 ### Build a JSON schema
 
@@ -196,6 +235,60 @@ for ref_acq_name, schema_acq in json_schema["acquisitions"].items():
 for entry in compliance_summary:
     print(entry)
 ```
+
+### The canonical field registry
+
+`dicompare.fields` is the single source of truth for per-field knowledge:
+canonical DICOM keywords, tags, value types, units, allowed vocabularies,
+suggested tolerances, and vendor encodings (e.g. Siemens `ucCoilCombineMode`
+code `2` means `"Adaptive Combine"`). The protocol importers, the schema
+lint, and the [dicompare-web](https://github.com/astewartau/dicompare-web)
+schema editor all consume it, so field semantics cannot drift between them.
+
+```python
+from dicompare import get_field, check_value, validate_fields
+
+get_field("InPlanePhaseEncodingDirection").vocabulary   # ('ROW', 'COL')
+check_value("CoilCombinationMethod", 2)                  # -> [".. not in the canonical vocabulary .."]
+validate_fields({"InPlanePhaseEncodingDirection": "A >> P"})  # flags display strings
+```
+
+Export the registry as JSON (consumed by the web schema editor) with
+`python -m dicompare.fields`.
+
+### Lint a schema programmatically
+
+```python
+import json
+from dicompare import lint_schema, format_findings
+
+schema = json.load(open("schema.json"))
+findings = lint_schema(schema)
+print(format_findings(findings, "markdown"))
+errors = [f for f in findings if f.severity == "error"]
+```
+
+### Writing validation rules
+
+Schema rules are Python snippets executed in a sandbox. The preferred
+interface is the `ctx` object, which provides typed field access and
+collected severities:
+
+```python
+# Inside a rule's "implementation":
+for row in ctx.rows:
+    bvals = row["DiffusionBValues"]        # plain list, no parsing needed
+    if len([b for b in bvals if b > 0]) < 2:
+        ctx.error("At least two non-zero b-value shells are required")
+    elif len(bvals) < 4:
+        ctx.warn("Four or more b-values are recommended")
+```
+
+`ctx.error(...)` findings fail validation; `ctx.warn(...)` findings surface
+as warnings. The legacy interface (a pandas DataFrame named `value`, with
+`ValidationError` / `ValidationWarning` raised explicitly) remains fully
+supported. Every rule should ship `testCases` — `dicompare lint` executes
+them through the production validation path.
 
 ### Additional utilities
 
