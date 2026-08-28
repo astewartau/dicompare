@@ -160,22 +160,23 @@ _DEFS: List[FieldDef] = [
     # ------------------------------------------------------------------
     # Continuous physical parameters (canonical units; exact match brittle)
     # ------------------------------------------------------------------
-    _continuous("RepetitionTime", "0018,0080", "ms"),
-    _continuous("EchoTime", "0018,0081", "ms"),
-    _continuous("InversionTime", "0018,0082", "ms"),
-    _continuous("SliceThickness", "0018,0050", "mm"),
-    _continuous("SpacingBetweenSlices", "0018,0088", "mm"),
-    _continuous("PixelBandwidth", "0018,0095", "Hz/pixel", tolerance=1.0),
-    _continuous("FlipAngle", "0018,1314", "deg"),
+    _continuous("RepetitionTime", "0018,0080", "ms", tolerance=10.0),
+    _continuous("EchoTime", "0018,0081", "ms", tolerance=1.0),
+    _continuous("InversionTime", "0018,0082", "ms", tolerance=10.0),
+    _continuous("SliceThickness", "0018,0050", "mm", tolerance=0.1),
+    _continuous("SpacingBetweenSlices", "0018,0088", "mm", tolerance=0.1),
+    _continuous("PixelBandwidth", "0018,0095", "Hz/pixel", tolerance=50.0),
+    _continuous("FlipAngle", "0018,1314", "deg", tolerance=2.0),
     _continuous("ImagingFrequency", "0018,0084", "MHz", tolerance=1.0),
     _continuous("MagneticFieldStrength", "0018,0087", "T", tolerance=0.3),
-    _continuous("EchoSpacing", None, "ms"),
+    _continuous("EchoSpacing", None, "ms", tolerance=0.05),
     _continuous("SAR", "0018,1316", "W/kg"),
     _continuous("dBdt", "0018,1318", "T/s"),
-    _continuous("PercentPhaseFieldOfView", "0018,0094", "%"),
-    _continuous("PercentSampling", "0018,0093", "%"),
+    _continuous("PercentPhaseFieldOfView", "0018,0094", "%", tolerance=10.0),
+    _continuous("PercentSampling", "0018,0093", "%", tolerance=10.0),
     FieldDef(keyword="PixelSpacing", tag="0028,0030", vr="DS",
-             value_type="list_number", unit="mm", continuous=True),
+             value_type="list_number", unit="mm", continuous=True,
+             suggested_tolerance=0.1),
 
     # ------------------------------------------------------------------
     # Derived diffusion summary fields (rule-facing; see io/gradients.py)
