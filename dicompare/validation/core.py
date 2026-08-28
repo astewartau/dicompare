@@ -298,8 +298,14 @@ class BaseValidationModel:
         for acquisition in data["Acquisition"].unique():
             acq_df = data[data["Acquisition"] == acquisition]
             for field_names, validators in self._field_validators.items():
-                # missing column check
-                missing = [f for f in field_names if f not in acq_df.columns]
+                # Missing column check. Optional fields (rule 'optional_fields')
+                # may be legitimately absent — e.g. vendor-specific fields in a
+                # rule that branches on Manufacturer — and are simply left out
+                # of the grouped DataFrame rather than raising an error.
+                optional = set().union(*(
+                    getattr(v, '_optional_field_names', ()) for v in validators))
+                missing = [f for f in field_names
+                           if f not in acq_df.columns and f not in optional]
                 if missing:
                     errors.append({
                         "acquisition": acquisition,
@@ -311,21 +317,38 @@ class BaseValidationModel:
                         "passed": False,
                     })
                     continue
+                available = [f for f in field_names if f in acq_df.columns]
+                if not available:
+                    continue
 
                 # get unique combinations + counts
                 # Count = actual slice count per unique value combination
                 # Priority: pre-computed Count > NumberOfImagesInMosaic > unique SliceLocation > row count
                 grouped = (
-                    acq_df[list(field_names)]
-                    .groupby(list(field_names), dropna=False)
+                    acq_df[available]
+                    .groupby(available, dropna=False)
                     .size()
                     .reset_index(name="_raw_count")
                 )
 
                 # Compute smart Count (actual slices, not just file count)
                 if "Count" in acq_df.columns and acq_df["Count"].notna().any() and acq_df["Count"].iloc[0] > 0:
-                    # Use pre-computed Count (from web UI analysis)
-                    grouped["Count"] = int(acq_df["Count"].iloc[0])
+                    # Pre-computed Count column (web UI analysis / test data):
+                    # each row typically represents one series carrying its
+                    # image count, so the per-group Count is the SUM of the
+                    # column within each unique value combination. (A scalar
+                    # acquisition-level Count replicated across rows reduces
+                    # to the same value when each combination is one row.)
+                    if "Count" in available:
+                        # Count itself is a grouping key; the group value IS
+                        # the count.
+                        pass
+                    else:
+                        count_sums = (
+                            acq_df.groupby(available, dropna=False)["Count"]
+                            .sum().reset_index()
+                        )
+                        grouped = grouped.merge(count_sums, on=available, how="left")
                 elif "NumberOfImagesInMosaic" in acq_df.columns and acq_df["NumberOfImagesInMosaic"].notna().any():
                     # Siemens mosaic: slices packed into single 2D image
                     grouped["Count"] = int(acq_df["NumberOfImagesInMosaic"].iloc[0])
@@ -546,6 +569,11 @@ def create_validation_model_from_rules(acquisition_name: str, rules: List[Dict[s
         rule_id = rule['id']
         rule_name = rule.get('name', rule_id)
         rule_fields = rule['fields']
+        # Optional fields are made available to the rule when present in the
+        # data but their absence is not an error — the columns are simply
+        # missing, so vendor-dependent rules can guard with
+        # `"Field" in value.columns` and branch on e.g. Manufacturer.
+        rule_optional = rule.get('optional_fields', []) or []
         rule_message = rule.get('description', '')
         rule_impl = rule['implementation']
         
@@ -578,7 +606,9 @@ def create_validation_model_from_rules(acquisition_name: str, rules: List[Dict[s
             
             # Add metadata for the validator decorator system
             validator_method._is_field_validator = True
-            validator_method._field_names = rule_fields
+            validator_method._field_names = list(rule_fields) + [
+                f for f in rule_optional if f not in rule_fields]
+            validator_method._optional_field_names = list(rule_optional)
             validator_method._rule_name = name
             validator_method._rule_message = message
             

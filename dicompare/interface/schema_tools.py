@@ -317,6 +317,7 @@ def run_rule_test_case(
         'name': rule.get('name', rule.get('id', 'test_rule')),
         'description': rule.get('description', ''),
         'fields': list(rule.get('fields', [])),
+        'optional_fields': list(rule.get('optional_fields', []) or []),
         'implementation': rule.get('implementation', ''),
     }
 

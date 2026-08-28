@@ -195,6 +195,11 @@
           "items": { "type": "string" },
           "description": "List of DICOM fields used by this rule"
         },
+        "optional_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fields made available to the rule when present but whose absence is not an error (e.g. vendor-specific fields in a rule that branches on Manufacturer)"
+        },
         "testCases": {
           "type": "array",
           "description": "Test cases to validate the rule implementation",

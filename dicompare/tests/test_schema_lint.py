@@ -113,11 +113,21 @@ class TestRuleChecks:
         findings = lint_schema(_schema({"A": _acq(rules=[rule])}))
         assert "no-test-cases" in _codes(findings, "warning")
 
-    def test_duplicate_rule_ids_across_acquisitions(self):
+    def test_duplicate_rule_ids_across_acquisitions_not_flagged(self):
+        # Rules are scoped to an acquisition; there is no shared-rule
+        # mechanism, so id reuse across acquisitions is meaningless noise.
         r = _rule('pass', fields=["EchoTime"])
         findings = lint_schema(_schema({
             "A": _acq(rules=[dict(r)]),
             "B": _acq(rules=[dict(r)]),
+        }))
+        assert "duplicate-id" not in _codes(findings)
+
+    def test_duplicate_rule_ids_within_acquisition_is_error(self):
+        # Within one acquisition a collision silently drops a rule.
+        findings = lint_schema(_schema({
+            "A": _acq(rules=[_rule('pass', fields=["EchoTime"]),
+                             _rule('pass', fields=["EchoTime"])]),
         }))
         assert "duplicate-id" in _codes(findings, "error")
 

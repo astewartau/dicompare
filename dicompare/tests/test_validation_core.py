@@ -141,12 +141,14 @@ class TestBaseValidationModel:
         assert "Missing fields" in errors[0]["message"]
 
     def test_validate_count_from_column(self):
-        """Test Count calculation from pre-computed Count column."""
+        """Count column sums within each unique value combination: each row
+        represents one series carrying its image count, so two 100-image
+        series at the same EchoTime mean 200 images at that EchoTime."""
         class TestModel(BaseValidationModel):
             @validator(["EchoTime"], "check_count", "Count validation")
             def validate_count(self, value):
-                if value["Count"].iloc[0] != 100:
-                    raise ValidationError(f"Expected 100, got {value['Count'].iloc[0]}")
+                if value["Count"].iloc[0] != 200:
+                    raise ValidationError(f"Expected 200, got {value['Count'].iloc[0]}")
 
         df = pd.DataFrame({
             "Acquisition": ["T1", "T1"],
@@ -156,6 +158,24 @@ class TestBaseValidationModel:
         model = TestModel()
         success, errors, warnings, passes = model.validate(df)
         assert success is True
+
+    def test_validate_count_per_group(self):
+        """Per-group Count: rows with distinct field values keep their own
+        counts (this is what lets rules compare counts across groups)."""
+        class TestModel(BaseValidationModel):
+            @validator(["EchoTime"], "check_count", "Count validation")
+            def validate_count(self, value):
+                if sorted(value["Count"]) != [60, 100]:
+                    raise ValidationError(f"got {list(value['Count'])}")
+
+        df = pd.DataFrame({
+            "Acquisition": ["T1", "T1"],
+            "EchoTime": [0.01, 0.02],
+            "Count": [100, 60],
+        })
+        model = TestModel()
+        success, errors, warnings, passes = model.validate(df)
+        assert success is True, errors
 
     def test_validate_count_from_mosaic(self):
         """Test Count calculation from NumberOfImagesInMosaic."""

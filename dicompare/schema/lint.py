@@ -118,7 +118,7 @@ def _lint_field(fdef: Dict[str, Any], location: str, findings: List[LintFinding]
 
 def _lint_rule(rule: Dict[str, Any], location: str, findings: List[LintFinding]) -> None:
     impl = rule.get("implementation", "") or ""
-    declared = set(rule.get("fields", []) or [])
+    declared = set(rule.get("fields", []) or []) | set(rule.get("optional_fields", []) or [])
 
     # Fields the implementation reads but does not declare: at runtime the
     # rule receives ONLY declared columns, so this is a guaranteed failure.
@@ -184,9 +184,6 @@ def lint_schema(schema: Dict[str, Any]) -> List[LintFinding]:
 
     _lint_metaschema(schema, findings)
 
-    seen_rule_ids: Dict[str, str] = {}
-    seen_test_ids: Dict[str, str] = {}
-
     for acq_name, acq in (schema.get("acquisitions") or {}).items():
         if not isinstance(acq, dict):
             continue
@@ -206,23 +203,29 @@ def lint_schema(schema: Dict[str, Any]) -> List[LintFinding]:
                     f"{base}.series[{series.get('name', '?')}].fields[{fdef.get('field', '?')}]",
                     findings)
 
+        # Ids only need to be unique within their container: rules are scoped
+        # to an acquisition (a within-acquisition collision silently drops a
+        # rule when the validation model is built) and test cases to a rule.
+        # Reuse across acquisitions is meaningless and harmless — there is no
+        # shared-rule mechanism — so it is not flagged at all.
+        seen_rule_ids: Dict[str, str] = {}
         for rule in acq.get("rules", []) or []:
             rid = rule.get("id", "?")
             loc = f"{base}.rules[{rid}]"
             if rid in seen_rule_ids:
                 findings.append(LintFinding(
                     "error", "duplicate-id", loc,
-                    f"Rule id '{rid}' already used in {seen_rule_ids[rid]} — "
-                    f"ids must be unique across the schema."))
+                    f"Rule id '{rid}' is used twice in this acquisition — "
+                    f"one of the rules will be silently dropped."))
             else:
                 seen_rule_ids[rid] = loc
+            seen_test_ids: Dict[str, str] = {}
             for tc in rule.get("testCases", []) or []:
                 tid = tc.get("id", "?")
                 if tid in seen_test_ids:
                     findings.append(LintFinding(
                         "error", "duplicate-id", f"{loc}.testCases[{tid}]",
-                        f"Test case id '{tid}' already used in "
-                        f"{seen_test_ids[tid]} — ids must be unique."))
+                        f"Test case id '{tid}' is used twice in this rule."))
                 else:
                     seen_test_ids[tid] = loc
             _lint_rule(rule, loc, findings)

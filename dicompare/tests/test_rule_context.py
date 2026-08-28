@@ -111,6 +111,57 @@ class TestTypedAccess:
         assert not errors
 
 
+class TestOptionalFields:
+    def _run_rule(self, rule, data):
+        rows = []
+        n = max(len(v) for v in data.values())
+        for i in range(n):
+            row = {"Acquisition": "acq"}
+            for k, v in data.items():
+                row[k] = v[i]
+            rows.append(row)
+        model = create_validation_model_from_rules("acq", [rule])
+        return model.validate(pd.DataFrame(rows))
+
+    VENDOR_RULE = {
+        "id": "r1",
+        "name": "Vendor polarity",
+        "fields": ["Manufacturer"],
+        "optional_fields": ["PhaseEncodingDirectionPositive",
+                            "RectilinearPhaseEncodeReordering"],
+        "implementation": (
+            'm = str(value["Manufacturer"][0]).upper()\n'
+            'if "SIEMENS" in m:\n'
+            '    if "PhaseEncodingDirectionPositive" in value.columns:\n'
+            '        if int(value["PhaseEncodingDirectionPositive"][0]) != 0:\n'
+            '            raise ValidationError("wrong polarity")\n'
+            '    else:\n'
+            '        raise ValidationWarning("polarity unknown")\n'),
+    }
+
+    def test_absent_optional_field_is_not_an_error(self):
+        # A Siemens session has no GE column; the rule must still run.
+        _ok, errors, warnings, _p = self._run_rule(self.VENDOR_RULE, {
+            "Manufacturer": ["SIEMENS"],
+            "PhaseEncodingDirectionPositive": [0],
+        })
+        assert not errors and not warnings
+
+    def test_all_optional_fields_absent_rule_still_runs(self):
+        _ok, errors, warnings, _p = self._run_rule(self.VENDOR_RULE, {
+            "Manufacturer": ["SIEMENS"],
+        })
+        assert not errors
+        assert len(warnings) == 1 and "polarity unknown" in warnings[0]["message"]
+
+    def test_missing_required_field_still_errors(self):
+        _ok, errors, _w, _p = self._run_rule(self.VENDOR_RULE, {
+            "PhaseEncodingDirectionPositive": [0],
+        })
+        assert len(errors) == 1 and "Missing fields" in errors[0]["message"]
+        assert "Manufacturer" in errors[0]["message"]
+
+
 class TestFinish:
     def test_finish_raises_error_over_warning(self):
         ctx = RuleContext(pd.DataFrame({"A": [1]}))
