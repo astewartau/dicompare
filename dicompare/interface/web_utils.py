@@ -62,7 +62,7 @@ async def _analyze_dicom_session_core(
         >>> result['acquisitions']['T1_MPRAGE']['fields']
         [{'field': 'RepetitionTime', 'value': 2300}, ...]
     """
-    print("🚀 ANALYZE_DICOM_FILES_FOR_WEB CALLED - NEW VERSION!")
+    logger.debug("🚀 ANALYZE_DICOM_FILES_FOR_WEB CALLED - NEW VERSION!")
     try:
         from ..io import async_load_dicom_session
         from ..session import assign_acquisition_and_run_numbers
@@ -73,20 +73,20 @@ async def _analyze_dicom_session_core(
         # Handle Pyodide JSProxy objects - convert to Python native types
         # This fixes the PyodideTask error when JS objects are passed from the browser
         if hasattr(dicom_files, 'to_py'):
-            print(f"Converting dicom_files from JSProxy to Python dict")
+            logger.debug(f"Converting dicom_files from JSProxy to Python dict")
             try:
                 dicom_files = dicom_files.to_py()
-                print(f"Converted dicom_files: type={type(dicom_files)}, keys={list(dicom_files.keys()) if isinstance(dicom_files, dict) else 'not dict'}")
+                logger.debug(f"Converted dicom_files: type={type(dicom_files)}, keys={list(dicom_files.keys()) if isinstance(dicom_files, dict) else 'not dict'}")
             except Exception as e:
-                print(f"Failed to convert dicom_files with to_py(): {e}")
+                logger.warning(f"Failed to convert dicom_files with to_py(): {e}")
                 # Try batched conversion as fallback - convert in chunks to avoid buffer overflow
                 # while still being faster than one-by-one conversion
-                print("Attempting batched conversion...")
+                logger.debug("Attempting batched conversion...")
                 try:
                     # Get keys by iterating directly - JSProxy supports iter()
                     js_keys = list(dicom_files)
                     total_files = len(js_keys)
-                    print(f"Found {total_files} files to convert in batches")
+                    logger.debug(f"Found {total_files} files to convert in batches")
 
                     converted_files = {}
                     BATCH_SIZE = 200  # Convert 200 files at a time
@@ -108,12 +108,12 @@ async def _analyze_dicom_session_core(
                                     else:
                                         converted_files[key] = bytes(js_content)
                             except Exception as file_error:
-                                print(f"Warning: Failed to convert file {key}: {file_error}")
+                                logger.warning(f"Warning: Failed to convert file {key}: {file_error}")
                                 continue
 
                         # Progress during conversion phase (0-20%)
                         conversion_pct = int((batch_end / total_files) * 20)
-                        print(f"Converted {batch_end}/{total_files} files... ({conversion_pct}%)")
+                        logger.debug(f"Converted {batch_end}/{total_files} files... ({conversion_pct}%)")
                         if progress_callback:
                             progress_callback({
                                 'percentage': conversion_pct,
@@ -123,54 +123,54 @@ async def _analyze_dicom_session_core(
                             })
 
                     dicom_files = converted_files
-                    print(f"Batched conversion complete: {len(dicom_files)} files converted")
+                    logger.debug(f"Batched conversion complete: {len(dicom_files)} files converted")
                 except Exception as incremental_error:
-                    print(f"Batched conversion also failed: {incremental_error}")
+                    logger.warning(f"Batched conversion also failed: {incremental_error}")
                     raise RuntimeError(f"Cannot convert DICOM files from JavaScript: {e}")
 
         if hasattr(reference_fields, 'to_py'):
-            print(f"Converting reference_fields from JSProxy to Python list")
+            logger.debug(f"Converting reference_fields from JSProxy to Python list")
             try:
                 reference_fields = list(reference_fields.to_py())
-                print(f"Converted reference_fields: type={type(reference_fields)}, length={len(reference_fields)}")
+                logger.debug(f"Converted reference_fields: type={type(reference_fields)}, length={len(reference_fields)}")
             except Exception as e:
-                print(f"Failed to convert reference_fields, using defaults: {e}")
+                logger.warning(f"Failed to convert reference_fields, using defaults: {e}")
                 reference_fields = None
 
         # Use default fields if none provided or empty list
         if reference_fields is None or len(reference_fields) == 0:
-            print("Using DEFAULT_DICOM_FIELDS because reference_fields is empty")
+            logger.debug("Using DEFAULT_DICOM_FIELDS because reference_fields is empty")
             reference_fields = DEFAULT_DICOM_FIELDS
 
-        print(f"Using reference_fields: {len(reference_fields)} fields")
+        logger.debug(f"Using reference_fields: {len(reference_fields)} fields")
 
-        print(f"About to call async_load_dicom_session with dicom_files type: {type(dicom_files)}")
-        print(f"dicom_files has {len(dicom_files)} files" if hasattr(dicom_files, '__len__') else f"dicom_files length unknown")
+        logger.debug(f"About to call async_load_dicom_session with dicom_files type: {type(dicom_files)}")
+        logger.debug(f"dicom_files has {len(dicom_files)} files" if hasattr(dicom_files, '__len__') else f"dicom_files length unknown")
 
         # Load DICOM session
         # In Pyodide, we need to handle async functions properly to avoid PyodideTask
         if asyncio.iscoroutinefunction(async_load_dicom_session):
             # Use await directly in Pyodide environment
-            print(f"Calling async_load_dicom_session with await... progress_callback={progress_callback}")
+            logger.debug(f"Calling async_load_dicom_session with await... progress_callback={progress_callback}")
 
             # Use the passed progress_callback parameter instead of global
             js_progress_callback = progress_callback
-            print(f"Parameter progress_callback = {js_progress_callback}")
+            logger.debug(f"Parameter progress_callback = {js_progress_callback}")
 
             # Create a wrapper for the progress callback to convert from integer to object format
             wrapped_progress_callback = None
             if js_progress_callback:
-                print("Testing progress callback...")
+                logger.debug("Testing progress callback...")
                 # Test with object format that JavaScript expects
                 js_progress_callback({'percentage': 5, 'currentOperation': 'Test', 'totalFiles': 100, 'totalProcessed': 5})
-                print("Progress callback test successful!")
+                logger.debug("Progress callback test successful!")
 
                 # Create wrapper function - scale DICOM loading to 20-80% range
                 def wrapped_progress_callback(percentage_int):
                     from pyodide.ffi import to_js
                     # Scale from 0-100 to 20-80 range
                     scaled_pct = 20 + int(percentage_int * 0.6)
-                    print(f"📊 Progress: {percentage_int}% -> {scaled_pct}%")
+                    logger.debug(f"📊 Progress: {percentage_int}% -> {scaled_pct}%")
                     progress_obj = {
                         'percentage': scaled_pct,
                         'currentOperation': 'Parsing DICOM files...',
@@ -181,7 +181,7 @@ async def _analyze_dicom_session_core(
                     js_progress_callback(to_js(progress_obj))
 
                 # Pass the wrapped callback directly, no globals needed
-                print(f"Using wrapped_progress_callback: {wrapped_progress_callback}")
+                logger.debug(f"Using wrapped_progress_callback: {wrapped_progress_callback}")
 
             session_df = await async_load_dicom_session(
                 dicom_bytes=dicom_files,
@@ -189,10 +189,10 @@ async def _analyze_dicom_session_core(
             )
         else:
             # Handle sync function
-            print("Calling async_load_dicom_session synchronously...")
+            logger.debug("Calling async_load_dicom_session synchronously...")
             # Use the passed progress_callback parameter for sync path too
             js_progress_callback_sync = progress_callback
-            print(f"Sync Parameter progress_callback = {js_progress_callback_sync}")
+            logger.debug(f"Sync Parameter progress_callback = {js_progress_callback_sync}")
             wrapped_progress_callback_sync = None
             if js_progress_callback_sync:
                 def wrapped_progress_callback_sync(percentage_int):
@@ -207,19 +207,19 @@ async def _analyze_dicom_session_core(
                     }
                     # Convert to JS object so properties are accessible
                     js_progress_callback_sync(to_js(progress_obj))
-                print(f"Using wrapped_progress_callback_sync: {wrapped_progress_callback_sync}")
+                logger.debug(f"Using wrapped_progress_callback_sync: {wrapped_progress_callback_sync}")
 
             session_df = async_load_dicom_session(
                 dicom_bytes=dicom_files,
                 progress_function=wrapped_progress_callback_sync
             )
 
-        print(f"async_load_dicom_session returned: type={type(session_df)}, shape={getattr(session_df, 'shape', 'no shape')}")
+        logger.debug(f"async_load_dicom_session returned: type={type(session_df)}, shape={getattr(session_df, 'shape', 'no shape')}")
 
         # Progress: DICOM loading complete (80%)
         if progress_callback:
             from pyodide.ffi import to_js
-            print("📊 Sending 80% - Organizing acquisitions...")
+            logger.debug("📊 Sending 80% - Organizing acquisitions...")
             progress_callback(to_js({
                 'percentage': 80,
                 'currentOperation': 'Organizing acquisitions...',
@@ -232,15 +232,15 @@ async def _analyze_dicom_session_core(
         missing_fields = [field for field in reference_fields if field not in session_df.columns]
 
         if missing_fields:
-            print(f"Warning: Missing fields from DICOM data: {missing_fields}")
+            logger.warning(f"Warning: Missing fields from DICOM data: {missing_fields}")
 
-        print(f"Using {len(available_fields)} available fields out of {len(reference_fields)} requested")
-        print(f"Available fields: {available_fields}")
+        logger.debug(f"Using {len(available_fields)} available fields out of {len(reference_fields)} requested")
+        logger.debug(f"Available fields: {available_fields}")
 
         # Assign acquisition and run numbers ONCE here, so the same names are used
         # for both the schema result AND the cached DataFrame for validation
         session_df = assign_acquisition_and_run_numbers(session_df)
-        print(f"Assigned acquisitions: {session_df['Acquisition'].unique().tolist()}")
+        logger.debug(f"Assigned acquisitions: {session_df['Acquisition'].unique().tolist()}")
 
         # Metadata describing the parsed session, returned alongside the DataFrame.
         metadata = {
@@ -290,9 +290,7 @@ async def _analyze_dicom_session_core(
 
     except Exception as e:
         import traceback
-        print(f"Full traceback of error in analyze_dicom_files_for_web:")
-        traceback.print_exc()
-        logger.error(f"Error in analyze_dicom_files_for_web: {e}")
+        logger.error(f"Error in analyze_dicom_files_for_web: {e}\n{traceback.format_exc()}")
         return {
             'acquisitions': {},
             'total_files': len(dicom_files) if dicom_files else 0,
