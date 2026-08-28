@@ -313,6 +313,22 @@ def main() -> None:
         help="Number of top matches to show per acquisition (default: 5)"
     )
 
+    # Lint subcommand
+    lint_parser = subparsers.add_parser(
+        "lint",
+        help="Lint a schema: registry checks, rule structure, and rule test cases"
+    )
+    lint_parser.add_argument(
+        "schema",
+        help="Path to the JSON schema file to lint"
+    )
+    lint_parser.add_argument(
+        "--format",
+        choices=["text", "json", "markdown"],
+        default="text",
+        help="Output format (default: text)"
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -351,6 +367,18 @@ def main() -> None:
             match_parser.error("at least one of --schemas or --library is required")
 
         match_command(args)
+
+    elif args.command == "lint":
+        import json as _json
+        from dicompare.schema.lint import lint_schema, format_findings
+
+        with open(args.schema) as f:
+            schema_data = _json.load(f)
+
+        findings = lint_schema(schema_data)
+        print(format_findings(findings, args.format))
+        if any(f.severity == "error" for f in findings):
+            sys.exit(1)
 
 
 if __name__ == "__main__":
