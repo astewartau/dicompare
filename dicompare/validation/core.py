@@ -25,6 +25,84 @@ ALLOWED_RULE_MODULES = frozenset({
 })
 
 
+class RuleContext:
+    """
+    v2 rule API, available as ``ctx`` inside rule implementations.
+
+    Collects errors and warnings instead of forcing authors into the
+    one-exception-per-rule pattern (and the ``[warning]`` message-tag
+    convention it spawned), and provides typed field access so authors never
+    deal with the tuple/string representations of the underlying DataFrame:
+
+        for row in ctx.rows:
+            bvals = row["DiffusionBValues"]          # plain list
+            if len(bvals) < 2:
+                ctx.error("At least two b-values are required")
+            elif len(bvals) < 4:
+                ctx.warn("Four or more b-values are recommended")
+
+    After the implementation runs, collected errors raise ValidationError
+    (with any warnings appended for context); warnings alone raise
+    ValidationWarning. An explicit raise inside the rule still works as
+    before.
+    """
+
+    def __init__(self, df):
+        self._df = df
+        self.errors = []
+        self.warnings = []
+
+    def error(self, message) -> None:
+        """Record a hard failure (data does not meet a requirement)."""
+        self.errors.append(str(message))
+
+    def warn(self, message) -> None:
+        """Record a recommendation-level finding."""
+        self.warnings.append(str(message))
+
+    @staticmethod
+    def _plain(field, value):
+        """Convert a cell to a plain Python value, typed via the registry."""
+        from ..fields import get_field
+
+        if isinstance(value, tuple):
+            return list(value)
+        fdef = get_field(field)
+        if fdef is not None and isinstance(value, str):
+            if fdef.value_type in ("list_number", "list_string"):
+                return _as_list(value)
+            if fdef.value_type == "number":
+                try:
+                    return float(value)
+                except ValueError:
+                    return value
+        return value
+
+    def get(self, field):
+        """Per-row values for one field as a plain list (tuples -> lists)."""
+        if field not in self._df.columns:
+            raise KeyError(
+                f"Field {field!r} is not available — declare it in the "
+                f"rule's 'fields' list.")
+        return [self._plain(field, v) for v in self._df[field]]
+
+    @property
+    def rows(self):
+        """List of per-row dicts with plain, registry-typed values."""
+        return [
+            {col: self._plain(col, row[col]) for col in self._df.columns}
+            for _, row in self._df.iterrows()
+        ]
+
+    def finish(self) -> None:
+        """Raise the appropriate exception for collected findings, if any."""
+        bullet = lambda msgs: chr(10).join("• " + m for m in msgs)
+        if self.errors:
+            raise ValidationError(bullet(self.errors + self.warnings))
+        if self.warnings:
+            raise ValidationWarning(bullet(self.warnings))
+
+
 def _as_list(value):
     """
     Coerce a field value into a plain Python list.
@@ -325,8 +403,13 @@ def safe_exec_rule(code: str, context: Dict[str, Any]) -> Any:
     embedded in JSON schemas, with access only to approved functions and modules.
 
     Available namespace inside a rule's ``implementation``:
-        - ``value``: a pandas DataFrame of the unique value combinations for the
-          rule's fields (plus a ``Count`` column). ``value["Field"]`` is a Series.
+        - ``ctx``: the preferred v2 interface (see :class:`RuleContext`) —
+          ``ctx.rows`` / ``ctx.get(field)`` return plain, registry-typed
+          values, and ``ctx.error(msg)`` / ``ctx.warn(msg)`` collect findings
+          with the right severity (raised automatically after the rule runs).
+        - ``value``: the legacy v1 interface — a pandas DataFrame of the
+          unique value combinations for the rule's fields (plus a ``Count``
+          column). ``value["Field"]`` is a Series.
         - List-valued fields (e.g. DiffusionBValues, PixelSpacing) appear as
           **tuples** (they must be hashable for grouping/uniqueness). Tuples are
           indexable and iterable exactly like lists, so no parsing is needed; use
@@ -471,12 +554,17 @@ def create_validation_model_from_rules(acquisition_name: str, rules: List[Dict[s
             """Closure to capture rule-specific variables."""
             def validator_method(cls, value):
                 """Dynamically generated validator method."""
-                # Create a context for code execution
-                context = {'value': value}
-                
+                # Create a context for code execution. `value` is the legacy
+                # v1 interface (DataFrame with tuple-valued list cells);
+                # `ctx` is the v2 interface (typed access + collected
+                # error/warn severities).
+                ctx = RuleContext(value)
+                context = {'value': value, 'ctx': ctx}
+
                 # Execute the rule implementation
                 try:
                     result = safe_exec_rule(impl_code, context)
+                    ctx.finish()
                     return result if result is not None else value
                 except ValidationError:
                     # Re-raise validation errors as-is
