@@ -16,6 +16,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Optional, Tuple, Union
 
+from ..fields import FIELD_REGISTRY as _FIELD_REGISTRY, validate_fields as _validate_fields
+
 if TYPE_CHECKING:
     import pandas
 import itertools
@@ -533,12 +535,10 @@ PHILIPS_TO_DICOM_MAPPING = {
 
 # Enum value mappings for specific parameters - translate indices to DICOM-compatible values
 PHILIPS_ENUM_MAPPINGS = {
-    "EX_ACQ_scan_mode": {
-        0: "2D",
-        1: "3D",
-        2: "MS",   # Multi-slice 2D
-        3: "M2D",  # Multi-2D
-    },
+    # Canonical-vocabulary translations come from the field registry so they
+    # cannot drift from what DICOM-derived data reports (MS/M2D are 2D).
+    "EX_ACQ_scan_mode": dict(
+        _FIELD_REGISTRY["MRAcquisitionType"].encodings["philips.EX_ACQ_scan_mode"]),
     "EX_ACQ_imaging_sequence": {
         0: "SE",   # Spin Echo
         1: "IR",   # Inversion Recovery
@@ -554,23 +554,12 @@ PHILIPS_ENUM_MAPPINGS = {
         3: "SK",   # EPI
         4: "OSP",  # GRASE
     },
-    "EX_ACQ_nucleus": {
-        0: "1H",
-        1: "31P",
-        2: "13C",
-        3: "23NA",
-        4: "19F",
-    },
-    "EX_GEO_patient_body_position": {
-        0: "HFS",  # Head First Supine
-        1: "FFS",  # Feet First Supine
-    },
-    "EX_GEO_patient_body_orientation": {
-        0: "HFS",  # Supine
-        1: "HFP",  # Prone
-        2: "HFDL", # Left Decubitus
-        3: "HFDR", # Right Decubitus
-    },
+    "EX_ACQ_nucleus": dict(
+        _FIELD_REGISTRY["ImagedNucleus"].encodings["philips.EX_ACQ_nucleus"]),
+    "EX_GEO_patient_body_position": dict(
+        _FIELD_REGISTRY["PatientPosition"].encodings["philips.EX_GEO_patient_body_position"]),
+    "EX_GEO_patient_body_orientation": dict(
+        _FIELD_REGISTRY["PatientPosition"].encodings["philips.EX_GEO_patient_body_orientation"]),
     "EX_CARD_sync": {
         0: "NONE",
         1: "PROSPECTIVE",  # Triggered
@@ -819,6 +808,10 @@ def apply_examcard_to_dicom_mapping(scan_data: Dict[str, Any]) -> Dict[str, Any]
 
     # Calculate derived fields
     _calculate_derived_fields(dicom_fields, params)
+
+    # Registry boundary check: flag raw vendor codes / display strings that
+    # slipped through the mapping (logged; import still succeeds).
+    _validate_fields(dicom_fields, context="examcard import")
 
     # Sort fields in standard order
     return _sort_output_fields(dicom_fields)

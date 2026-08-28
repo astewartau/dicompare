@@ -14,6 +14,8 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any, List, Optional, Union
 
+from ..fields import FIELD_REGISTRY as _FIELD_REGISTRY, validate_fields as _validate_fields
+
 if TYPE_CHECKING:
     import pandas
 
@@ -238,11 +240,8 @@ GE_PLANE_MAPPING = {
     "OBLIQUE": "OBLIQUE",
 }
 
-GE_IMODE_MAPPING = {
-    "2D": "2D",
-    "3D": "3D",
-    "3DE": "3D",  # 3D Enhanced
-}
+# Canonical MRAcquisitionType translation comes from the field registry.
+GE_IMODE_MAPPING = dict(_FIELD_REGISTRY["MRAcquisitionType"].encodings["ge.IMODE"])
 
 # Field ordering for output - matches DEFAULT_DICOM_FIELDS order
 DICOM_FIELD_ORDER = [
@@ -376,6 +375,10 @@ def apply_lxprotocol_to_dicom_mapping(params: Dict[str, Any]) -> Dict[str, Any]:
 
     # Handle special mappings
     _calculate_derived_fields(dicom_fields, params)
+
+    # Registry boundary check: flag raw vendor codes / display strings that
+    # slipped through the mapping (logged; import still succeeds).
+    _validate_fields(dicom_fields, context="lxprotocol import")
 
     # Sort fields in standard order
     return _sort_output_fields(dicom_fields)

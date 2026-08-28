@@ -30,6 +30,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from ..fields import validate_fields as _validate_fields
+
 
 # ============================================================================
 # Label -> DICOM field mapping
@@ -379,6 +381,12 @@ def apply_printprot_to_dicom_mapping(protocol: Dict[str, Any]) -> Dict[str, Any]
         value, _unit = _split_value_unit(raw_value)
         if value == "" or value is None:
             continue
+        # Console "None"/"---" mean the feature is off / not applicable; real
+        # DICOM omits the corresponding field entirely (e.g. no
+        # ParallelAcquisitionTechnique on unaccelerated scans), so a literal
+        # "None" constraint would never match.
+        if isinstance(value, str) and value.strip() in ("None", "---"):
+            continue
 
         # Collect b-values (numbered or not) for series handling.
         bm = _BVALUE_RE.match(label)
@@ -445,6 +453,10 @@ def apply_printprot_to_dicom_mapping(protocol: Dict[str, Any]) -> Dict[str, Any]
     elif len(unique_bvalues) > 1:
         # Stored temporarily; _extract_series_parameters reads it out.
         dicom_fields["DiffusionBValue"] = [_coerce_number(b) for b in unique_bvalues]
+
+    # Registry boundary check: flag raw vendor codes / display strings that
+    # slipped through the mapping (logged; import still succeeds).
+    _validate_fields(dicom_fields, context="printprot import")
 
     return _sort_output_fields(dicom_fields)
 

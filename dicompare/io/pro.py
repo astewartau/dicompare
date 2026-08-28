@@ -16,6 +16,8 @@ from typing import Dict, Any, Optional, Tuple, Union, List
 from twixtools.twixprot import parse_buffer
 import itertools
 
+from ..fields import decode as _decode_field, validate_fields as _validate_fields
+
 def load_pro_file(pro_file_path: str) -> Dict[str, Any]:
     """
     Load and parse a Siemens .pro protocol file into DICOM-compatible format.
@@ -883,8 +885,10 @@ PRO_TO_DICOM_MAPPING = {
     # Bandwidth - PixelBandwidth calculated separately with proper formula
     # BandwidthPerPixelPhaseEncode calculated separately from dwell time and phase encoding steps
     
-    # Phase encoding direction
-    "sSpecPara.lPhaseEncodingType": ("InPlanePhaseEncodingDirection", lambda x: "ROW" if x == 1 else "COL"),
+    # Phase encoding direction (canonical ROW/COL vocabulary from the registry)
+    "sSpecPara.lPhaseEncodingType": ("InPlanePhaseEncodingDirection",
+        lambda x: _decode_field("InPlanePhaseEncodingDirection",
+                                "siemens.pro.lPhaseEncodingType", x) if x in (1, 2) else "COL"),
     
     # Scanner hardware - only real DICOM fields
     "sProtConsistencyInfo.flNominalB0": ("MagneticFieldStrength", lambda x: _nominal_field_strength(x)),
@@ -982,7 +986,11 @@ def apply_pro_to_dicom_mapping(pro_data: Dict[str, Any]) -> Dict[str, Any]:
     
     # Add default or calculated DICOM fields that are not directly mappable
     calculate_other_dicom_fields(dicom_data, pro_data)
-    
+
+    # Registry boundary check: flag raw vendor codes / display strings that
+    # slipped through the mapping (logged; import still succeeds).
+    _validate_fields(dicom_data, context="pro import")
+
     return dicom_data
 
 
