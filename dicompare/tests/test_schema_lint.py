@@ -88,6 +88,12 @@ class TestRuleChecks:
         findings = lint_schema(_schema({"A": _acq(rules=[rule])}))
         assert "undeclared-field" in _codes(findings, "error")
 
+    def test_count_column_read_not_flagged(self):
+        # "Count" is a synthetic column the harness always injects.
+        rule = _rule('n = value["Count"][0]', fields=["EchoTime"])
+        findings = lint_schema(_schema({"A": _acq(rules=[rule])}))
+        assert "undeclared-field" not in _codes(findings)
+
     def test_field_read_in_comment_not_flagged(self):
         # Regression: value["FieldName"] inside a comment is not a read.
         rule = _rule(

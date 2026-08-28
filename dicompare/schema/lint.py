@@ -128,7 +128,9 @@ def _lint_rule(rule: Dict[str, Any], location: str, findings: List[LintFinding])
             "error", "syntax-error", location,
             f"Implementation does not parse as Python: {syntax_error}"))
         return
-    for missing in sorted(read - declared):
+    # "Count" is a synthetic column the validation harness always injects
+    # (slice/file count per unique value combination) — reading it is fine.
+    for missing in sorted(read - declared - {"Count"}):
         findings.append(LintFinding(
             "error", "undeclared-field", location,
             f"Implementation reads value[\"{missing}\"] but the rule's "
