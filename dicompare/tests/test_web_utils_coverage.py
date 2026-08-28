@@ -980,7 +980,7 @@ class TestAnalyzeDicomFilesForWebProgress:
         # Patch dictionary_VR to raise so the VR-lookup exception fallback
         # (lines 357-359) is also exercised.
         with mock.patch(
-            "dicompare.interface.web_utils._analyze_dicom_session_core",
+            "dicompare.interface.session_analysis._analyze_dicom_session_core",
             side_effect=fake_core,
         ), mock.patch(
             "pydicom.datadict.dictionary_VR", side_effect=KeyError("boom")
@@ -1033,7 +1033,7 @@ class TestAnalyzeDicomFilesForWebProgress:
             return web_result, session_df, metadata
 
         with mock.patch(
-            "dicompare.interface.web_utils._analyze_dicom_session_core",
+            "dicompare.interface.session_analysis._analyze_dicom_session_core",
             side_effect=fake_core,
         ):
             result = await analyze_dicom_files_for_ui({"x.dcm": b"x"})
