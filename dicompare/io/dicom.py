@@ -141,7 +141,21 @@ def _extract_csa_metadata(ds: pydicom.Dataset) -> Dict[str, Any]:
     )
     csa_metadata["SliceMeasurementDuration"] = get_csa_value("SliceMeasurementDuration")
     csa_metadata["MultibandAccelerationFactor"] = get_csa_value("MultibandFactor")
-    csa_metadata["EffectiveEchoSpacing"] = get_csa_value("BandwidthPerPixelPhaseEncode")
+    csa_metadata["BandwidthPerPixelPhaseEncode"] = get_csa_value("BandwidthPerPixelPhaseEncode")
+    # EffectiveEchoSpacing (s) per BIDS: 1 / (BandwidthPerPixelPhaseEncode * ReconMatrixPE),
+    # where ReconMatrixPE is the reconstructed matrix size along the phase-encode axis
+    bwpppe = csa_metadata["BandwidthPerPixelPhaseEncode"]
+    pe_direction = getattr(ds, "InPlanePhaseEncodingDirection", None)
+    if pe_direction == "ROW":
+        recon_matrix_pe = getattr(ds, "Columns", None)
+    elif pe_direction == "COL":
+        recon_matrix_pe = getattr(ds, "Rows", None)
+    else:
+        recon_matrix_pe = None
+    if isinstance(bwpppe, float) and bwpppe > 0 and recon_matrix_pe:
+        csa_metadata["EffectiveEchoSpacing"] = 1.0 / (bwpppe * recon_matrix_pe)
+    else:
+        csa_metadata["EffectiveEchoSpacing"] = None
     csa_metadata["TotalReadoutTime"] = get_csa_value("TotalReadoutTime")
     csa_metadata["MosaicRefAcqTimes"] = get_csa_value("MosaicRefAcqTimes", scalar=False)
     csa_metadata["SliceTiming"] = get_csa_value("SliceTiming", scalar=False)

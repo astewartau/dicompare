@@ -146,6 +146,25 @@ def test_csa_metadata_scalar_list_and_fallbacks(monkeypatch):
     assert meta["TotalReadoutTime"] is None
 
 
+def test_csa_metadata_effective_echo_spacing(monkeypatch):
+    csa = {"tags": {"BandwidthPerPixelPhaseEncode": {"items": ["20.0"]}}}
+    monkeypatch.setattr(dio, "get_csa_header", lambda ds, kind: csa)
+
+    # COL phase encoding: ReconMatrixPE = Rows
+    ds = _make_base_dataset(InPlanePhaseEncodingDirection="COL", Rows=100, Columns=64)
+    meta = _extract_csa_metadata(ds)
+    assert meta["BandwidthPerPixelPhaseEncode"] == 20.0
+    assert meta["EffectiveEchoSpacing"] == pytest.approx(1.0 / (20.0 * 100))
+
+    # ROW phase encoding: ReconMatrixPE = Columns
+    ds = _make_base_dataset(InPlanePhaseEncodingDirection="ROW", Rows=100, Columns=64)
+    assert _extract_csa_metadata(ds)["EffectiveEchoSpacing"] == pytest.approx(1.0 / (20.0 * 64))
+
+    # Unknown phase-encode axis: cannot compute
+    ds = _make_base_dataset(Rows=100, Columns=64)
+    assert _extract_csa_metadata(ds)["EffectiveEchoSpacing"] is None
+
+
 # --------------------------------------------------------------------------
 # _extract_ascconv
 # --------------------------------------------------------------------------
