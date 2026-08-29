@@ -59,6 +59,20 @@ class TestFieldChecks:
         findings = lint_schema(_schema({"A": acq}))
         assert "exact-continuous" not in _codes(findings)
 
+    def test_warning_severity_suppresses_exact_continuous(self):
+        # An exact value marked warning-severity is a reference annotation,
+        # not a brittle requirement.
+        acq = _acq(fields=[{"field": "EchoTime", "tag": "0018,0081",
+                            "value": 66, "severity": "warning"}])
+        findings = lint_schema(_schema({"A": acq}))
+        assert "exact-continuous" not in _codes(findings)
+
+    def test_error_severity_still_flags_exact_continuous(self):
+        acq = _acq(fields=[{"field": "EchoTime", "tag": "0018,0081",
+                            "value": 66, "severity": "error"}])
+        findings = lint_schema(_schema({"A": acq}))
+        assert "exact-continuous" in _codes(findings, "warning")
+
     def test_series_fields_linted(self):
         acq = _acq(series=[{"name": "S1", "fields": [
             {"field": "InPlanePhaseEncodingDirection", "value": "A >> P"}]}])

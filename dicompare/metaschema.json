@@ -100,6 +100,11 @@
         "value": {
           "description": "Expected exact value (string, number, or array)"
         },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning"],
+          "description": "Compliance severity when this constraint is not met. 'error' (default) marks the constraint as a requirement; 'warning' records it as reference information — the value describes what the reference protocol used, but differing does not make data non-compliant."
+        },
         "tolerance": {
           "type": "number",
           "minimum": 0,

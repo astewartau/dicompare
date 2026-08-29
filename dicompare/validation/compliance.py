@@ -137,6 +137,11 @@ def check_acquisition_compliance(
             contains_all = fdef.get("contains_all")
             min_value = fdef.get("min")
             max_value = fdef.get("max")
+            # A warning-severity constraint records what the reference used
+            # without failing data that differs.
+            fail_status = (ComplianceStatus.WARNING
+                           if fdef.get("severity") == "warning"
+                           else ComplianceStatus.ERROR)
 
             # Find matching column name (handles "Flip Angle" vs "FlipAngle")
             matched_field = _find_column_match(field, in_acq.columns.tolist())
@@ -168,7 +173,7 @@ def check_acquisition_compliance(
             results.append(create_compliance_record(
                 field=field,
                 message=message,
-                status=ComplianceStatus.OK if passed else ComplianceStatus.ERROR,
+                status=ComplianceStatus.OK if passed else fail_status,
                 value=actual_values,
                 expected=expected_value,
                 series=series_name,
@@ -275,10 +280,18 @@ def check_acquisition_compliance(
 
             message = f"Series '{series_name}' not found with constraints: {' AND '.join(constraint_desc)}"
 
+            # A series miss is only a warning when every constraint in it is
+            # warning-severity (reference-only); otherwise a required
+            # constraint is unmet and it is an error.
+            series_status = (
+                ComplianceStatus.WARNING
+                if series_fields and all(f.get("severity") == "warning" for f in series_fields)
+                else ComplianceStatus.ERROR
+            )
             compliance_summary.append(create_compliance_record(
                 field=field_list,
                 message=message,
-                status=ComplianceStatus.ERROR,
+                status=series_status,
                 series=series_name
             ))
         else:

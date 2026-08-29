@@ -862,3 +862,60 @@ def test_backward_compatibility_existing_constraints():
 
     # All existing constraint types should pass
     assert all(r["status"] == "ok" for r in compliance), f"Some constraints failed: {[r for r in compliance if r['status'] != 'ok']}"
+
+
+# -------------------- Field-constraint severity --------------------
+class TestFieldSeverity:
+    def _session(self):
+        return pd.DataFrame({
+            "Acquisition": ["acq1", "acq1"],
+            "EchoTime": [3.0, 3.0],
+            "Manufacturer": ["SIEMENS", "SIEMENS"],
+        })
+
+    def test_warning_severity_mismatch_is_warning(self):
+        # EchoTime differs from the reference value, but the constraint is
+        # marked warning-severity -> a WARNING record, not an error.
+        schema_acq = {"fields": [
+            {"field": "EchoTime", "value": 99, "severity": "warning"},
+        ]}
+        results = check_acquisition_compliance(self._session(), schema_acq, "acq1")
+        rec = [r for r in results if r["field"] == "EchoTime"][0]
+        assert rec["status"] == ComplianceStatus.WARNING.value
+
+    def test_default_severity_mismatch_is_error(self):
+        schema_acq = {"fields": [
+            {"field": "EchoTime", "value": 99},
+        ]}
+        results = check_acquisition_compliance(self._session(), schema_acq, "acq1")
+        rec = [r for r in results if r["field"] == "EchoTime"][0]
+        assert rec["status"] == ComplianceStatus.ERROR.value
+
+    def test_warning_severity_match_still_ok(self):
+        schema_acq = {"fields": [
+            {"field": "EchoTime", "value": 3.0, "severity": "warning"},
+        ]}
+        results = check_acquisition_compliance(self._session(), schema_acq, "acq1")
+        rec = [r for r in results if r["field"] == "EchoTime"][0]
+        assert rec["status"] == ComplianceStatus.OK.value
+
+    def test_series_all_warning_miss_is_warning(self):
+        schema_acq = {"series": [
+            {"name": "S1", "fields": [
+                {"field": "EchoTime", "value": 99, "severity": "warning"},
+            ]},
+        ]}
+        results = check_acquisition_compliance(self._session(), schema_acq, "acq1")
+        rec = [r for r in results if r.get("series") == "S1"][0]
+        assert rec["status"] == ComplianceStatus.WARNING.value
+
+    def test_series_mixed_severity_miss_is_error(self):
+        schema_acq = {"series": [
+            {"name": "S1", "fields": [
+                {"field": "EchoTime", "value": 99, "severity": "warning"},
+                {"field": "Manufacturer", "value": "PHILIPS"},
+            ]},
+        ]}
+        results = check_acquisition_compliance(self._session(), schema_acq, "acq1")
+        rec = [r for r in results if r.get("series") == "S1"][0]
+        assert rec["status"] == ComplianceStatus.ERROR.value

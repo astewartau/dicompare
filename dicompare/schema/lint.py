@@ -106,14 +106,18 @@ def _lint_field(fdef: Dict[str, Any], location: str, findings: List[LintFinding]
             code = "display-string" if "display string" in problem else "vocabulary"
             findings.append(LintFinding("warning", code, location, problem))
 
-    # Exact match on a continuous physical parameter.
+    # Exact match on a continuous physical parameter is brittle — but only as
+    # a requirement. A warning-severity constraint is a reference annotation
+    # ("this is what the reference used"), where an exact value is honest.
     reg = get_field(keyword)
     is_exact = value is not None and not any(k in fdef for k in _NON_EXACT_KEYS)
-    if reg is not None and reg.continuous and is_exact:
+    is_requirement = fdef.get("severity") != "warning"
+    if reg is not None and reg.continuous and is_exact and is_requirement:
         findings.append(LintFinding(
             "warning", "exact-continuous", location,
             f"Exact match on continuous field {keyword} is brittle — real "
-            f"scans vary slightly. Consider a ± tolerance."))
+            f"scans vary slightly. Consider a ± tolerance, or mark the "
+            f"constraint severity 'warning' if it is reference information."))
 
 
 def _lint_rule(rule: Dict[str, Any], location: str, findings: List[LintFinding]) -> None:
