@@ -1,6 +1,6 @@
 {
   "name": "QSM Consensus Guidelines",
-  "description": "Quantitative Susceptibility Mapping (QSM) consensus guidelines as reported in https://doi.org/10.1002/mrm.30006.\n\nQSM Consensus Organization Committee, Bilgic, B., Costagli, M., Chan, K. S., Duyn, J., Langkammer, C., ... & ISMRM Electro‐Magnetic Tissue Properties Study Group. (2024). Recommended implementation of quantitative susceptibility mapping for clinical research in the brain: a consensus of the ISMRM electro‐magnetic tissue properties study group. Magnetic resonance in medicine, 91(5), 1834-1862.",
+  "description": "Quantitative Susceptibility Mapping (QSM) consensus guidelines as reported in https://doi.org/10.1002/mrm.30006.\n\nQSM Consensus Organization Committee, Bilgic, B., Costagli, M., Chan, K. S., Duyn, J., Langkammer, C., ... & ISMRM Electro\u2010Magnetic Tissue Properties Study Group. (2024). Recommended implementation of quantitative susceptibility mapping for clinical research in the brain: a consensus of the ISMRM electro\u2010magnetic tissue properties study group. Magnetic resonance in medicine, 91(5), 1834-1862.",
   "version": "1.0",
   "authors": [
     "QSM Consensus Organization Committee",
@@ -9,8 +9,17 @@
   "acquisitions": {
     "Quantitative Susceptibility Mapping (QSM)": {
       "description": "3D multi-echo gradient-recalled echo (GRE) acquisition for Quantitative Susceptibility Mapping",
-      "detailed_description": "## Quantitative Susceptibility Mapping (QSM)\n\nThis acquisition protocol follows the consensus recommendations from the ISMRM Electro-Magnetic Tissue Properties Study Group (Bilgic et al., 2024) for implementing QSM in clinical brain research.\n\n### Purpose\n\nQSM enables quantitative measurement of tissue magnetic susceptibility, which is useful for:\n- Differentiating between paramagnetic (e.g., hemorrhages, iron) and diamagnetic (e.g., calcifications) tissues\n- Studying iron concentration and myelin content in the brain\n- Investigating neurological diseases including hemorrhagic stroke, multiple sclerosis, Alzheimer's disease, Parkinson's disease, and tumors\n- Presurgical mapping of deep gray nuclei for deep brain stimulation\n\n### Key Acquisition Requirements\n\n**Sequence Type**: RF-spoiled 3D multi-echo GRE with monopolar (fly-back) readout. Monopolar readout avoids geometric mismatch and eddy current-related phase problems between even and odd echoes.\n\n**Echo Times**: \n- Minimum 3 echoes recommended (2 is minimum for separating intrinsic transmit RF phase from magnetic field-induced phase)\n- First TE should be as short as possible\n- Longest TE should approximate the T2* of target tissues\n- Uniform echo spacing (ΔTE) is required\n\n**Spatial Resolution**: \n- Isotropic voxels of at most 1 mm edge length (non-interpolated at 3T)\n- 3D acquisition to avoid slice-to-slice phase discontinuities\n- Whole brain coverage\n\n**Other Parameters**:\n- Minimum TR given selected TEs\n- Flip angle set to Ernst angle for target tissues\n- Readout bandwidth ~220 Hz/pixel at 3T (two-pixel fat-water shift)\n- Accelerated acquisition (parallel imaging or compressed sensing)\n- Receive coil arrays with at least 12 elements\n\n### Data Requirements\n\nBoth magnitude AND phase images must be saved and exported in DICOM format for each echo time. Phase images are essential for QSM reconstruction.\n\n### Processing Pipeline Overview\n\n1. **Phase Unwrapping & Echo Combination**: Use exact unwrapping methods; combine echoes before background field removal\n2. **Masking**: Brain extraction with phase-quality-based refinement\n3. **Background Field Removal**: V-SHARP or PDF methods\n4. **Dipole Inversion**: Optimization approach with sparsity-based regularization\n5. **Referencing**: Susceptibility values measured relative to specified reference (commonly whole brain)\n\n### Reference\n\nBilgic, B., Costagli, M., Chan, K.S., et al. (2024). Recommended implementation of quantitative susceptibility mapping for clinical research in the brain: A consensus of the ISMRM electro-magnetic tissue properties study group. *Magnetic Resonance in Medicine*, 91(5), 1834-1862. https://doi.org/10.1002/mrm.30006",
-      "tags": ["analysis:qsm", "analysis:swi", "QSM", "susceptibility", "quantitative", "brain", "GRE", "multi-echo"],
+      "detailed_description": "## Quantitative Susceptibility Mapping (QSM)\n\nThis acquisition protocol follows the consensus recommendations from the ISMRM Electro-Magnetic Tissue Properties Study Group (Bilgic et al., 2024) for implementing QSM in clinical brain research.\n\n### Purpose\n\nQSM enables quantitative measurement of tissue magnetic susceptibility, which is useful for:\n- Differentiating between paramagnetic (e.g., hemorrhages, iron) and diamagnetic (e.g., calcifications) tissues\n- Studying iron concentration and myelin content in the brain\n- Investigating neurological diseases including hemorrhagic stroke, multiple sclerosis, Alzheimer's disease, Parkinson's disease, and tumors\n- Presurgical mapping of deep gray nuclei for deep brain stimulation\n\n### Key Acquisition Requirements\n\n**Sequence Type**: RF-spoiled 3D multi-echo GRE with monopolar (fly-back) readout. Monopolar readout avoids geometric mismatch and eddy current-related phase problems between even and odd echoes.\n\n**Echo Times**: \n- Minimum 3 echoes recommended (2 is minimum for separating intrinsic transmit RF phase from magnetic field-induced phase)\n- First TE should be as short as possible\n- Longest TE should approximate the T2* of target tissues\n- Uniform echo spacing (\u0394TE) is required\n\n**Spatial Resolution**: \n- Isotropic voxels of at most 1 mm edge length (non-interpolated at 3T)\n- 3D acquisition to avoid slice-to-slice phase discontinuities\n- Whole brain coverage\n\n**Other Parameters**:\n- Minimum TR given selected TEs\n- Flip angle set to Ernst angle for target tissues\n- Readout bandwidth ~220 Hz/pixel at 3T (two-pixel fat-water shift)\n- Accelerated acquisition (parallel imaging or compressed sensing)\n- Receive coil arrays with at least 12 elements\n\n### Data Requirements\n\nBoth magnitude AND phase images must be saved and exported in DICOM format for each echo time. Phase images are essential for QSM reconstruction.\n\n### Processing Pipeline Overview\n\n1. **Phase Unwrapping & Echo Combination**: Use exact unwrapping methods; combine echoes before background field removal\n2. **Masking**: Brain extraction with phase-quality-based refinement\n3. **Background Field Removal**: V-SHARP or PDF methods\n4. **Dipole Inversion**: Optimization approach with sparsity-based regularization\n5. **Referencing**: Susceptibility values measured relative to specified reference (commonly whole brain)\n\n### Reference\n\nBilgic, B., Costagli, M., Chan, K.S., et al. (2024). Recommended implementation of quantitative susceptibility mapping for clinical research in the brain: A consensus of the ISMRM electro-magnetic tissue properties study group. *Magnetic Resonance in Medicine*, 91(5), 1834-1862. https://doi.org/10.1002/mrm.30006",
+      "tags": [
+        "analysis:qsm",
+        "analysis:swi",
+        "QSM",
+        "susceptibility",
+        "quantitative",
+        "brain",
+        "GRE",
+        "multi-echo"
+      ],
       "fields": [
         {
           "field": "MRAcquisitionType",
@@ -26,7 +35,7 @@
           "id": "validate_echo_count",
           "name": "Multi-echo Validation",
           "description": "While QSM can be achieved with one echo, two is the minimum number of echoes needed to separate the intrinsic transmit RF phase from the magnetic field-induced phase.",
-          "implementation": "echo_times = value[\"EchoTime\"].dropna().unique()\nif len(echo_times) == 1:\n    raise ValidationError(\"Found single-echo acquisition.\")\nelif len(echo_times) < 3:\n    raise ValidationWarning(f\"Found {len(echo_times)} echoes, but at least 3 are recommended.\")",
+          "implementation": "n = value[\"EchoTime\"].dropna().nunique()\nexact = params.get(\"exact_echoes\")\nif exact is not None:\n    if n != exact:\n        raise ValidationError(f\"Expected exactly {exact} echoes, found {n}.\")\nelse:\n    min_n = params.get(\"min_echoes\")\n    if min_n is not None and n < min_n:\n        raise ValidationError(f\"Only {n} echoes; at least {min_n} required.\")\n    rec = params.get(\"recommended_echoes\")\n    if rec is not None and n < rec:\n        raise ValidationWarning(f\"Found {n} echoes; {rec}+ recommended.\")\n",
           "fields": [
             "EchoTime"
           ],
@@ -67,13 +76,41 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "min_echoes": 2,
+            "recommended_echoes": 3
+          },
+          "parameterDefinitions": [
+            {
+              "name": "min_echoes",
+              "label": "Minimum echoes",
+              "type": "number",
+              "default": 2,
+              "min": 1,
+              "description": "Fail if fewer unique echoes than this"
+            },
+            {
+              "name": "recommended_echoes",
+              "label": "Recommended echoes",
+              "type": "number",
+              "default": null,
+              "description": "Warn if fewer unique echoes than this (optional)"
+            },
+            {
+              "name": "exact_echoes",
+              "label": "Exact echoes",
+              "type": "number",
+              "default": null,
+              "description": "Require exactly this many echoes (overrides min/recommended)"
+            }
           ]
         },
         {
           "id": "uniform_echo_spacing",
           "name": "Uniform Echo Spacing",
-          "description": "The spacing between echoes (ΔTE) should be uniform.",
-          "implementation": "echo_times = value[\"EchoTime\"].dropna().sort_values()\nspacings = echo_times.diff().iloc[1:]\nif not all(abs(spacings.iloc[0] - s) < 0.01 for s in spacings):\n    raise ValidationError(f\"Echo spacing is not uniform. Found spacings: {spacings}.\")",
+          "description": "The spacing between echoes (\u0394TE) should be uniform.",
+          "implementation": "te = value[\"EchoTime\"].dropna().sort_values()\nspacings = te.diff().iloc[1:]\ntol = params.get(\"tolerance_ms\") or 0.1\nif len(spacings) > 0 and not all(abs(spacings.iloc[0] - s) <= tol for s in spacings):\n    raise ValidationError(f\"Echo spacing not uniform (tolerance {tol} ms). Found spacings: {list(spacings.round(3))}.\")\n",
           "fields": [
             "EchoTime"
           ],
@@ -104,13 +141,27 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "tolerance_ms": 0.01
+          },
+          "parameterDefinitions": [
+            {
+              "name": "tolerance_ms",
+              "label": "Tolerance",
+              "type": "number",
+              "default": 0.1,
+              "min": 0,
+              "unit": "ms",
+              "description": "Maximum allowed deviation between echo spacings"
+            }
           ]
         },
         {
           "id": "validate_first_echo",
           "name": "Short First Echo",
           "description": "The first TE (TE1) should be as short as possible.",
-          "implementation": "first_echo_time = value[\"EchoTime\"].min()\nif first_echo_time > 10:\n    raise ValidationError(f\"The first TE is overly long. Found {first_echo_time} ms.\")\nif first_echo_time > 5:\n    raise ValidationWarning(f\"The first TE could possibly be shorter. Found {first_echo_time} ms.\")",
+          "implementation": "te1 = value[\"EchoTime\"].dropna().min()\nmax_te = params.get(\"max_first_te\")\nif max_te is not None and te1 > max_te:\n    raise ValidationError(f\"First TE too long ({te1} ms); must be <= {max_te} ms.\")\npref = params.get(\"preferred_first_te\")\nif pref is not None and te1 > pref:\n    raise ValidationWarning(f\"First TE could be shorter ({te1} ms); <= {pref} ms preferred.\")\n",
           "fields": [
             "EchoTime"
           ],
@@ -152,13 +203,37 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "max_first_te": 10,
+            "preferred_first_te": 5
+          },
+          "parameterDefinitions": [
+            {
+              "name": "max_first_te",
+              "label": "Maximum first TE",
+              "type": "number",
+              "default": 10,
+              "min": 0,
+              "unit": "ms",
+              "description": "Fail if the first echo time exceeds this"
+            },
+            {
+              "name": "preferred_first_te",
+              "label": "Preferred first TE",
+              "type": "number",
+              "default": null,
+              "min": 0,
+              "unit": "ms",
+              "description": "Warn if the first echo time exceeds this (optional)"
+            }
           ]
         },
         {
           "id": "validate_echo_times",
           "name": "TE Close to T2*",
           "description": "The longest TE (the TE of the last echo) should be equal to at least the T2* value of the tissue of interest.",
-          "implementation": "echo_times = value[\"EchoTime\"].dropna().sort_values()\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\n# literature values\ntissue_values = {\n    1.5: {\"grey\": 84.0, \"white\": 66.2, \"caudate\": 58.8, \"putamen\": 55.5},\n    3.0: {\"grey\": 66.0, \"white\": 53.2, \"caudate\": 41.3, \"putamen\": 31.5},\n    7.0: {\"grey\": 33.2, \"white\": 26.8, \"caudate\": 19.9, \"putamen\": 16.1},\n}\n\nmax_tissue = max(tissue_values[field_strength].values())\nmin_tissue = min(tissue_values[field_strength].values())\nlongest_te = echo_times.iloc[-1]\nupper_limit = 1.25 * max_tissue\nlower_limit = 0.75 * min_tissue\n\nif longest_te > upper_limit:\n    raise ValidationError(f\"Longest TE is {longest_te:.1f} ms, but should be ≤{upper_limit:.1f} ms (1.25x highest tissue T2* of {max_tissue} ms at {field_strength}T).\")\nif longest_te < lower_limit:\n    raise ValidationError(f\"Longest TE is {longest_te:.1f} ms, but should be ≥{lower_limit:.1f} ms (0.75x lowest tissue T2* of {min_tissue} ms at {field_strength}T).\")",
+          "implementation": "echo_times = value[\"EchoTime\"].dropna().sort_values()\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\ntissue_values = {\n    1.5: {\"grey\": 84.0, \"white\": 66.2, \"caudate\": 58.8, \"putamen\": 55.5},\n    3.0: {\"grey\": 66.0, \"white\": 53.2, \"caudate\": 41.3, \"putamen\": 31.5},\n    7.0: {\"grey\": 33.2, \"white\": 26.8, \"caudate\": 19.9, \"putamen\": 16.1},\n}\n\nmax_tissue = max(tissue_values[field_strength].values())\nmin_tissue = min(tissue_values[field_strength].values())\n\nif echo_times.iloc[-1] > 1.25 * max_tissue:\n    raise ValidationError(f\"The longest TE should be \u22641.25x the highest tissue T2* ({max_tissue} ms).\")\nif echo_times.iloc[-1] < 0.75 * min_tissue:\n    raise ValidationError(f\"The longest TE should be \u22650.75x the lowest tissue T2* ({min_tissue} ms).\")",
           "fields": [
             "EchoTime",
             "MagneticFieldStrength"
@@ -198,13 +273,15 @@
               "expectedResult": "fail",
               "description": ""
             }
-          ]
+          ],
+          "parameters": {},
+          "parameterDefinitions": []
         },
         {
           "id": "validate_image_type",
           "name": "Valid Magnitude/Phase Pairs",
           "description": "Each EchoTime must have at least one magnitude and phase image.",
-          "implementation": "magnitude_counts = []\nphase_counts = []\n\nfor echo_time, group in value.groupby(\"EchoTime\"):\n    image_types = group[\"ImageType\"]\n    \n    # Count occurrences of 'M' and 'P' in ImageType tuples\n    magnitude_counts.append(sum('M' in image for image in image_types))\n    phase_counts.append(sum('P' in image for image in image_types))\n\nif not all(m >= 1 for m in magnitude_counts):\n    raise ValidationError(f\"Each EchoTime must have at least one magnitude image. Found {magnitude_counts}.\")\nif not all(p >= 1 for p in phase_counts):\n    raise ValidationError(f\"Each EchoTime must have at least one phase image. Found {phase_counts}.\")\n",
+          "implementation": "# Validate magnitude/phase pairs per echo\nfor echo_time, group in value.groupby(\"EchoTime\"):\n    image_types = group[\"ImageType\"]\n\n    # ImageType is list-valued; check components, not the string repr\n    has_magnitude = any(\"M\" in as_list(it) for it in image_types)\n    has_phase = any(\"P\" in as_list(it) for it in image_types)\n\n    if not has_magnitude:\n        raise ValidationError(f\"Echo time {echo_time} ms is missing magnitude image.\")\n\n    if not has_phase:\n        raise ValidationError(f\"Echo time {echo_time} ms is missing phase image.\")\n",
           "fields": [
             "ImageType",
             "EchoTime"
@@ -276,7 +353,9 @@
               "expectedResult": "fail",
               "description": ""
             }
-          ]
+          ],
+          "parameters": {},
+          "parameterDefinitions": []
         },
         {
           "id": "validate_image_slices",
@@ -372,13 +451,15 @@
               "expectedResult": "fail",
               "description": ""
             }
-          ]
+          ],
+          "parameters": {},
+          "parameterDefinitions": []
         },
         {
           "id": "validate_pixel_bandwidth",
           "name": "Readout Bandwidth",
           "description": "Use the minimum readout bandwidth which generates acceptable distortions.",
-          "implementation": "pixel_bandwidth = value[\"PixelBandwidth\"].iloc[0]\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0]\n\nif field_strength == 3.0 and pixel_bandwidth > 220:\n    raise ValidationError(f\"PixelBandwidth should be ≤220 Hz/pixel at 3T. Found {pixel_bandwidth} Hz/pixel.\")\nelif field_strength != 3.0:\n    raise ValidationWarning(\"PixelBandwidth recommendations are not available for this field strength.\")",
+          "implementation": "pixel_bandwidth = value[\"PixelBandwidth\"].iloc[0]\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0]\nmax_bw = params.get(\"max_bandwidth_hz_px\")\nref_field = params.get(\"reference_field_t\")\nif ref_field is not None and field_strength != ref_field:\n    if params.get(\"warn_at_other_field\"):\n        raise ValidationWarning(f\"PixelBandwidth recommendations are not available at {field_strength}T (defined at {ref_field:g}T).\")\nelif max_bw is not None and pixel_bandwidth > max_bw:\n    at_field = f\" at {ref_field:g}T\" if ref_field is not None else \"\"\n    raise ValidationError(f\"PixelBandwidth should be <= {max_bw:g} Hz/pixel{at_field}. Found {pixel_bandwidth} Hz/pixel.\")\n",
           "fields": [
             "PixelBandwidth",
             "MagneticFieldStrength"
@@ -426,13 +507,45 @@
               "expectedResult": "warning",
               "description": ""
             }
+          ],
+          "parameters": {
+            "max_bandwidth_hz_px": 220,
+            "reference_field_t": 3.0,
+            "warn_at_other_field": true
+          },
+          "parameterDefinitions": [
+            {
+              "name": "max_bandwidth_hz_px",
+              "label": "Maximum bandwidth",
+              "type": "number",
+              "default": 220,
+              "min": 0,
+              "unit": "Hz/px",
+              "description": "Fail if PixelBandwidth exceeds this"
+            },
+            {
+              "name": "reference_field_t",
+              "label": "Applies at field strength",
+              "type": "number",
+              "default": 3.0,
+              "min": 0,
+              "unit": "T",
+              "description": "Only check at this field strength (blank = check at any field strength)"
+            },
+            {
+              "name": "warn_at_other_field",
+              "label": "Warn at other field strengths",
+              "type": "boolean",
+              "default": false,
+              "description": "Emit a warning (instead of passing silently) when the field strength differs from the reference"
+            }
           ]
         },
         {
           "id": "validate_flip_angle",
           "name": "Ernst Flip Angle",
           "description": "FlipAngle should be close to the Ernst angle.",
-          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0]\nflip_angle = value[\"FlipAngle\"].iloc[0]\n\nT1_MIN_MAX = {\n    1.5: {\"min\": 600, \"max\": 1200},\n    3.0: {\"min\": 900, \"max\": 1650},\n    7.0: {\"min\": 1100, \"max\": 1900},\n}\n\nif field_strength not in T1_MIN_MAX:\n    raise ValidationWarning(f\"Unsupported MagneticFieldStrength {field_strength}T for Ernst angle validation.\")\n\nt1_min, t1_max = T1_MIN_MAX[field_strength][\"min\"], T1_MIN_MAX[field_strength][\"max\"]\nernst_min = math.acos(math.exp(-tr / t1_max)) * (180 / math.pi)\nernst_max = math.acos(math.exp(-tr / t1_min)) * (180 / math.pi)\n\ntolerance = 0.1\n\nif flip_angle < ernst_min - tolerance or flip_angle > ernst_max + tolerance:\n    raise ValidationError(f\"FlipAngle should be between {ernst_min:.2f}° and {ernst_max:.2f}° at {field_strength}T with TR={tr} ms. Found {flip_angle:.2f}°.\")",
+          "implementation": "tr = value[\"RepetitionTime\"].iloc[0]\nfield_strength = value[\"MagneticFieldStrength\"].iloc[0]\nflip_angle = value[\"FlipAngle\"].iloc[0]\n\nT1_MIN_MAX = {\n    1.5: {\"min\": 600, \"max\": 1200},\n    3.0: {\"min\": 900, \"max\": 1650},\n    7.0: {\"min\": 1100, \"max\": 1900},\n}\n\nif field_strength not in T1_MIN_MAX:\n    raise ValidationWarning(f\"Unsupported MagneticFieldStrength {field_strength}T for Ernst angle validation.\")\n\nt1_min, t1_max = T1_MIN_MAX[field_strength][\"min\"], T1_MIN_MAX[field_strength][\"max\"]\nernst_min = math.acos(math.exp(-tr / t1_max)) * (180 / math.pi)\nernst_max = math.acos(math.exp(-tr / t1_min)) * (180 / math.pi)\n\ntolerance = 0.1\n\nif flip_angle < ernst_min - tolerance or flip_angle > ernst_max + tolerance:\n    raise ValidationError(f\"FlipAngle should be between {ernst_min:.2f}\u00b0 and {ernst_max:.2f}\u00b0 at {field_strength}T with TR={tr} ms. Found {flip_angle:.2f}\u00b0.\")",
           "fields": [
             "FlipAngle",
             "RepetitionTime",
@@ -490,13 +603,15 @@
               "expectedResult": "warning",
               "description": ""
             }
-          ]
+          ],
+          "parameters": {},
+          "parameterDefinitions": []
         },
         {
           "id": "validate_voxel_shape",
           "name": "Isotropic Voxels",
           "description": "Use isotropic voxels.",
-          "implementation": "pixel_spacing = value[\"PixelSpacing\"].iloc[0]\nslice_thickness = value[\"SliceThickness\"].iloc[0]\n\ntolerance = 0.1\nif not all(abs(p - pixel_spacing[0]) < tolerance for p in pixel_spacing) or abs(pixel_spacing[0] - slice_thickness) > tolerance:\n    raise ValidationError(f\"Voxel shape is not isotropic. Found PixelSpacing: {pixel_spacing}, SliceThickness: {slice_thickness}.\")\n",
+          "implementation": "ps = value[\"PixelSpacing\"].iloc[0]\nst = value[\"SliceThickness\"].iloc[0]\ntol = params.get(\"isotropy_tolerance_mm\") or 0.1\nmax_edge = params.get(\"max_edge_mm\")\nif abs(ps[0]-ps[1]) > tol or abs(ps[0]-st) > tol:\n    raise ValidationError(f\"Voxels not isotropic (tolerance {tol} mm). PixelSpacing {ps}, SliceThickness {st}.\")\nif max_edge is not None and max(ps[0], ps[1], st) > max_edge:\n    raise ValidationWarning(f\"Voxel edge {max(ps[0],ps[1],st)} mm exceeds {max_edge} mm.\")\n",
           "fields": [
             "PixelSpacing",
             "SliceThickness"
@@ -553,13 +668,37 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "isotropy_tolerance_mm": 0.1,
+            "max_edge_mm": null
+          },
+          "parameterDefinitions": [
+            {
+              "name": "max_edge_mm",
+              "label": "Maximum voxel edge",
+              "type": "number",
+              "default": 1.05,
+              "min": 0,
+              "unit": "mm",
+              "description": "Warn if the largest voxel dimension exceeds this"
+            },
+            {
+              "name": "isotropy_tolerance_mm",
+              "label": "Isotropy tolerance",
+              "type": "number",
+              "default": 0.1,
+              "min": 0,
+              "unit": "mm",
+              "description": "Fail if voxel dimensions differ from each other by more than this"
+            }
           ]
         },
         {
           "id": "validate_pixel_spacing",
           "name": "Voxel Size Limit",
-          "description": "Use a combined voxel size of at most 1 mm³ to reduce partial volume-related estimation errors.",
-          "implementation": "pixel_spacing = value[\"PixelSpacing\"].iloc[0]\nslice_thickness = value[\"SliceThickness\"].iloc[0]\nvoxel_size_mm3 = math.prod(list(pixel_spacing) + [slice_thickness])\n\nif voxel_size_mm3 > 1:\n    raise ValidationError(f\"Voxel size should be ≤1 mm³. Got {voxel_size_mm3:.2f} mm³.\")\n",
+          "description": "Use a combined voxel size of at most 1 mm\u00b3 to reduce partial volume-related estimation errors.",
+          "implementation": "pixel_spacing = value[\"PixelSpacing\"].iloc[0]\nslice_thickness = value[\"SliceThickness\"].iloc[0]\nvoxel_size_mm3 = math.prod(list(pixel_spacing) + [slice_thickness])\nmax_vol = params.get(\"max_voxel_mm3\")\nif max_vol is not None and voxel_size_mm3 > max_vol:\n    raise ValidationError(f\"Voxel size should be <= {max_vol:g} mm\u00b3. Got {voxel_size_mm3:.2f} mm\u00b3.\")\n",
           "fields": [
             "PixelSpacing",
             "SliceThickness"
@@ -615,6 +754,20 @@
               },
               "expectedResult": "fail",
               "description": ""
+            }
+          ],
+          "parameters": {
+            "max_voxel_mm3": 1
+          },
+          "parameterDefinitions": [
+            {
+              "name": "max_voxel_mm3",
+              "label": "Maximum voxel volume",
+              "type": "number",
+              "default": 1,
+              "min": 0,
+              "unit": "mm\u00b3",
+              "description": "Fail if the voxel volume exceeds this"
             }
           ]
         }

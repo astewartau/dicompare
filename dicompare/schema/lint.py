@@ -168,7 +168,7 @@ def _lint_rule(rule: Dict[str, Any], location: str, findings: List[LintFinding])
             for field, cells in (tc.get("data") or {}).items()
         }
         try:
-            outcome = run_rule_test_case(rule, data)
+            outcome = run_rule_test_case(rule, data, params=tc.get("params"))
         except Exception as e:
             findings.append(LintFinding(
                 "error", "test-error", tc_loc,

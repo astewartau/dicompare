@@ -9,7 +9,14 @@
     "T1-weighted 3D MPRAGE": {
       "description": "3D T1-weighted MPRAGE acquisition for high-resolution brain anatomy",
       "detailed_description": "## T1-Weighted Structural MRI\n\nThis acquisition provides high-resolution T1-weighted anatomical images of the brain using a 3D Magnetization-Prepared Rapid Gradient Echo (MPRAGE) sequence.\n\n### Purpose\n\nThe T1-weighted structural scan serves as the primary anatomical reference for UK Biobank brain imaging and is used for:\n- Brain tissue segmentation (grey matter, white matter, CSF)\n- Cortical surface reconstruction and thickness measurements\n- Subcortical structure volumetrics\n- Spatial normalization and registration template\n- Identification of gross anatomical abnormalities\n\n### Acquisition Parameters\n\n- **Sequence**: 3D MPRAGE (tfl3d1_16ns)\n- **Resolution**: 1.0 mm isotropic\n- **FOV**: 256 x 256 mm, sagittal orientation\n- **TR/TE/TI**: 2000 ms / 2.01 ms / 880 ms\n- **Flip Angle**: 8 degrees\n- **Acceleration**: GRAPPA factor 2\n- **Scan Time**: ~5 minutes\n\n### Key Features\n\n- Isotropic resolution enables high-quality reformatting in any plane\n- Inversion recovery preparation provides excellent grey/white matter contrast\n- Whole-brain coverage from vertex to below cerebellum\n- Consistent positioning using AutoAlign to AC-PC orientation\n\n### Derived Measures\n\nUK Biobank provides numerous imaging-derived phenotypes (IDPs) from this scan including:\n- Total brain volume, grey matter volume, white matter volume\n- Regional volumes (hippocampus, amygdala, thalamus, etc.)\n- Cortical thickness and surface area measures\n- Subcortical structure volumes\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
-      "tags": ["analysis:segmentation", "analysis:volumetry", "analysis:cortical-thickness", "brain", "structural", "T1-weighted"],
+      "tags": [
+        "analysis:segmentation",
+        "analysis:volumetry",
+        "analysis:cortical-thickness",
+        "brain",
+        "structural",
+        "T1-weighted"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -57,7 +64,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 1
+          "value": 1,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -65,7 +73,8 @@
           "value": [
             1,
             1
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -90,22 +99,26 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 2000
+          "value": 2000,
+          "tolerance": 10.0
         },
         {
           "field": "EchoTime",
           "tag": "0018,0081",
-          "value": 2.01
+          "value": 2.01,
+          "tolerance": 1.0
         },
         {
           "field": "InversionTime",
           "tag": "0018,0082",
-          "value": 880
+          "value": 880,
+          "tolerance": 10.0
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 8
+          "value": 8,
+          "tolerance": 2.0
         },
         {
           "field": "EchoTrainLength",
@@ -153,12 +166,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -209,7 +224,12 @@
     "Functional brain images - task": {
       "description": "Multi-band EPI acquisition for task-based functional MRI",
       "detailed_description": "## Task-Based Functional MRI\n\nThis acquisition captures brain activity during a cognitive task using Blood Oxygen Level Dependent (BOLD) contrast with multi-band acceleration.\n\n### Purpose\n\nThe task fMRI scan measures brain activation patterns during the Hariri faces/shapes emotional processing task:\n- Identify brain regions involved in emotional face processing\n- Assess amygdala reactivity to emotional stimuli\n- Study individual differences in emotional processing circuitry\n- Enable genome-wide association studies of brain function\n\n### Task Paradigm\n\nThe Hariri faces/shapes task alternates between:\n- **Faces blocks**: Match emotional expressions (angry, fearful, neutral)\n- **Shapes blocks**: Match geometric shapes (control condition)\n- Total duration: ~4 minutes (332 volumes)\n\n### Acquisition Parameters\n\n- **Sequence**: Gradient-echo EPI with multi-band acceleration\n- **Resolution**: 2.4 mm isotropic\n- **FOV**: 210 x 210 mm, transverse oblique (AC-PC aligned)\n- **TR/TE**: 735 ms / 39 ms\n- **Flip Angle**: 52 degrees\n- **Multi-band Factor**: 8 (64 slices acquired simultaneously in 8 groups)\n- **Volumes**: 332\n- **Scan Time**: ~4 minutes\n\n### Key Features\n\n- Ultra-fast TR (735 ms) enabled by multi-band acceleration\n- Whole-brain coverage with no slice gaps\n- Fat saturation to reduce signal from subcutaneous fat\n- Single-band reference (SBRef) image acquired for motion correction\n\n### Processing Considerations\n\n- Susceptibility-induced distortions corrected using field maps\n- Motion correction and slice-timing correction applied\n- Spatial smoothing and temporal filtering\n- GLM analysis for task activation maps\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
-      "tags": ["analysis:fmri", "brain", "fMRI", "task-based"],
+      "tags": [
+        "analysis:fmri",
+        "brain",
+        "fMRI",
+        "task-based"
+      ],
       "fields": [
         {
           "field": "SequenceName",
@@ -247,7 +267,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 2.4
+          "value": 2.4,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -255,7 +276,8 @@
           "value": [
             2.38636,
             2.38636
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -280,7 +302,8 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 735
+          "value": 735,
+          "tolerance": 10.0
         },
         {
           "field": "EchoTime",
@@ -345,12 +368,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -412,8 +437,13 @@
     },
     "Multiband diffusion brain images": {
       "description": "Multi-shell diffusion MRI with multi-band acceleration for white matter microstructure",
-      "detailed_description": "## Diffusion-Weighted MRI\n\nThis acquisition provides multi-shell diffusion-weighted imaging for characterizing white matter microstructure using multi-band acceleration.\n\n### Purpose\n\nThe diffusion MRI scan enables investigation of white matter organization and connectivity:\n- White matter tract reconstruction (tractography)\n- Microstructural measures (FA, MD, diffusivities)\n- Advanced modeling (NODDI, DKI)\n- Structural connectivity analysis\n- Detection of white matter pathology\n\n### Acquisition Parameters\n\n- **Sequence**: Spin-echo EPI with multi-band acceleration\n- **Resolution**: 2.0 mm isotropic\n- **FOV**: 210 x 210 mm, transverse oblique (AC-PC aligned)\n- **TR/TE**: 3600 ms / 92 ms\n- **Flip Angle**: 78 degrees\n- **Multi-band Factor**: 3 (72 slices acquired in 24 groups)\n- **Slices**: 72 (whole brain coverage)\n\n### Diffusion Scheme\n\n- **b = 0 s/mm²**: ~8 volumes (non-diffusion weighted)\n- **b = 1000 s/mm²**: 50 directions\n- **b = 2000 s/mm²**: 50 directions\n- **Total volumes**: 108\n- **Scan Time**: ~7 minutes (including PA field map)\n\n### Field Map Acquisition\n\nA short reverse phase-encode (PA) acquisition with 3 b=0 volumes is acquired for susceptibility distortion correction using FSL's topup.\n\n### Key Features\n\n- Multi-shell design enables advanced diffusion models beyond DTI\n- Multi-band acceleration reduces scan time while maintaining angular resolution\n- Isotropic resolution for accurate tractography\n- Optimized gradient directions for uniform sampling\n\n### Derived Measures\n\nUK Biobank provides diffusion IDPs including:\n- Fractional anisotropy (FA) in major white matter tracts\n- Mean diffusivity (MD), axial and radial diffusivity\n- NODDI metrics (ICVF, ISOVF, OD)\n- Tract-averaged measures for 27 major pathways\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
-      "tags": ["analysis:diffusion", "brain", "dMRI", "multiband"],
+      "detailed_description": "## Diffusion-Weighted MRI\n\nThis acquisition provides multi-shell diffusion-weighted imaging for characterizing white matter microstructure using multi-band acceleration.\n\n### Purpose\n\nThe diffusion MRI scan enables investigation of white matter organization and connectivity:\n- White matter tract reconstruction (tractography)\n- Microstructural measures (FA, MD, diffusivities)\n- Advanced modeling (NODDI, DKI)\n- Structural connectivity analysis\n- Detection of white matter pathology\n\n### Acquisition Parameters\n\n- **Sequence**: Spin-echo EPI with multi-band acceleration\n- **Resolution**: 2.0 mm isotropic\n- **FOV**: 210 x 210 mm, transverse oblique (AC-PC aligned)\n- **TR/TE**: 3600 ms / 92 ms\n- **Flip Angle**: 78 degrees\n- **Multi-band Factor**: 3 (72 slices acquired in 24 groups)\n- **Slices**: 72 (whole brain coverage)\n\n### Diffusion Scheme\n\n- **b = 0 s/mm\u00b2**: ~8 volumes (non-diffusion weighted)\n- **b = 1000 s/mm\u00b2**: 50 directions\n- **b = 2000 s/mm\u00b2**: 50 directions\n- **Total volumes**: 108\n- **Scan Time**: ~7 minutes (including PA field map)\n\n### Field Map Acquisition\n\nA short reverse phase-encode (PA) acquisition with 3 b=0 volumes is acquired for susceptibility distortion correction using FSL's topup.\n\n### Key Features\n\n- Multi-shell design enables advanced diffusion models beyond DTI\n- Multi-band acceleration reduces scan time while maintaining angular resolution\n- Isotropic resolution for accurate tractography\n- Optimized gradient directions for uniform sampling\n\n### Derived Measures\n\nUK Biobank provides diffusion IDPs including:\n- Fractional anisotropy (FA) in major white matter tracts\n- Mean diffusivity (MD), axial and radial diffusivity\n- NODDI metrics (ICVF, ISOVF, OD)\n- Tract-averaged measures for 27 major pathways\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
+      "tags": [
+        "analysis:diffusion",
+        "brain",
+        "dMRI",
+        "multiband"
+      ],
       "fields": [
         {
           "field": "SequenceVariant",
@@ -446,7 +476,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 2
+          "value": 2,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -454,7 +485,8 @@
           "value": [
             2.01923,
             2.01923
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -479,17 +511,20 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 3600
+          "value": 3600,
+          "tolerance": 10.0
         },
         {
           "field": "EchoTime",
           "tag": "0018,0081",
-          "value": 92
+          "value": 92,
+          "tolerance": 1.0
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 78
+          "value": 78,
+          "tolerance": 2.0
         },
         {
           "field": "EchoTrainLength",
@@ -542,12 +577,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -582,7 +619,7 @@
           "id": "custom_1758075459044",
           "name": "Diffusion Directions",
           "description": "Checks expected number of diffusion gradient directions",
-          "implementation": "n_expected = 100\ndirections = [\n  tuple(d) if isinstance(d, list) else \n  d for d in value[\"DiffusionGradientOrientation\"]\n]\nn_actual = len(set(directions))\n\nif n_actual != n_expected:\n  raise ValidationError(f\"Expected {n_expected} distinct diffusion gradient directions, but found {n_actual}.\")\n",
+          "implementation": "dir_col = next((c for c in value.columns if c not in (\"DiffusionBValue\", \"Count\")), None)\nif dir_col is None:\n    raise ValidationWarning(\"Cannot count directions (no gradient orientation field available).\")\nrows = value\nb0_thr = params.get(\"b0_threshold\")\nif \"DiffusionBValue\" in value.columns and b0_thr is not None:\n    b = value[\"DiffusionBValue\"].fillna(0).astype(float)\n    rows = value[b > b0_thr]\ndirs = set()\nfor o in rows[dir_col]:\n    if o is None or o != o:\n        continue\n    try:\n        dirs.add(tuple(round(float(x), 3) for x in as_list(o)))\n    except (TypeError, ValueError):\n        dirs.add(str(o))\nn = len(dirs)\nexact = params.get(\"exact_directions\")\nif exact is not None:\n    if n != exact:\n        raise ValidationError(f\"Expected exactly {exact} unique diffusion directions, found {n}.\")\nelse:\n    min_n = params.get(\"min_directions\")\n    if min_n is not None and n < min_n:\n        raise ValidationError(f\"Only {n} unique diffusion directions; at least {min_n} required.\")\n    rec = params.get(\"recommended_directions\")\n    if rec is not None and n < rec:\n        raise ValidationWarning(f\"{n} unique diffusion directions; {rec}+ recommended.\")\n",
           "fields": [
             "DiffusionGradientOrientation"
           ],
@@ -1107,136 +1144,110 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "exact_directions": 100
+          },
+          "parameterDefinitions": [
+            {
+              "name": "min_directions",
+              "label": "Minimum directions",
+              "type": "number",
+              "default": 30,
+              "min": 1,
+              "description": "Fail if fewer unique directions than this"
+            },
+            {
+              "name": "recommended_directions",
+              "label": "Recommended directions",
+              "type": "number",
+              "default": null,
+              "description": "Warn if fewer unique directions than this (optional)"
+            },
+            {
+              "name": "exact_directions",
+              "label": "Exact directions",
+              "type": "number",
+              "default": null,
+              "description": "Require exactly this many directions (overrides min/recommended)"
+            },
+            {
+              "name": "b0_threshold",
+              "label": "b=0 threshold",
+              "type": "number",
+              "default": 50,
+              "min": 0,
+              "unit": "s/mm\u00b2",
+              "description": "Volumes with b-value at or below this are excluded (b=0 orientations are meaningless)"
+            }
           ]
         },
         {
           "id": "custom_1758079469072",
           "name": "B-value Distribution Validation",
           "description": "Validate b-value shell distribution",
-          "implementation": "b_values = value[\"DiffusionBValue\"]\nb0_count = sum(1 for b in b_values if b < 50)  # b≈0 images\nb1000_count = sum(1 for b in b_values if 900 <= b <= 1100)  # b≈1000 shell\nb2000_count = sum(1 for b in b_values if 1900 <= b <= 2100)  # b≈2000 shell\n\nif b0_count < 8 or b0_count > 12:\n  raise ValueError(f\"Expected ~10 b=0 images, found {b0_count}\")\n\nif b1000_count < 45 or b1000_count > 55:\n  raise ValueError(f\"Expected ~50 b=1000 images, found {b1000_count}\")\n\nif b2000_count < 45 or b2000_count > 55:\n  raise ValueError(f\"Expected ~50 b=2000 images, found {b2000_count}\")",
+          "implementation": "spec = params.get(\"shell_spec\") or \"\"\ntol = params.get(\"shell_tolerance\") if params.get(\"shell_tolerance\") is not None else 100\nb = value[\"DiffusionBValue\"].fillna(0).astype(float)\ncounts = value[\"Count\"]\nproblems = []\nfor part in [p.strip() for p in spec.split(\",\") if p.strip()]:\n    center_str, _, rng = part.partition(\":\")\n    center = float(center_str)\n    n = int(counts[(b - center).abs() <= tol].sum())\n    if \"-\" in rng:\n        lo_str, hi_str = rng.split(\"-\", 1)\n        lo, hi = float(lo_str), float(hi_str)\n    else:\n        lo, hi = float(rng), None\n    if n < lo:\n        problems.append(f\"b~{center:g}: found {n} images, expected >= {lo:g}\")\n    elif hi is not None and n > hi:\n        problems.append(f\"b~{center:g}: found {n} images, expected <= {hi:g}\")\nif problems:\n    raise ValidationError(\"; \".join(problems))\n",
           "fields": [
             "DiffusionBValue"
           ],
           "testCases": [
             {
-              "id": "test_1759471849726",
-              "name": "Pass",
+              "id": "test_ukb_bvalue_pass",
+              "name": "UK Biobank shell distribution",
               "data": {
                 "DiffusionBValue": [
                   0,
-                  0,
-                  0,
-                  0,
-                  0,
-                  0,
-                  0,
-                  0,
-                  0,
-                  0,
                   1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  1000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
-                  2000,
                   2000
+                ],
+                "Count": [
+                  10,
+                  50,
+                  50
                 ]
               },
               "expectedResult": "pass",
-              "description": ""
+              "description": "~10 b=0, ~50 each of b=1000/2000"
+            },
+            {
+              "id": "test_ukb_bvalue_fail_b0",
+              "name": "Too few b=0 images",
+              "data": {
+                "DiffusionBValue": [
+                  0,
+                  1000,
+                  2000
+                ],
+                "Count": [
+                  1,
+                  50,
+                  50
+                ]
+              },
+              "expectedResult": "fail",
+              "description": "Only one b=0 image"
+            }
+          ],
+          "parameters": {
+            "shell_spec": "0:8-12, 1000:45-55, 2000:45-55",
+            "shell_tolerance": 100
+          },
+          "parameterDefinitions": [
+            {
+              "name": "shell_spec",
+              "label": "Shell specification",
+              "type": "string",
+              "default": "0:1, 1000:1",
+              "description": "Comma-separated 'center:min' or 'center:min-max' image counts per shell"
+            },
+            {
+              "name": "shell_tolerance",
+              "label": "Shell tolerance",
+              "type": "number",
+              "default": 100,
+              "min": 0,
+              "unit": "s/mm\u00b2",
+              "description": "b-values within \u00b1 this of a shell center belong to that shell"
             }
           ]
         }
@@ -1245,7 +1256,16 @@
     "Susceptibility weighted brain images": {
       "description": "3D dual-echo gradient echo acquisition for susceptibility-weighted imaging",
       "detailed_description": "## Susceptibility-Weighted Imaging (SWI)\n\nThis acquisition provides high-resolution susceptibility-weighted images using a 3D dual-echo gradient echo sequence, sensitive to iron, blood products, and venous structures.\n\n### Purpose\n\nThe SWI scan enables detection of susceptibility-related tissue properties:\n- Cerebral microbleed detection and quantification\n- Iron deposition in deep grey matter structures\n- Venous architecture visualization\n- Calcification detection\n- Assessment of small vessel disease\n\n### Acquisition Parameters\n\n- **Sequence**: 3D flow-compensated dual-echo GRE (fl3d2r)\n- **Resolution**: 0.8 x 0.8 x 3.0 mm (high in-plane, thick slices)\n- **FOV**: 230 x 205 mm, transverse oblique (AC-PC aligned)\n- **TR**: 27 ms\n- **TE1/TE2**: 9.4 ms / 19.7 ms\n- **Flip Angle**: 15 degrees\n- **Acceleration**: GRAPPA factor 2\n- **Slices**: 48\n- **Scan Time**: ~2.5 minutes\n\n### Dual-Echo Design\n\nTwo echoes are acquired per TR:\n- **First echo (TE=9.4 ms)**: Less T2* weighting, better SNR\n- **Second echo (TE=19.7 ms)**: More susceptibility contrast\n\nBoth magnitude and phase images are saved for each echo.\n\n### Key Features\n\n- Flow compensation reduces vessel signal loss from flowing blood\n- Phase images enable QSM-like processing\n- High in-plane resolution for microbleed detection\n- Bipolar readout for efficient dual-echo acquisition\n\n### Derived Measures\n\nUK Biobank uses SWI for:\n- Automated microbleed detection and counting\n- T2* mapping from dual-echo data\n- Iron quantification in basal ganglia\n- Small vessel disease burden assessment\n\n### Clinical Relevance\n\nMicrobleeds detected on SWI are associated with:\n- Cerebral amyloid angiopathy\n- Hypertensive vasculopathy\n- Increased stroke risk\n- Cognitive decline\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
-      "tags": ["analysis:qsm", "analysis:swi", "analysis:relaxometry", "brain", "SWI", "susceptibility", "T2*-weighted", "QSM"],
+      "tags": [
+        "analysis:qsm",
+        "analysis:swi",
+        "analysis:relaxometry",
+        "brain",
+        "SWI",
+        "susceptibility",
+        "T2*-weighted",
+        "QSM"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1288,7 +1308,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 3
+          "value": 3,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -1296,7 +1317,8 @@
           "value": [
             0.79861,
             0.79861
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -1321,12 +1343,14 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 27
+          "value": 27,
+          "tolerance": 10.0
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 15
+          "value": 15,
+          "tolerance": 2.0
         },
         {
           "field": "EchoTrainLength",
@@ -1374,12 +1398,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 88.88889
+          "value": 88.88889,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -1399,7 +1425,8 @@
             {
               "field": "EchoTime",
               "tag": "0018,0081",
-              "value": 9.42
+              "value": 9.42,
+              "tolerance": 1.0
             }
           ]
         },
@@ -1409,7 +1436,8 @@
             {
               "field": "EchoTime",
               "tag": "0018,0081",
-              "value": 19.7
+              "value": 19.7,
+              "tolerance": 1.0
             }
           ]
         }
@@ -1419,7 +1447,7 @@
           "id": "custom_1758084379924",
           "name": "Expected number of echoes",
           "description": "Expected two echoes",
-          "implementation": "expected = 2\nactual = value['EchoTime'].nunique()\n\nif expected != actual:\n  raise ValidationError(f\"Expected {expected} echoes but got {actual}.\")",
+          "implementation": "n = value[\"EchoTime\"].dropna().nunique()\nexact = params.get(\"exact_echoes\")\nif exact is not None:\n    if n != exact:\n        raise ValidationError(f\"Expected exactly {exact} echoes, found {n}.\")\nelse:\n    min_n = params.get(\"min_echoes\")\n    if min_n is not None and n < min_n:\n        raise ValidationError(f\"Only {n} echoes; at least {min_n} required.\")\n    rec = params.get(\"recommended_echoes\")\n    if rec is not None and n < rec:\n        raise ValidationWarning(f\"Found {n} echoes; {rec}+ recommended.\")\n",
           "fields": [
             "EchoTime"
           ],
@@ -1436,13 +1464,40 @@
               "expectedResult": "pass",
               "description": ""
             }
+          ],
+          "parameters": {
+            "exact_echoes": 2
+          },
+          "parameterDefinitions": [
+            {
+              "name": "min_echoes",
+              "label": "Minimum echoes",
+              "type": "number",
+              "default": 2,
+              "min": 1,
+              "description": "Fail if fewer unique echoes than this"
+            },
+            {
+              "name": "recommended_echoes",
+              "label": "Recommended echoes",
+              "type": "number",
+              "default": null,
+              "description": "Warn if fewer unique echoes than this (optional)"
+            },
+            {
+              "name": "exact_echoes",
+              "label": "Exact echoes",
+              "type": "number",
+              "default": null,
+              "description": "Require exactly this many echoes (overrides min/recommended)"
+            }
           ]
         },
         {
           "id": "validate_image_type",
           "name": "Valid Magnitude/Phase Pairs",
           "description": "Each EchoTime must have at least one magnitude and phase image.",
-          "implementation": "magnitude_counts = []\nphase_counts = []\n\nfor echo_time, group in value.groupby(\"EchoTime\"):\n    image_types = group[\"ImageType\"]\n    \n    # Count occurrences of 'M' and 'P' in ImageType tuples\n    magnitude_counts.append(sum('M' in image for image in image_types))\n    phase_counts.append(sum('P' in image for image in image_types))\n\nif not all(m >= 1 for m in magnitude_counts):\n    raise ValidationError(f\"Each EchoTime must have at least one magnitude image. Found {magnitude_counts}.\")\nif not all(p >= 1 for p in phase_counts):\n    raise ValidationError(f\"Each EchoTime must have at least one phase image. Found {phase_counts}.\")\n",
+          "implementation": "# Validate magnitude/phase pairs per echo\nfor echo_time, group in value.groupby(\"EchoTime\"):\n    image_types = group[\"ImageType\"]\n\n    # ImageType is list-valued; check components, not the string repr\n    has_magnitude = any(\"M\" in as_list(it) for it in image_types)\n    has_phase = any(\"P\" in as_list(it) for it in image_types)\n\n    if not has_magnitude:\n        raise ValidationError(f\"Echo time {echo_time} ms is missing magnitude image.\")\n\n    if not has_phase:\n        raise ValidationError(f\"Echo time {echo_time} ms is missing phase image.\")\n",
           "fields": [
             "ImageType",
             "EchoTime"
@@ -1468,14 +1523,20 @@
               "expectedResult": "pass",
               "description": ""
             }
-          ]
+          ],
+          "parameters": {},
+          "parameterDefinitions": []
         }
       ]
     },
     "T2 FLAIR structural brain images": {
       "description": "3D T2-weighted FLAIR acquisition for white matter lesion detection",
       "detailed_description": "## T2-Weighted FLAIR Structural MRI\n\nThis acquisition provides T2-weighted images with CSF suppression using a 3D Fluid-Attenuated Inversion Recovery (FLAIR) sequence, optimized for detecting white matter abnormalities.\n\n### Purpose\n\nThe T2 FLAIR scan is primarily used for:\n- White matter hyperintensity (WMH) detection and quantification\n- Assessment of small vessel cerebrovascular disease\n- Detection of periventricular and deep white matter lesions\n- Multiple sclerosis lesion identification\n- Stroke and ischemic lesion detection\n\n### Acquisition Parameters\n\n- **Sequence**: 3D SPACE with FLAIR (spcir_284ns)\n- **Resolution**: 1.0 x 1.0 x 1.05 mm (near-isotropic)\n- **FOV**: 256 x 256 mm, sagittal orientation\n- **TR/TE/TI**: 5000 ms / 395 ms / 1800 ms\n- **Flip Angle**: Variable (T2-optimized)\n- **Turbo Factor**: 284\n- **Acceleration**: GRAPPA factor 2\n- **Slices**: 192\n- **Scan Time**: ~6 minutes\n\n### Key Features\n\n- Long inversion time (TI=1800 ms) suppresses CSF signal\n- CSF suppression makes periventricular lesions clearly visible\n- 3D acquisition enables reformatting in any plane\n- Fat saturation reduces scalp signal artifacts\n- Near-isotropic resolution for accurate volumetric measurements\n\n### FLAIR Physics\n\nThe FLAIR technique uses an inversion pulse timed so that CSF (with long T1) has zero longitudinal magnetization at the time of excitation. This nulls CSF signal while preserving signal from pathological tissue that would otherwise be obscured.\n\n### Derived Measures\n\nUK Biobank provides WMH-related IDPs:\n- Total white matter hyperintensity volume\n- Periventricular vs deep WMH volumes\n- Lesion count and distribution\n- Fazekas visual rating scale scores\n\n### Clinical Relevance\n\nWhite matter hyperintensities on FLAIR are associated with:\n- Age and vascular risk factors\n- Cognitive decline and dementia risk\n- Stroke risk\n- Gait and balance disturbances\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
-      "tags": ["brain", "structural", "FLAIR"],
+      "tags": [
+        "brain",
+        "structural",
+        "FLAIR"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1522,7 +1583,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 1.05
+          "value": 1.05,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -1530,7 +1592,8 @@
           "value": [
             1,
             1
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -1555,22 +1618,26 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 5000
+          "value": 5000,
+          "tolerance": 10.0
         },
         {
           "field": "EchoTime",
           "tag": "0018,0081",
-          "value": 395
+          "value": 395,
+          "tolerance": 1.0
         },
         {
           "field": "InversionTime",
           "tag": "0018,0082",
-          "value": 1800
+          "value": 1800,
+          "tolerance": 10.0
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 120
+          "value": 120,
+          "tolerance": 2.0
         },
         {
           "field": "EchoTrainLength",
@@ -1618,12 +1685,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -1678,7 +1747,12 @@
     "Functional brain images - resting": {
       "description": "Multi-band EPI acquisition for resting-state functional connectivity",
       "detailed_description": "## Resting-State Functional MRI\n\nThis acquisition captures spontaneous brain activity fluctuations during rest using BOLD contrast with multi-band acceleration, enabling analysis of intrinsic functional connectivity.\n\n### Purpose\n\nThe resting-state fMRI scan enables investigation of intrinsic brain organization:\n- Functional connectivity between brain regions\n- Identification of resting-state networks (default mode, salience, etc.)\n- Network topology and graph-theoretic measures\n- Individual differences in brain functional organization\n- Biomarkers for neurological and psychiatric conditions\n\n### Acquisition Parameters\n\n- **Sequence**: Gradient-echo EPI with multi-band acceleration\n- **Resolution**: 2.4 mm isotropic\n- **FOV**: 210 x 210 mm, transverse oblique (AC-PC aligned)\n- **TR/TE**: 735 ms / 39 ms\n- **Flip Angle**: 52 degrees\n- **Multi-band Factor**: 8 (64 slices acquired simultaneously in 8 groups)\n- **Slices**: 64 (whole brain coverage)\n- **Volumes**: 490\n- **Scan Time**: ~6 minutes\n\n### Participant Instructions\n\nDuring the resting-state scan, participants are instructed to:\n- Keep eyes open and fixate on a crosshair\n- Stay awake and relaxed\n- Let their mind wander freely\n- Avoid structured thinking or mental tasks\n\n### Key Features\n\n- Ultra-fast TR (735 ms) provides excellent temporal resolution\n- Multi-band acceleration enables whole-brain coverage with short TR\n- ~6 minutes provides sufficient data for reliable connectivity estimates\n- Single-band reference (SBRef) image for distortion correction\n- Fat saturation reduces artifacts from subcutaneous tissue\n\n### Derived Measures\n\nUK Biobank provides numerous functional connectivity IDPs:\n- Node amplitudes for 21 resting-state network nodes (ICA-based)\n- Full and partial correlation matrices between network nodes\n- Network-specific connectivity measures\n- Amplitude of low-frequency fluctuations (ALFF)\n\n### Processing Pipeline\n\n1. Motion correction and distortion correction (using field maps)\n2. Registration to T1 and MNI space\n3. ICA-based denoising (FIX) to remove artifacts\n4. Bandpass filtering (typically 0.01-0.1 Hz)\n5. Dual regression for subject-specific network maps\n\n### Reference\n\nMiller, K.L., et al. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. Nature Neuroscience, 19(11), 1523-1536.",
-      "tags": ["analysis:fmri", "brain", "fMRI", "resting-state"],
+      "tags": [
+        "analysis:fmri",
+        "brain",
+        "fMRI",
+        "resting-state"
+      ],
       "fields": [
         {
           "field": "SequenceName",
@@ -1716,7 +1790,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 2.4
+          "value": 2.4,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -1724,7 +1799,8 @@
           "value": [
             2.38636,
             2.38636
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -1749,7 +1825,8 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 735
+          "value": 735,
+          "tolerance": 10.0
         },
         {
           "field": "EchoTime",
@@ -1814,12 +1891,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",

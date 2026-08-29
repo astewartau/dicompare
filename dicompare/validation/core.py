@@ -25,6 +25,31 @@ ALLOWED_RULE_MODULES = frozenset({
 })
 
 
+def resolve_rule_params(parameters: Any) -> Dict[str, Any]:
+    """
+    Resolve a rule's ``parameters`` entry into a plain ``{name: value}`` dict.
+
+    Two shapes are accepted:
+        - A dict of configured values (``{"min_echoes": 8}``) — the form
+          written into saved schemas — is returned as-is.
+        - A list of parameter *declarations* (the form used by the validation
+          function library, e.g. ``[{"name": "min_echoes", "type": "number",
+          "default": 8, ...}]``) — resolved to each declaration's default.
+
+    Anything else (None, legacy null, unexpected types) resolves to ``{}`` so
+    rules that don't use parameters are unaffected.
+    """
+    if isinstance(parameters, dict):
+        return dict(parameters)
+    if isinstance(parameters, list):
+        resolved = {}
+        for decl in parameters:
+            if isinstance(decl, dict) and 'name' in decl:
+                resolved[decl['name']] = decl.get('default')
+        return resolved
+    return {}
+
+
 class RuleContext:
     """
     v2 rule API, available as ``ctx`` inside rule implementations.
@@ -47,10 +72,13 @@ class RuleContext:
     before.
     """
 
-    def __init__(self, df):
+    def __init__(self, df, params: Dict[str, Any] = None):
         self._df = df
         self.errors = []
         self.warnings = []
+        #: Configured parameter values for this rule instance (also available
+        #: as the bare ``params`` dict inside implementations).
+        self.params = dict(params) if params else {}
 
     def error(self, message) -> None:
         """Record a hard failure (data does not meet a requirement)."""
@@ -437,6 +465,9 @@ def safe_exec_rule(code: str, context: Dict[str, Any]) -> Any:
           **tuples** (they must be hashable for grouping/uniqueness). Tuples are
           indexable and iterable exactly like lists, so no parsing is needed; use
           ``as_list(value["Field"][i])`` if you specifically want a list.
+        - ``params``: dict of configured parameter values for this rule
+          instance (empty dict when the rule declares no parameters). Also
+          available as ``ctx.params``. Read with ``params["min_echoes"]``.
         - Pre-injected: ``pd``, ``np`` (numpy), ``math``, ``ast``, ``re``,
           ``statistics``, ``as_list``, ``ValidationError``, ``ValidationWarning``.
         - ``import`` is permitted only for a safe whitelist
@@ -576,9 +607,15 @@ def create_validation_model_from_rules(acquisition_name: str, rules: List[Dict[s
         rule_optional = rule.get('optional_fields', []) or []
         rule_message = rule.get('description', '')
         rule_impl = rule['implementation']
-        
+        # Parameter values injected into the rule's namespace as `params` /
+        # `ctx.params`: declaration defaults (parameterDefinitions) overlaid
+        # by configured values (parameters). Either key also tolerates the
+        # other shape via resolve_rule_params.
+        rule_params = resolve_rule_params(rule.get('parameterDefinitions'))
+        rule_params.update(resolve_rule_params(rule.get('parameters')))
+
         # Create the validator method
-        def make_validator(impl_code, name, message):
+        def make_validator(impl_code, name, message, params):
             """Closure to capture rule-specific variables."""
             def validator_method(cls, value):
                 """Dynamically generated validator method."""
@@ -586,8 +623,8 @@ def create_validation_model_from_rules(acquisition_name: str, rules: List[Dict[s
                 # v1 interface (DataFrame with tuple-valued list cells);
                 # `ctx` is the v2 interface (typed access + collected
                 # error/warn severities).
-                ctx = RuleContext(value)
-                context = {'value': value, 'ctx': ctx}
+                ctx = RuleContext(value, params=params)
+                context = {'value': value, 'ctx': ctx, 'params': dict(params)}
 
                 # Execute the rule implementation
                 try:
@@ -615,7 +652,7 @@ def create_validation_model_from_rules(acquisition_name: str, rules: List[Dict[s
             return validator_method
         
         # Add the validator method to the class attributes
-        class_attrs[rule_id] = make_validator(rule_impl, rule_name, rule_message)
+        class_attrs[rule_id] = make_validator(rule_impl, rule_name, rule_message, rule_params)
     
     # Create and return an instance of the dynamic class
     DynamicModel = type(class_name, (BaseValidationModel,), class_attrs)

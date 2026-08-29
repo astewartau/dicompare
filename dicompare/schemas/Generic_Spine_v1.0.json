@@ -9,7 +9,11 @@
   "acquisitions": {
     "T1-weighted 3D": {
       "description": "High-resolution 3D T1-weighted structural imaging of the spinal cord",
-      "tags": ["spine", "structural", "T1-weighted"],
+      "tags": [
+        "spine",
+        "structural",
+        "T1-weighted"
+      ],
       "detailed_description": "## 3D T1-Weighted Structural Imaging\n\n### Overview\nThe T1-weighted 3D acquisition provides high-resolution anatomical imaging of the spinal cord for morphometric analysis, tissue segmentation, and cross-sectional area measurements. Uses HCP-inspired parameters with 9\u00b0 flip angle.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** BRAVO / IR-FSPGR\n- **Siemens:** MPRAGE (Magnetization Prepared Rapid Gradient Echo)\n- **Philips:** T1TFE (T1 Turbo Field Echo)\n\n### Clinical Purpose\n- Spinal cord cross-sectional area quantification\n- Gray matter / white matter segmentation\n- Anatomical reference for registration\n- Structural lesion detection\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Target Resolution:** 1.0 mm isotropic\n- **Coverage:** Full cervical spine (C1-C7)\n- **Flip Angle:** 9\u00b0 (HCP-inspired)\n- **Inversion Time:** ~1000 ms\n- **Scan Duration:** ~5 minutes\n\n### Technical Notes\n- Parallel imaging (GRAPPA/SENSE/ARC) factor: 2\n- Inversion pulse preparation for enhanced GM/WM contrast\n- Sagittal orientation optimized for spinal cord imaging\n- TR varies by vendor: Siemens ~2000ms, Philips ~8ms, GE ~4ms (different TR definitions)\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
@@ -32,7 +36,8 @@
           "tag": "0018,1314",
           "value": 9,
           "vr": "DS",
-          "dataType": "number"
+          "dataType": "number",
+          "tolerance": 2.0
         },
         {
           "field": "MagneticFieldStrength",
@@ -72,14 +77,6 @@
           "vr": "CS",
           "dataType": "string",
           "contains": "IR"
-        },
-        {
-          "field": "EchoTime",
-          "tag": "0018,0081",
-          "value": 3.5,
-          "vr": "DS",
-          "dataType": "number",
-          "tolerance": 100
         }
       ],
       "series": [],
@@ -88,7 +85,7 @@
           "id": "validate_t1w_vendor_sequence",
           "name": "T1w Vendor-Specific Sequence",
           "description": "Validates that the correct sequence type is used for each vendor: GE should use GR (BRAVO), Siemens/Philips should use GR+IR (MPRAGE/T1TFE).",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nscanning_seq = value['ScanningSequence'].iloc[0] if 'ScanningSequence' in value.columns else ''\n\nif 'GE' in manufacturer:\n    if 'GR' not in scanning_seq:\n        raise ValidationError(f\"GE T1w should use gradient echo (GR/BRAVO). Found: {scanning_seq}\")\nelif 'SIEMENS' in manufacturer:\n    if 'IR' not in scanning_seq or 'GR' not in scanning_seq:\n        raise ValidationError(f\"Siemens T1w should use GR+IR (MPRAGE). Found: {scanning_seq}\")\nelif 'PHILIPS' in manufacturer:\n    if 'IR' not in scanning_seq or 'GR' not in scanning_seq:\n        raise ValidationError(f\"Philips T1w should use GR+IR (T1TFE). Found: {scanning_seq}\")",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nraw = value[field].iloc[0]\ntext = \"\\\\\".join(map(str, raw)) if isinstance(raw, (list, tuple)) else str(raw)\nlabel = params.get(\"label\") or field\n\ndef matches(needle):\n    if \"|\" in needle:\n        return any(part.strip() in text for part in needle.split(\"|\"))\n    return all(part.strip() in text for part in needle.split(\"+\"))\n\nrequired = {\n    \"SIEMENS\": params.get(\"siemens_contains\"),\n    \"PHILIPS\": params.get(\"philips_contains\"),\n    \"GE\": params.get(\"ge_contains\"),\n}\nfor vendor, needle in required.items():\n    if vendor in m:\n        if needle and not matches(needle):\n            raise ValidationError(f\"{vendor.title()} {label} should contain '{needle}'. Found: {text}\")\n        break\n",
           "fields": [
             "Manufacturer",
             "ScanningSequence"
@@ -150,13 +147,49 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "label": "T1w sequence",
+            "siemens_contains": "IR+GR",
+            "ge_contains": "GR",
+            "philips_contains": "IR+GR"
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "sequence",
+              "description": "Human-readable name of the checked value, used in messages"
+            },
+            {
+              "name": "siemens_contains",
+              "label": "Siemens must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            },
+            {
+              "name": "ge_contains",
+              "label": "GE must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            },
+            {
+              "name": "philips_contains",
+              "label": "Philips must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            }
           ]
         },
         {
           "id": "validate_t1w_vendor_tr",
           "name": "T1w Vendor-Specific TR",
           "description": "Validates TR is within expected range for each vendor. TR varies significantly due to different sequence implementations: Siemens MPRAGE ~2000ms, Philips T1TFE ~8ms, GE BRAVO ~4-8ms.",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\ntr = value['RepetitionTime'].iloc[0] if 'RepetitionTime' in value.columns else None\n\nif tr is None:\n    pass\nelif 'SIEMENS' in manufacturer:\n    if abs(tr - 2000) > 200:\n        raise ValidationError(f\"Siemens MPRAGE TR should be ~2000ms. Found: {tr}ms\")\nelif 'GE' in manufacturer:\n    if tr < 3 or tr > 12:\n        raise ValidationError(f\"GE BRAVO TR should be ~4-8ms. Found: {tr}ms\")\nelif 'PHILIPS' in manufacturer:\n    if tr < 5 or tr > 12:\n        raise ValidationError(f\"Philips T1TFE TR should be ~8ms. Found: {tr}ms\")",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
           "fields": [
             "Manufacturer",
             "RepetitionTime"
@@ -246,13 +279,229 @@
               "expectedResult": "fail",
               "description": "Philips uses different TR definition than Siemens"
             }
+          ],
+          "parameters": {
+            "label": "T1w TR",
+            "unit": "ms",
+            "siemens_min": 1800,
+            "siemens_max": 2200,
+            "ge_min": 3,
+            "ge_max": 12,
+            "philips_min": 5,
+            "philips_max": 12
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
+          ]
+        },
+        {
+          "id": "validate_t1w_vendor_te",
+          "name": "T1w vendor echo time",
+          "description": "Vendor-specific TE check for T1w, per the spine-generic protocol specs",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
+          "fields": [
+            "Manufacturer",
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_validate_t1w_vendor_te_siemens_pass",
+              "name": "SIEMENS in range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  3.5
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_t1w_vendor_te_siemens_fail",
+              "name": "SIEMENS out of range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  18.5
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_validate_t1w_vendor_te_philips_pass",
+              "name": "PHILIPS in range",
+              "data": {
+                "Manufacturer": [
+                  "PHILIPS"
+                ],
+                "EchoTime": [
+                  3.5
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_t1w_vendor_te_philips_fail",
+              "name": "PHILIPS out of range",
+              "data": {
+                "Manufacturer": [
+                  "PHILIPS"
+                ],
+                "EchoTime": [
+                  18.5
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ],
+          "parameters": {
+            "label": "T1w TE",
+            "unit": "ms",
+            "siemens_min": 2.5,
+            "siemens_max": 4.5,
+            "philips_min": 2.5,
+            "philips_max": 4.5
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
           ]
         }
       ]
     },
     "T2-weighted 3D": {
       "description": "High-resolution 3D T2-weighted structural imaging with CSF suppression",
-      "tags": ["spine", "structural", "T2-weighted"],
+      "tags": [
+        "spine",
+        "structural",
+        "T2-weighted"
+      ],
       "detailed_description": "## 3D T2-Weighted Structural Imaging\n\n### Overview\nThe T2-weighted 3D acquisition provides high-resolution imaging with excellent gray matter/white matter contrast and CSF signal suppression, optimized for spinal cord tissue characterization.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** CUBE (Cuboid Volume Acquisition)\n- **Siemens:** SPACE (Sampling Perfection with Application optimized Contrasts using different flip angle Evolution)\n- **Philips:** VISTA (Volume ISotropic Turbo spin echo Acquisition)\n\n### Clinical Purpose\n- Enhanced gray/white matter differentiation\n- Lesion detection with T2 contrast\n- Tissue microstructure assessment\n- Complementary anatomical reference to T1w\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Target Resolution:** 0.8 mm isotropic\n- **Coverage:** Cervical spine region\n- **Echo Train Length:** 76-92\n- **Scan Duration:** ~4-6 minutes\n\n### Vendor Variations (expected)\n- Siemens: TR = 1550 ms\n- Philips: TR = 3500 ms\n- GE: TR = 2507 ms\n\n### Technical Notes\n- Variable flip angle trains optimize signal across long echo trains\n- Flow compensation in frequency direction reduces CSF pulsation artifacts\n- Parallel imaging factor: 2-3 (vendor-dependent)\n- Sagittal acquisition with high in-plane resolution\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
@@ -269,14 +518,6 @@
           "vr": "DS",
           "dataType": "number",
           "tolerance": 0.1
-        },
-        {
-          "field": "EchoTime",
-          "tag": "0018,0081",
-          "value": 120,
-          "vr": "DS",
-          "dataType": "number",
-          "tolerance": 100
         },
         {
           "field": "EchoTrainLength",
@@ -316,7 +557,7 @@
           "id": "validate_t2w_vendor_flip_angle",
           "name": "T2w Vendor-Specific Flip Angle",
           "description": "Validates FlipAngle matches expected value for each vendor (exact match). Siemens uses 120\u00b0, GE/Philips use 90\u00b0.",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nfa = value['FlipAngle'].iloc[0] if 'FlipAngle' in value.columns else None\n\nif fa is None:\n    pass\nelif 'SIEMENS' in manufacturer:\n    if fa != 120:\n        raise ValidationError(f\"Siemens T2w FlipAngle must be 120\u00b0 (variable refocusing). Found: {fa}\u00b0\")\nelif 'GE' in manufacturer:\n    if fa != 90:\n        raise ValidationError(f\"GE T2w FlipAngle must be 90\u00b0. Found: {fa}\u00b0\")\nelif 'PHILIPS' in manufacturer:\n    if fa != 90:\n        raise ValidationError(f\"Philips T2w FlipAngle must be 90\u00b0. Found: {fa}\u00b0\")",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
           "fields": [
             "Manufacturer",
             "FlipAngle"
@@ -378,13 +619,86 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "label": "T2w flip angle",
+            "unit": "deg",
+            "siemens_min": 120,
+            "siemens_max": 120,
+            "ge_min": 90,
+            "ge_max": 90,
+            "philips_min": 90,
+            "philips_max": 90
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
           ]
         },
         {
           "id": "validate_t2w_vendor_tr",
           "name": "T2w Vendor-Specific TR",
           "description": "Validates TR is within expected range for each vendor. TR varies significantly: Siemens ~1550ms, GE ~2507ms, Philips ~3500ms.",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\ntr = value['RepetitionTime'].iloc[0] if 'RepetitionTime' in value.columns else None\n\nif tr is None:\n    pass\nelif 'SIEMENS' in manufacturer:\n    if abs(tr - 1550) > 200:\n        raise ValidationError(f\"Siemens SPACE TR should be ~1550ms. Found: {tr}ms\")\nelif 'GE' in manufacturer:\n    if abs(tr - 2507) > 500:\n        raise ValidationError(f\"GE CUBE TR should be ~2507ms. Found: {tr}ms\")\nelif 'PHILIPS' in manufacturer:\n    if abs(tr - 3500) > 500:\n        raise ValidationError(f\"Philips VISTA TR should be ~3500ms. Found: {tr}ms\")",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
           "fields": [
             "Manufacturer",
             "RepetitionTime"
@@ -446,13 +760,261 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "label": "T2w TR",
+            "unit": "ms",
+            "siemens_min": 1350,
+            "siemens_max": 1750,
+            "ge_min": 2007,
+            "ge_max": 3007,
+            "philips_min": 3000,
+            "philips_max": 4000
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
+          ]
+        },
+        {
+          "id": "validate_t2w_vendor_te",
+          "name": "T2w vendor echo time",
+          "description": "Vendor-specific TE check for T2w, per the spine-generic protocol specs",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
+          "fields": [
+            "Manufacturer",
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_validate_t2w_vendor_te_siemens_pass",
+              "name": "SIEMENS in range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  120.0
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_t2w_vendor_te_siemens_fail",
+              "name": "SIEMENS out of range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  395
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_validate_t2w_vendor_te_ge_pass",
+              "name": "GE in range",
+              "data": {
+                "Manufacturer": [
+                  "GE"
+                ],
+                "EchoTime": [
+                  120.0
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_t2w_vendor_te_ge_fail",
+              "name": "GE out of range",
+              "data": {
+                "Manufacturer": [
+                  "GE"
+                ],
+                "EchoTime": [
+                  395
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_validate_t2w_vendor_te_philips_pass",
+              "name": "PHILIPS in range",
+              "data": {
+                "Manufacturer": [
+                  "PHILIPS"
+                ],
+                "EchoTime": [
+                  120.0
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_t2w_vendor_te_philips_fail",
+              "name": "PHILIPS out of range",
+              "data": {
+                "Manufacturer": [
+                  "PHILIPS"
+                ],
+                "EchoTime": [
+                  395
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ],
+          "parameters": {
+            "label": "T2w TE",
+            "unit": "ms",
+            "siemens_min": 110,
+            "siemens_max": 130,
+            "ge_min": 110,
+            "ge_max": 130,
+            "philips_min": 110,
+            "philips_max": 130
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
           ]
         }
       ]
     },
     "Diffusion-Weighted 2D": {
       "description": "Cardiac-gated diffusion-weighted imaging for white matter microstructure assessment",
-      "tags": ["analysis:diffusion", "spine", "dMRI", "diffusion", "DTI"],
+      "tags": [
+        "analysis:diffusion",
+        "spine",
+        "dMRI",
+        "diffusion",
+        "DTI"
+      ],
       "detailed_description": "## 2D Diffusion-Weighted Imaging (DWI)\n\n### Overview\nCardiac-gated diffusion-weighted imaging optimized for spinal cord white matter tract characterization using diffusion tensor imaging (DTI) analysis.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SE-EPI with and without FOCUS\n- **Siemens:** ep2d_diff with and without ZOOMit\n- **Philips:** Zoom Diffusion (reduced FOV diffusion imaging)\n\n### Clinical Purpose\n- White matter tract integrity assessment via DTI metrics (FA, MD, RD, AD)\n- Axonal damage quantification\n- Fiber orientation mapping\n- Microstructural tissue characterization\n\n### Key Parameters\n- **Acquisition Type:** 2D multi-slice\n- **Gating:** Cardiac triggered (5 RR intervals)\n- **Diffusion Scheme:** 30 directions + b=0 baseline\n- **b-values:** 0, 800 s/mm\u00b2\n- **Resolution:** 0.9\u00d70.9\u00d75.0 mm (BaseResolution=96)\n- **TE:** 60-99 ms (varies with gradient strength: 40-80 mT/m)\n- **Flip Angle:** 90\u00b0\n- **Phase Encoding:** P-A (j-) in 94% of acquisitions\n- **Scan Duration:** ~5-7 minutes (heart-rate dependent)\n\n### Technical Notes\n- **Cardiac Gating:** Critical for minimizing CSF pulsation artifacts\n- **Reduced FOV Imaging:** Siemens ZOOMit, Philips Zoom Diffusion, GE FOCUS\n- **TE Variations:** Protocol specifies \"minimum TE\" which varies by gradient strength\n- **Partial Fourier:** 62-97% (typically ~75%)\n- **Parallel Imaging:** Factor 2\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
@@ -475,15 +1037,8 @@
           "tag": "0018,1314",
           "value": 90,
           "vr": "DS",
-          "dataType": "number"
-        },
-        {
-          "field": "EchoTime",
-          "tag": "0018,0081",
-          "value": 70,
-          "vr": "DS",
           "dataType": "number",
-          "tolerance": 100
+          "tolerance": 2.0
         },
         {
           "field": "MagneticFieldStrength",
@@ -531,7 +1086,7 @@
           "id": "validate_dwi_vendor_sequence",
           "name": "DWI Vendor-Specific Sequence",
           "description": "Validates the correct EPI sequence type for each vendor: GE uses SE, Siemens uses EP, Philips uses EP+SE combination.",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nscanning_seq = value['ScanningSequence'].iloc[0] if 'ScanningSequence' in value.columns else ''\n\nif 'GE' in manufacturer:\n    if 'SE' not in scanning_seq:\n        raise ValidationError(f\"GE DWI should use SE-EPI sequence. Found: {scanning_seq}\")\nelif 'SIEMENS' in manufacturer:\n    if 'EP' not in scanning_seq:\n        raise ValidationError(f\"Siemens DWI should use EP (ep2d_diff) sequence. Found: {scanning_seq}\")\nelif 'PHILIPS' in manufacturer:\n    if 'EP' not in scanning_seq and 'SE' not in scanning_seq:\n        raise ValidationError(f\"Philips DWI should use EP/SE (Zoom Diffusion) sequence. Found: {scanning_seq}\")",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nraw = value[field].iloc[0]\ntext = \"\\\\\".join(map(str, raw)) if isinstance(raw, (list, tuple)) else str(raw)\nlabel = params.get(\"label\") or field\n\ndef matches(needle):\n    if \"|\" in needle:\n        return any(part.strip() in text for part in needle.split(\"|\"))\n    return all(part.strip() in text for part in needle.split(\"+\"))\n\nrequired = {\n    \"SIEMENS\": params.get(\"siemens_contains\"),\n    \"PHILIPS\": params.get(\"philips_contains\"),\n    \"GE\": params.get(\"ge_contains\"),\n}\nfor vendor, needle in required.items():\n    if vendor in m:\n        if needle and not matches(needle):\n            raise ValidationError(f\"{vendor.title()} {label} should contain '{needle}'. Found: {text}\")\n        break\n",
           "fields": [
             "Manufacturer",
             "ScanningSequence"
@@ -579,13 +1134,49 @@
               "expectedResult": "pass",
               "description": ""
             }
+          ],
+          "parameters": {
+            "label": "DWI sequence",
+            "ge_contains": "SE",
+            "siemens_contains": "EP",
+            "philips_contains": "EP|SE"
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "sequence",
+              "description": "Human-readable name of the checked value, used in messages"
+            },
+            {
+              "name": "siemens_contains",
+              "label": "Siemens must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            },
+            {
+              "name": "ge_contains",
+              "label": "GE must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            },
+            {
+              "name": "philips_contains",
+              "label": "Philips must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            }
           ]
         },
         {
           "id": "validate_dwi_bvalue",
           "name": "DWI b-value Check",
           "description": "DWI should include b=0 and b=800 s/mm\u00b2 acquisitions for DTI analysis.",
-          "implementation": "if 'DiffusionBValue' in value.columns:\n    bvalues = value['DiffusionBValue'].dropna().unique()\n    has_b0 = any(b < 50 for b in bvalues)\n    has_b800 = any(700 < b < 900 for b in bvalues)\n    if not has_b0:\n        raise ValidationError(\"DWI should include b=0 acquisition for DTI baseline.\")\n    if not has_b800:\n        raise ValidationError(f\"DWI should include b~800 s/mm\u00b2 acquisition. Found b-values: {sorted(bvalues)}\")",
+          "implementation": "b = sorted(float(x) for x in value[\"DiffusionBValue\"].dropna().unique())\nif not b:\n    raise ValidationError(\"No DiffusionBValue found \u2014 is this a diffusion series?\")\n\ndef parse_ranges(spec):\n    ranges = []\n    for part in [p.strip() for p in str(spec or \"\").split(\",\") if p.strip()]:\n        lo_str, _, hi_str = part.partition(\"-\")\n        ranges.append((float(lo_str), float(hi_str) if hi_str else float(lo_str)))\n    return ranges\n\nfound = [int(round(x)) for x in b]\nmissing = [f\"{lo:g}-{hi:g}\" for lo, hi in parse_ranges(params.get(\"required_ranges\"))\n           if not any(lo <= x <= hi for x in b)]\nif missing:\n    raise ValidationError(f\"Missing required b-value range(s) {', '.join(missing)} s/mm\u00b2. Found: {found}\")\nrecommended = [f\"{lo:g}-{hi:g}\" for lo, hi in parse_ranges(params.get(\"recommended_ranges\"))\n              if not any(lo <= x <= hi for x in b)]\nif recommended:\n    raise ValidationWarning(f\"Missing recommended b-value range(s) {', '.join(recommended)} s/mm\u00b2. Found: {found}\")\n",
           "fields": [
             "DiffusionBValue"
           ],
@@ -617,18 +1208,35 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "required_ranges": "0-50, 700-900"
+          },
+          "parameterDefinitions": [
+            {
+              "name": "required_ranges",
+              "label": "Required ranges",
+              "type": "string",
+              "default": "0-50, 500-50000",
+              "description": "Comma-separated 'lo-hi' b-value ranges (s/mm\u00b2) that must each contain at least one b-value"
+            },
+            {
+              "name": "recommended_ranges",
+              "label": "Recommended ranges",
+              "type": "string",
+              "default": null,
+              "description": "Ranges that produce a warning when no b-value falls within them"
+            }
           ]
         },
         {
           "id": "validate_dwi_phase_encoding_polarity",
           "name": "DWI Phase Encoding Polarity",
           "description": "Validates phase encoding direction polarity. Spine-generic DWI uses P-A (posterior to anterior) phase encoding. Siemens: PhaseEncodingDirectionPositive=0, GE: RectilinearPhaseEncodeReordering=REVERSE_LINEAR. Philips does not encode polarity in DICOM.",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\n\n# Check InPlanePhaseEncodingDirection first (should be COL for A-P axis)\nif 'InPlanePhaseEncodingDirection' in value.columns:\n    pe_dir = str(value['InPlanePhaseEncodingDirection'].iloc[0]).upper()\n    if pe_dir != 'COL':\n        raise ValidationError(f\"DWI phase encoding should be along COL (A-P axis). Found: {pe_dir}\")\n\n# Vendor-specific polarity checks\nif 'SIEMENS' in manufacturer:\n    if 'PhaseEncodingDirectionPositive' in value.columns:\n        pe_positive = value['PhaseEncodingDirectionPositive'].iloc[0]\n        if pe_positive is not None:\n            pe_positive = int(pe_positive)\n            if pe_positive != 0:\n                raise ValidationError(f\"Siemens DWI should use P-A phase encoding (PhaseEncodingDirectionPositive=0). Found: {pe_positive}\")\n    else:\n        raise ValidationWarning(\"Siemens PhaseEncodingDirectionPositive not found. Cannot verify P-A phase encoding polarity.\")\n\nelif 'GE' in manufacturer:\n    if 'RectilinearPhaseEncodeReordering' in value.columns:\n        pe_reorder = str(value['RectilinearPhaseEncodeReordering'].iloc[0]).upper()\n        # REVERSE_LINEAR indicates reversed phase encoding direction\n        if 'REVERSE' not in pe_reorder:\n            raise ValidationWarning(f\"GE DWI typically uses REVERSE_LINEAR for P-A encoding. Found: {pe_reorder}\")\n    else:\n        raise ValidationWarning(\"GE RectilinearPhaseEncodeReordering not found. Cannot verify phase encoding polarity.\")\n\nelif 'PHILIPS' in manufacturer:\n    raise ValidationWarning(\"Philips DICOM does not encode phase encoding polarity. Please manually verify P-A phase encoding direction.\")",
+          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\naxis = (params.get('expected_axis') or 'COL').upper()\nexpect_reversed = params.get('expect_reversed')\nif expect_reversed is None:\n    expect_reversed = True\n\nif 'InPlanePhaseEncodingDirection' in value.columns:\n    pe_dir = str(value['InPlanePhaseEncodingDirection'].iloc[0]).upper()\n    if pe_dir != axis:\n        raise ValidationError(f\"Phase encoding should be along {axis}. Found: {pe_dir}\")\n\nif 'SIEMENS' in manufacturer:\n    if 'PhaseEncodingDirectionPositive' in value.columns:\n        pe_positive = value['PhaseEncodingDirectionPositive'].iloc[0]\n        if pe_positive is not None and not pd.isna(pe_positive):\n            expected = 0 if expect_reversed else 1\n            if int(pe_positive) != expected:\n                raise ValidationError(f\"Phase encoding polarity mismatch: PhaseEncodingDirectionPositive={int(pe_positive)}, expected {expected}.\")\n    else:\n        raise ValidationWarning('Siemens PhaseEncodingDirectionPositive not found. Cannot verify phase encoding polarity.')\nelif 'GE' in manufacturer:\n    if 'RectilinearPhaseEncodeReordering' in value.columns:\n        pe_reorder = str(value['RectilinearPhaseEncodeReordering'].iloc[0]).upper()\n        is_reversed = 'REVERSE' in pe_reorder\n        if is_reversed != expect_reversed:\n            raise ValidationWarning(f\"GE phase encode reordering '{pe_reorder}' does not match the expected polarity.\")\n    else:\n        raise ValidationWarning('GE RectilinearPhaseEncodeReordering not found. Cannot verify phase encoding polarity.')\nelif 'PHILIPS' in manufacturer:\n    raise ValidationWarning('Philips DICOM does not encode phase encoding polarity. Please verify manually.')\n",
           "fields": [
             "Manufacturer",
-            "InPlanePhaseEncodingDirection",
-            "PhaseEncodingDirectionPositive",
-            "RectilinearPhaseEncodeReordering"
+            "InPlanePhaseEncodingDirection"
           ],
           "testCases": [
             {
@@ -713,13 +1321,48 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "optional_fields": [
+            "PhaseEncodingDirectionPositive",
+            "RectilinearPhaseEncodeReordering"
+          ],
+          "parameters": {
+            "expected_axis": "COL",
+            "expect_reversed": true
+          },
+          "parameterDefinitions": [
+            {
+              "name": "expected_axis",
+              "label": "Expected axis",
+              "type": "enum",
+              "default": "COL",
+              "options": [
+                "COL",
+                "ROW"
+              ],
+              "description": "Required InPlanePhaseEncodingDirection (COL = A-P axis, ROW = R-L axis)"
+            },
+            {
+              "name": "expect_reversed",
+              "label": "Expect reversed polarity",
+              "type": "boolean",
+              "default": true,
+              "description": "True for reversed polarity (e.g. P-A when the axis is COL), false for positive (e.g. A-P)"
+            }
           ]
         }
       ]
     },
     "Multi-Echo GRE 2D": {
       "description": "Multi-echo gradient echo imaging for T2* relaxometry and gray matter visualization",
-      "tags": ["analysis:relaxometry", "spine", "GRE", "multi-echo", "T2*", "quantitative"],
+      "tags": [
+        "analysis:relaxometry",
+        "spine",
+        "GRE",
+        "multi-echo",
+        "T2*",
+        "quantitative"
+      ],
       "detailed_description": "## 2D Multi-Echo Gradient Recalled Echo (ME-GRE / T2star)\n\n### Overview\nMulti-echo gradient echo sequence designed for quantitative T2* mapping and gray matter characterization in the spinal cord.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** MERGE (Multiple Echo Recombined Gradient Echo)\n- **Siemens:** GRE \"medic\" (Multi-Echo Data Image Combination)\n- **Philips:** mFFE (multi Fast Field Echo)\n\n### Clinical Purpose\n- Quantitative T2* relaxometry\n- Gray matter/white matter contrast via T2* differences\n- Gray matter CSA quantification (relevant for ALS)\n- Iron content assessment\n\n### Key Parameters\n- **Acquisition Type:** 2D multi-slice\n- **Resolution:** 0.5\u00d70.5\u00d75.0 mm (BaseResolution=448)\n- **Flip Angle:** 30\u00b0\n- **TR:** 600-660 ms\n- **Number of Echoes:** Multi-echo (typically 3-5)\n- **Coverage:** Axial slices covering cervical cord\n- **Scan Duration:** ~3-4 minutes\n\n### Technical Notes\n- **Anterior Saturation Band:** Critical feature to suppress swallowing artifacts\n- **T2* Fitting:** Post-processing fits mono-exponential decay across echo times\n- **Gray Matter Sensitivity:** T2* particularly sensitive to gray matter due to iron content\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
@@ -750,7 +1393,8 @@
           "tag": "0018,1314",
           "value": 30,
           "vr": "DS",
-          "dataType": "number"
+          "dataType": "number",
+          "tolerance": 2.0
         },
         {
           "field": "MagneticFieldStrength",
@@ -790,7 +1434,7 @@
           "id": "validate_megre_multiecho",
           "name": "Multi-Echo Validation",
           "description": "The ME-GRE sequence should be a multi-echo acquisition (3+ echoes) for robust T2* fitting.",
-          "implementation": "echo_times = value['EchoTime'].dropna().unique() if 'EchoTime' in value.columns else []\nif len(echo_times) < 3:\n    raise ValidationError(f\"ME-GRE should have 3+ echoes for T2* mapping. Found {len(echo_times)} echo(es).\")",
+          "implementation": "n = value[\"EchoTime\"].dropna().nunique()\nexact = params.get(\"exact_echoes\")\nif exact is not None:\n    if n != exact:\n        raise ValidationError(f\"Expected exactly {exact} echoes, found {n}.\")\nelse:\n    min_n = params.get(\"min_echoes\")\n    if min_n is not None and n < min_n:\n        raise ValidationError(f\"Only {n} echoes; at least {min_n} required.\")\n    rec = params.get(\"recommended_echoes\")\n    if rec is not None and n < rec:\n        raise ValidationWarning(f\"Found {n} echoes; {rec}+ recommended.\")\n",
           "fields": [
             "EchoTime"
           ],
@@ -821,13 +1465,40 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "min_echoes": 3
+          },
+          "parameterDefinitions": [
+            {
+              "name": "min_echoes",
+              "label": "Minimum echoes",
+              "type": "number",
+              "default": 2,
+              "min": 1,
+              "description": "Fail if fewer unique echoes than this"
+            },
+            {
+              "name": "recommended_echoes",
+              "label": "Recommended echoes",
+              "type": "number",
+              "default": null,
+              "description": "Warn if fewer unique echoes than this (optional)"
+            },
+            {
+              "name": "exact_echoes",
+              "label": "Exact echoes",
+              "type": "number",
+              "default": null,
+              "description": "Require exactly this many echoes (overrides min/recommended)"
+            }
           ]
         },
         {
           "id": "validate_megre_echo_spacing",
           "name": "ME-GRE Echo Spacing",
           "description": "Echo spacing should be uniform for proper T2* fitting.",
-          "implementation": "import numpy as np\necho_times = sorted(value['EchoTime'].dropna().unique()) if 'EchoTime' in value.columns else []\nif len(echo_times) >= 3:\n    spacings = np.diff(echo_times)\n    if not np.allclose(spacings, spacings[0], rtol=0.1):\n        raise ValidationError(f\"Echo spacing is not uniform. Spacings: {spacings}ms\")",
+          "implementation": "te = value[\"EchoTime\"].dropna().sort_values()\nspacings = te.diff().iloc[1:]\ntol = params.get(\"tolerance_ms\") or 0.1\nif len(spacings) > 0 and not all(abs(spacings.iloc[0] - s) <= tol for s in spacings):\n    raise ValidationError(f\"Echo spacing not uniform (tolerance {tol} ms). Found spacings: {list(spacings.round(3))}.\")\n",
           "fields": [
             "EchoTime"
           ],
@@ -860,13 +1531,27 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "tolerance_ms": 0.5
+          },
+          "parameterDefinitions": [
+            {
+              "name": "tolerance_ms",
+              "label": "Tolerance",
+              "type": "number",
+              "default": 0.1,
+              "min": 0,
+              "unit": "ms",
+              "description": "Maximum allowed deviation between echo spacings"
+            }
           ]
         },
         {
           "id": "validate_megre_resolution",
           "name": "ME-GRE High Resolution",
           "description": "ME-GRE should have high in-plane resolution (~0.5mm) for gray matter visualization.",
-          "implementation": "if 'PixelSpacing' in value.columns:\n    pixel_spacing = value['PixelSpacing'].iloc[0]\n    if isinstance(pixel_spacing, (list, tuple)) and len(pixel_spacing) >= 2:\n        avg_spacing = (pixel_spacing[0] + pixel_spacing[1]) / 2\n        if avg_spacing > 0.6:\n            raise ValidationError(f\"ME-GRE in-plane resolution should be ~0.5mm. Found: {avg_spacing:.2f}mm\")",
+          "implementation": "if \"PixelSpacing\" in value.columns:\n    pixel_spacing = value[\"PixelSpacing\"].iloc[0]\n    if isinstance(pixel_spacing, (list, tuple)) and len(pixel_spacing) >= 2:\n        avg_spacing = (pixel_spacing[0] + pixel_spacing[1]) / 2\n        max_sp = params.get(\"max_inplane_mm\")\n        if max_sp is not None and avg_spacing > max_sp:\n            raise ValidationError(f\"In-plane resolution should be <= {max_sp:g} mm. Found: {avg_spacing:.2f} mm\")\n",
           "fields": [
             "PixelSpacing"
           ],
@@ -899,13 +1584,31 @@
               "expectedResult": "fail",
               "description": ""
             }
+          ],
+          "parameters": {
+            "max_inplane_mm": 0.6
+          },
+          "parameterDefinitions": [
+            {
+              "name": "max_inplane_mm",
+              "label": "Maximum in-plane spacing",
+              "type": "number",
+              "default": 0.6,
+              "min": 0,
+              "unit": "mm",
+              "description": "Fail if the mean in-plane pixel spacing exceeds this"
+            }
           ]
         }
       ]
     },
     "Magnetization Transfer (MT on) 3D": {
       "description": "Magnetization transfer imaging with MT saturation pulse ON for myelin quantification",
-      "tags": ["spine", "magnetization-transfer", "quantitative"],
+      "tags": [
+        "spine",
+        "magnetization-transfer",
+        "quantitative"
+      ],
       "detailed_description": "## 3D Gradient Echo with Magnetization Transfer ON (MTS-MTon)\n\n### Overview\nThree-dimensional gradient echo imaging with magnetization transfer (MT) saturation pulse enabled. This is one of three acquisitions required for calculating the magnetization transfer ratio (MTR) and MTsat.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SPGR with MTC\n- **Siemens:** GRE with MTC\n- **Philips:** FFE with MTC\n\n### Clinical Purpose\n- **Myelin Quantification:** MTR is highly sensitive to myelin content\n- **Demyelination Assessment:** Reduced MTR indicates myelin loss\n- **Multiple Sclerosis:** Disease monitoring and progression tracking\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Resolution:** 0.9\u00d70.9\u00d75.0 mm\n- **Flip Angle:** 9\u00b0\n- **TR:** 35-108 ms (varies by platform due to SAR limits)\n- **TE:** 2-4 ms (minimum)\n- **MT Pulse:** ON (off-resonance saturation pulse)\n\n### Vendor Variations (expected per protocol)\n- Siemens: TR = 35.2 ms\n- Philips: TR = 63.3 ms\n- GE: TR = 50.3 ms\n\n### Technical Notes\n- Protocol explicitly states TR varies 5.4-8.9 min total acquisition due to platform-specific SAR limitations\n- TR must match between MTon and MToff acquisitions\n- If SAR limit reached, increase TR (e.g., 35ms to 36ms)\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
@@ -924,19 +1627,12 @@
           "tolerance": 0.5
         },
         {
-          "field": "EchoTime",
-          "tag": "0018,0081",
-          "value": 3,
-          "vr": "DS",
-          "dataType": "number",
-          "tolerance": 100
-        },
-        {
           "field": "FlipAngle",
           "tag": "0018,1314",
           "value": 9,
           "vr": "DS",
-          "dataType": "number"
+          "dataType": "number",
+          "tolerance": 2.0
         },
         {
           "field": "MagneticFieldStrength",
@@ -1031,13 +1727,15 @@
               "expectedResult": "fail",
               "description": ""
             }
-          ]
+          ],
+          "parameters": {},
+          "parameterDefinitions": []
         },
         {
           "id": "validate_mton_vendor_tr",
           "name": "MTon Vendor-Specific TR",
           "description": "TR varies by vendor due to SAR limitations: Siemens ~35ms, GE ~50ms, Philips ~63ms.",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\ntr = value['RepetitionTime'].iloc[0] if 'RepetitionTime' in value.columns else None\n\nif tr is None:\n    pass\nelif 'SIEMENS' in manufacturer:\n    if tr < 30 or tr > 45:\n        raise ValidationError(f\"Siemens MTon TR should be ~35ms. Found: {tr}ms\")\nelif 'GE' in manufacturer:\n    if tr < 40 or tr > 60:\n        raise ValidationError(f\"GE MTon TR should be ~50ms. Found: {tr}ms\")\nelif 'PHILIPS' in manufacturer:\n    if tr < 55 or tr > 75:\n        raise ValidationError(f\"Philips MTon TR should be ~63ms. Found: {tr}ms\")",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
           "fields": [
             "Manufacturer",
             "RepetitionTime"
@@ -1085,13 +1783,86 @@
               "expectedResult": "pass",
               "description": ""
             }
+          ],
+          "parameters": {
+            "label": "MTon TR",
+            "unit": "ms",
+            "siemens_min": 30,
+            "siemens_max": 45,
+            "ge_min": 40,
+            "ge_max": 60,
+            "philips_min": 55,
+            "philips_max": 75
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
           ]
         },
         {
           "id": "validate_mton_vendor_sequence_variant",
           "name": "MTon Vendor Sequence Variant",
           "description": "Validates the expected SequenceVariant for each vendor's MT implementation.",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nseq_variant = str(value['SequenceVariant'].iloc[0]) if 'SequenceVariant' in value.columns else ''\n\nif 'GE' in manufacturer:\n    if 'SP' not in seq_variant:\n        raise ValidationError(f\"GE MTon should use SP (SPGR) sequence variant. Found: {seq_variant}\")\nelif 'SIEMENS' in manufacturer:\n    if 'MTC' not in seq_variant or 'SP' not in seq_variant:\n        raise ValidationError(f\"Siemens MTon should use MTC_SP sequence variant. Found: {seq_variant}\")\nelif 'PHILIPS' in manufacturer:\n    if 'SS' not in seq_variant or 'SP' not in seq_variant:\n        raise ValidationError(f\"Philips MTon should use SS_SP sequence variant. Found: {seq_variant}\")",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nraw = value[field].iloc[0]\ntext = \"\\\\\".join(map(str, raw)) if isinstance(raw, (list, tuple)) else str(raw)\nlabel = params.get(\"label\") or field\n\ndef matches(needle):\n    if \"|\" in needle:\n        return any(part.strip() in text for part in needle.split(\"|\"))\n    return all(part.strip() in text for part in needle.split(\"+\"))\n\nrequired = {\n    \"SIEMENS\": params.get(\"siemens_contains\"),\n    \"PHILIPS\": params.get(\"philips_contains\"),\n    \"GE\": params.get(\"ge_contains\"),\n}\nfor vendor, needle in required.items():\n    if vendor in m:\n        if needle and not matches(needle):\n            raise ValidationError(f\"{vendor.title()} {label} should contain '{needle}'. Found: {text}\")\n        break\n",
           "fields": [
             "Manufacturer",
             "SequenceVariant"
@@ -1139,13 +1910,222 @@
               "expectedResult": "pass",
               "description": ""
             }
+          ],
+          "parameters": {
+            "label": "MTon sequence variant",
+            "ge_contains": "SP",
+            "siemens_contains": "MTC+SP",
+            "philips_contains": "SS+SP"
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "sequence",
+              "description": "Human-readable name of the checked value, used in messages"
+            },
+            {
+              "name": "siemens_contains",
+              "label": "Siemens must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            },
+            {
+              "name": "ge_contains",
+              "label": "GE must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            },
+            {
+              "name": "philips_contains",
+              "label": "Philips must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            }
+          ]
+        },
+        {
+          "id": "validate_mton_vendor_te",
+          "name": "MTon vendor echo time",
+          "description": "Vendor-specific TE check for MTon, per the spine-generic protocol specs",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
+          "fields": [
+            "Manufacturer",
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_validate_mton_vendor_te_siemens_pass",
+              "name": "SIEMENS in range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  3.5
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mton_vendor_te_siemens_fail",
+              "name": "SIEMENS out of range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  18.5
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mton_vendor_te_ge_pass",
+              "name": "GE in range",
+              "data": {
+                "Manufacturer": [
+                  "GE"
+                ],
+                "EchoTime": [
+                  4.0
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mton_vendor_te_ge_fail",
+              "name": "GE out of range",
+              "data": {
+                "Manufacturer": [
+                  "GE"
+                ],
+                "EchoTime": [
+                  20.0
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mton_vendor_te_philips_pass",
+              "name": "PHILIPS in range",
+              "data": {
+                "Manufacturer": [
+                  "PHILIPS"
+                ],
+                "EchoTime": [
+                  2.25
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mton_vendor_te_philips_fail",
+              "name": "PHILIPS out of range",
+              "data": {
+                "Manufacturer": [
+                  "PHILIPS"
+                ],
+                "EchoTime": [
+                  14.0
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ],
+          "parameters": {
+            "label": "MTon TE",
+            "unit": "ms",
+            "siemens_min": 2.5,
+            "siemens_max": 4.5,
+            "ge_min": 3.0,
+            "ge_max": 5.0,
+            "philips_min": 1.5,
+            "philips_max": 3.0
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
           ]
         }
       ]
     },
     "Magnetization Transfer (MT off) 3D": {
       "description": "Magnetization transfer imaging with MT saturation pulse OFF (baseline reference)",
-      "tags": ["spine", "magnetization-transfer", "quantitative"],
+      "tags": [
+        "spine",
+        "magnetization-transfer",
+        "quantitative"
+      ],
       "detailed_description": "## 3D Gradient Echo with Magnetization Transfer OFF (MTS-MToff)\n\n### Overview\nBaseline acquisition without MT saturation pulse, identical parameters to MTS-MTon except no MT pulse. Required for MTR calculation.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SPGR (no MTC)\n- **Siemens:** GRE (no MTC)\n- **Philips:** FFE (no MTC)\n\n### MTR Calculation\nMTR = (MToff - MTon) / MToff \u00d7 100%\n\nTypical values in healthy spinal cord:\n- White matter: 34-35%\n- Gray matter: 28-29%\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Resolution:** 0.9\u00d70.9\u00d75.0 mm\n- **Flip Angle:** 9\u00b0\n- **TR:** Must match MTon (35-108 ms)\n- **TE:** 2-4 ms (minimum)\n- **MT Pulse:** OFF (no saturation pulse)\n\n### Technical Notes\n- TR MUST match MTon acquisition for valid MTR calculation\n- If SAR limit reached on MTon, also change TR on MToff to match\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
@@ -1164,19 +2144,12 @@
           "tolerance": 0.5
         },
         {
-          "field": "EchoTime",
-          "tag": "0018,0081",
-          "value": 3,
-          "vr": "DS",
-          "dataType": "number",
-          "tolerance": 100
-        },
-        {
           "field": "FlipAngle",
           "tag": "0018,1314",
           "value": 9,
           "vr": "DS",
-          "dataType": "number"
+          "dataType": "number",
+          "tolerance": 2.0
         },
         {
           "field": "MagneticFieldStrength",
@@ -1232,7 +2205,9 @@
               "expectedResult": "warning",
               "description": ""
             }
-          ]
+          ],
+          "parameters": {},
+          "parameterDefinitions": []
         },
         {
           "id": "validate_mtoff_no_mt",
@@ -1272,13 +2247,15 @@
               "expectedResult": "fail",
               "description": ""
             }
-          ]
+          ],
+          "parameters": {},
+          "parameterDefinitions": []
         },
         {
           "id": "validate_mtoff_vendor_sequence_variant",
           "name": "MToff Vendor Sequence Variant",
           "description": "Validates the expected SequenceVariant for each vendor (without MTC).",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nseq_variant = str(value['SequenceVariant'].iloc[0]) if 'SequenceVariant' in value.columns else ''\n\nif 'GE' in manufacturer:\n    if 'SP' not in seq_variant:\n        raise ValidationError(f\"GE MToff should use SP (SPGR) sequence variant. Found: {seq_variant}\")\nelif 'SIEMENS' in manufacturer:\n    if 'SP' not in seq_variant:\n        raise ValidationError(f\"Siemens MToff should use SP sequence variant. Found: {seq_variant}\")\nelif 'PHILIPS' in manufacturer:\n    if 'SS' not in seq_variant or 'SP' not in seq_variant:\n        raise ValidationError(f\"Philips MToff should use SS_SP sequence variant. Found: {seq_variant}\")",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nraw = value[field].iloc[0]\ntext = \"\\\\\".join(map(str, raw)) if isinstance(raw, (list, tuple)) else str(raw)\nlabel = params.get(\"label\") or field\n\ndef matches(needle):\n    if \"|\" in needle:\n        return any(part.strip() in text for part in needle.split(\"|\"))\n    return all(part.strip() in text for part in needle.split(\"+\"))\n\nrequired = {\n    \"SIEMENS\": params.get(\"siemens_contains\"),\n    \"PHILIPS\": params.get(\"philips_contains\"),\n    \"GE\": params.get(\"ge_contains\"),\n}\nfor vendor, needle in required.items():\n    if vendor in m:\n        if needle and not matches(needle):\n            raise ValidationError(f\"{vendor.title()} {label} should contain '{needle}'. Found: {text}\")\n        break\n",
           "fields": [
             "Manufacturer",
             "SequenceVariant"
@@ -1326,13 +2303,223 @@
               "expectedResult": "pass",
               "description": ""
             }
+          ],
+          "parameters": {
+            "label": "MToff sequence variant",
+            "ge_contains": "SP",
+            "siemens_contains": "SP",
+            "philips_contains": "SS+SP"
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "sequence",
+              "description": "Human-readable name of the checked value, used in messages"
+            },
+            {
+              "name": "siemens_contains",
+              "label": "Siemens must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            },
+            {
+              "name": "ge_contains",
+              "label": "GE must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            },
+            {
+              "name": "philips_contains",
+              "label": "Philips must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            }
+          ]
+        },
+        {
+          "id": "validate_mtoff_vendor_te",
+          "name": "MToff vendor echo time",
+          "description": "Vendor-specific TE check for MToff, per the spine-generic protocol specs",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
+          "fields": [
+            "Manufacturer",
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_validate_mtoff_vendor_te_siemens_pass",
+              "name": "SIEMENS in range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  3.5
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mtoff_vendor_te_siemens_fail",
+              "name": "SIEMENS out of range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  18.5
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mtoff_vendor_te_ge_pass",
+              "name": "GE in range",
+              "data": {
+                "Manufacturer": [
+                  "GE"
+                ],
+                "EchoTime": [
+                  4.0
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mtoff_vendor_te_ge_fail",
+              "name": "GE out of range",
+              "data": {
+                "Manufacturer": [
+                  "GE"
+                ],
+                "EchoTime": [
+                  20.0
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mtoff_vendor_te_philips_pass",
+              "name": "PHILIPS in range",
+              "data": {
+                "Manufacturer": [
+                  "PHILIPS"
+                ],
+                "EchoTime": [
+                  2.25
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mtoff_vendor_te_philips_fail",
+              "name": "PHILIPS out of range",
+              "data": {
+                "Manufacturer": [
+                  "PHILIPS"
+                ],
+                "EchoTime": [
+                  14.0
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ],
+          "parameters": {
+            "label": "MToff TE",
+            "unit": "ms",
+            "siemens_min": 2.5,
+            "siemens_max": 4.5,
+            "ge_min": 3.0,
+            "ge_max": 5.0,
+            "philips_min": 1.5,
+            "philips_max": 3.0
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
           ]
         }
       ]
     },
     "Magnetization Transfer (T1-weighted) 3D": {
       "description": "T1-weighted gradient echo for MTsat calculation (higher flip angle)",
-      "tags": ["spine", "magnetization-transfer", "T1-weighted", "quantitative"],
+      "tags": [
+        "spine",
+        "magnetization-transfer",
+        "T1-weighted",
+        "quantitative"
+      ],
       "detailed_description": "## 3D Gradient Echo T1-weighted for MTsat (MTS-T1w)\n\n### Overview\nT1-weighted gradient echo acquisition with higher flip angle (15\u00b0) used in combination with MTon and MToff to calculate MTsat, which partially compensates for B1+ inhomogeneity and T1 effects.\n\n### Vendor-Specific Sequence Names\n- **GE Healthcare:** SPGR\n- **Siemens:** GRE\n- **Philips:** FFE\n\n### Clinical Purpose\n- Required for MTsat calculation (more quantitative than MTR alone)\n- B1+ inhomogeneity compensation\n- T1 effect compensation\n\n### MTsat Calculation\nRequires: MT1 (MTon), MT0 (MToff), and T1w scans\n- MTsat is more robust to B1 variations than MTR\n- Provides better cross-site reproducibility\n\n### Key Parameters\n- **Acquisition Type:** 3D volumetric\n- **Resolution:** 0.9\u00d70.9\u00d75.0 mm (BaseResolution=256)\n- **Flip Angle:** 15\u00b0 (different from MTon/MToff which use 9\u00b0)\n- **TR:** 15-103 ms (varies by platform)\n- **TE:** 2-4 ms (minimum)\n\n### Vendor Variations\n- Siemens: TR = 15.0 ms\n- Philips: TR = 24.5 ms\n- GE: TR = 15.7 ms\n\n### Resources\n- [Spine Generic Protocol (GitHub)](https://github.com/spine-generic/protocols)\n- [Cohen-Adad et al. Nature Protocols 2021 (PDF)](https://github.com/spine-generic/protocols/blob/main/CohenAdad21_NatureProtocols.pdf)\n- [Spine Generic Documentation](https://spine-generic.readthedocs.io/)\n- [Importable Protocol Files](https://github.com/spine-generic/protocols/releases)",
       "fields": [
         {
@@ -1351,19 +2538,12 @@
           "tolerance": 0.5
         },
         {
-          "field": "EchoTime",
-          "tag": "0018,0081",
-          "value": 3,
-          "vr": "DS",
-          "dataType": "number",
-          "tolerance": 100
-        },
-        {
           "field": "FlipAngle",
           "tag": "0018,1314",
           "value": 15,
           "vr": "DS",
-          "dataType": "number"
+          "dataType": "number",
+          "tolerance": 2.0
         },
         {
           "field": "MagneticFieldStrength",
@@ -1403,7 +2583,7 @@
           "id": "validate_mts_t1w_vendor_tr",
           "name": "MTS T1w Vendor-Specific TR",
           "description": "TR varies by vendor: Siemens ~15ms, GE ~16ms, Philips ~25ms.",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\ntr = value['RepetitionTime'].iloc[0] if 'RepetitionTime' in value.columns else None\n\nif tr is None:\n    pass\nelif 'SIEMENS' in manufacturer:\n    if tr < 12 or tr > 20:\n        raise ValidationError(f\"Siemens MTS T1w TR should be ~15ms. Found: {tr}ms\")\nelif 'GE' in manufacturer:\n    if tr < 12 or tr > 20:\n        raise ValidationError(f\"GE MTS T1w TR should be ~16ms. Found: {tr}ms\")\nelif 'PHILIPS' in manufacturer:\n    if tr < 20 or tr > 30:\n        raise ValidationError(f\"Philips MTS T1w TR should be ~25ms. Found: {tr}ms\")",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
           "fields": [
             "Manufacturer",
             "RepetitionTime"
@@ -1451,13 +2631,86 @@
               "expectedResult": "pass",
               "description": ""
             }
+          ],
+          "parameters": {
+            "label": "MTS T1w TR",
+            "unit": "ms",
+            "siemens_min": 12,
+            "siemens_max": 20,
+            "ge_min": 12,
+            "ge_max": 20,
+            "philips_min": 20,
+            "philips_max": 30
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
           ]
         },
         {
           "id": "validate_mts_t1w_vendor_sequence_variant",
           "name": "MTS T1w Vendor Sequence Variant",
           "description": "Validates the expected SequenceVariant for each vendor.",
-          "implementation": "manufacturer = value['Manufacturer'].iloc[0].upper() if 'Manufacturer' in value.columns else ''\nseq_variant = str(value['SequenceVariant'].iloc[0]) if 'SequenceVariant' in value.columns else ''\n\nif 'GE' in manufacturer:\n    if 'SP' not in seq_variant:\n        raise ValidationError(f\"GE MTS T1w should use SP (SPGR) sequence variant. Found: {seq_variant}\")\nelif 'SIEMENS' in manufacturer:\n    if 'SP' not in seq_variant:\n        raise ValidationError(f\"Siemens MTS T1w should use SP sequence variant. Found: {seq_variant}\")\nelif 'PHILIPS' in manufacturer:\n    if 'SS' not in seq_variant or 'SP' not in seq_variant:\n        raise ValidationError(f\"Philips MTS T1w should use SS_SP sequence variant. Found: {seq_variant}\")",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nraw = value[field].iloc[0]\ntext = \"\\\\\".join(map(str, raw)) if isinstance(raw, (list, tuple)) else str(raw)\nlabel = params.get(\"label\") or field\n\ndef matches(needle):\n    if \"|\" in needle:\n        return any(part.strip() in text for part in needle.split(\"|\"))\n    return all(part.strip() in text for part in needle.split(\"+\"))\n\nrequired = {\n    \"SIEMENS\": params.get(\"siemens_contains\"),\n    \"PHILIPS\": params.get(\"philips_contains\"),\n    \"GE\": params.get(\"ge_contains\"),\n}\nfor vendor, needle in required.items():\n    if vendor in m:\n        if needle and not matches(needle):\n            raise ValidationError(f\"{vendor.title()} {label} should contain '{needle}'. Found: {text}\")\n        break\n",
           "fields": [
             "Manufacturer",
             "SequenceVariant"
@@ -1504,6 +2757,211 @@
               },
               "expectedResult": "pass",
               "description": ""
+            }
+          ],
+          "parameters": {
+            "label": "MTS T1w sequence variant",
+            "ge_contains": "SP",
+            "siemens_contains": "SP",
+            "philips_contains": "SS+SP"
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "sequence",
+              "description": "Human-readable name of the checked value, used in messages"
+            },
+            {
+              "name": "siemens_contains",
+              "label": "Siemens must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            },
+            {
+              "name": "ge_contains",
+              "label": "GE must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            },
+            {
+              "name": "philips_contains",
+              "label": "Philips must contain",
+              "type": "string",
+              "default": null,
+              "description": "Required value(s): 'A+B' = must contain all, 'A|B' = must contain any"
+            }
+          ]
+        },
+        {
+          "id": "validate_mts_t1w_vendor_te",
+          "name": "MTS T1w vendor echo time",
+          "description": "Vendor-specific TE check for MTS T1w, per the spine-generic protocol specs",
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
+          "fields": [
+            "Manufacturer",
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_validate_mts_t1w_vendor_te_siemens_pass",
+              "name": "SIEMENS in range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  3.5
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mts_t1w_vendor_te_siemens_fail",
+              "name": "SIEMENS out of range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  18.5
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mts_t1w_vendor_te_ge_pass",
+              "name": "GE in range",
+              "data": {
+                "Manufacturer": [
+                  "GE"
+                ],
+                "EchoTime": [
+                  4.0
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mts_t1w_vendor_te_ge_fail",
+              "name": "GE out of range",
+              "data": {
+                "Manufacturer": [
+                  "GE"
+                ],
+                "EchoTime": [
+                  20.0
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mts_t1w_vendor_te_philips_pass",
+              "name": "PHILIPS in range",
+              "data": {
+                "Manufacturer": [
+                  "PHILIPS"
+                ],
+                "EchoTime": [
+                  2.25
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_validate_mts_t1w_vendor_te_philips_fail",
+              "name": "PHILIPS out of range",
+              "data": {
+                "Manufacturer": [
+                  "PHILIPS"
+                ],
+                "EchoTime": [
+                  14.0
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ],
+          "parameters": {
+            "label": "MTS T1w TE",
+            "unit": "ms",
+            "siemens_min": 2.5,
+            "siemens_max": 4.5,
+            "ge_min": 3.0,
+            "ge_max": 5.0,
+            "philips_min": 1.5,
+            "philips_max": 3.0
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
             }
           ]
         }

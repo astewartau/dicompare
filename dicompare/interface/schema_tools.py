@@ -260,8 +260,17 @@ def build_schema_from_ui_acquisitions(
                     'name': func.get('customName', func.get('name', '')),
                     'description': func.get('customDescription', func.get('description', '')),
                     'implementation': func.get('customImplementation', func.get('implementation', '')),
-                    'parameters': func.get('configuredParams', func.get('parameters', {})),
+                    # Configured values (dict) drive execution; typed declarations
+                    # (list) are kept so a reloaded schema can still render
+                    # parameter inputs when editing the rule.
+                    'parameters': func.get('configuredParams') or {},
+                    'parameterDefinitions': (
+                        func.get('parameterDefinitions') if isinstance(func.get('parameterDefinitions'), list)
+                        # Legacy UI shape kept declarations in `parameters`
+                        else (func.get('parameters') if isinstance(func.get('parameters'), list) else [])
+                    ),
                     'fields': func.get('customFields', func.get('fields', [])),
+                    'optional_fields': func.get('optional_fields', []) or [],
                     'testCases': func.get('customTestCases', func.get('testCases', []))
                 }
                 for idx, func in enumerate(validation_functions)
@@ -285,6 +294,7 @@ def run_rule_test_case(
     rule: Dict[str, Any],
     test_data: Dict[str, Any],
     acquisition_name: str = "test",
+    params: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Run a single validation rule against one test case.
@@ -304,13 +314,24 @@ def run_rule_test_case(
             may itself be a list for list-valued fields (e.g. DiffusionBValues).
             Column lengths may differ; shorter columns are padded with ``None``.
         acquisition_name: Label used for the synthetic acquisition.
+        params: Optional parameter values overriding the rule's own
+            ``parameters`` (declaration defaults or configured values). Used
+            for per-test-case parameter overrides so a test can prove that a
+            threshold actually moves.
 
     Returns:
         Dict with ``result`` ('pass' | 'warning' | 'fail'), ``passed`` (bool),
         ``message`` (str) and ``status`` (compliance status string).
     """
     from ..utils import make_hashable
-    from ..validation.core import create_validation_model_from_rules
+    from ..validation.core import create_validation_model_from_rules, resolve_rule_params
+
+    # Rule-level parameters (declaration defaults overlaid by configured
+    # values), overlaid with any per-test-case overrides.
+    resolved_params = resolve_rule_params(rule.get('parameterDefinitions'))
+    resolved_params.update(resolve_rule_params(rule.get('parameters')))
+    if params:
+        resolved_params.update(params)
 
     norm_rule = {
         'id': rule.get('id') or 'test_rule',
@@ -319,6 +340,7 @@ def run_rule_test_case(
         'fields': list(rule.get('fields', [])),
         'optional_fields': list(rule.get('optional_fields', []) or []),
         'implementation': rule.get('implementation', ''),
+        'parameters': resolved_params,
     }
 
     # Determine the number of rows across all provided columns.

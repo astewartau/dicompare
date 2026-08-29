@@ -10,7 +10,11 @@
   "acquisitions": {
     "fMRI Field Map (P>>A)": {
       "description": "fMRI B0 field map - Posterior-Anterior phase encoding",
-      "tags": ["brain", "fieldmap", "fMRI"],
+      "tags": [
+        "brain",
+        "fieldmap",
+        "fMRI"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -63,7 +67,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 2.4
+          "value": 2.4,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -71,7 +76,8 @@
           "value": [
             2.4,
             2.4
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -96,17 +102,20 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 7030
+          "value": 7030,
+          "tolerance": 10.0
         },
         {
           "field": "EchoTime",
           "tag": "0018,0081",
-          "value": 80
+          "value": 80,
+          "tolerance": 1.0
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 90
+          "value": 90,
+          "tolerance": 2.0
         },
         {
           "field": "EchoTrainLength",
@@ -148,12 +157,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.17069
+          "value": 0.17069,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -168,12 +179,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -192,7 +205,13 @@
     },
     "Task fMRI - Monetary Incentive Delay (MID)": {
       "description": "Monetary Incentive Delay (MID) task fMRI measuring reward processing (2 runs, ~5:42 each)",
-      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "reward"],
+      "tags": [
+        "analysis:fmri",
+        "brain",
+        "fMRI",
+        "task-based",
+        "reward"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -333,12 +352,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.0681
+          "value": 0.0681,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -353,12 +374,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -377,7 +400,10 @@
     },
     "Localizer": {
       "description": "Localizer scan for slice positioning",
-      "tags": ["brain", "localizer"],
+      "tags": [
+        "brain",
+        "localizer"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -431,7 +457,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 7
+          "value": 7,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -439,7 +466,8 @@
           "value": [
             0.48828,
             0.48828
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -454,17 +482,20 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 7.5
+          "value": 7.5,
+          "tolerance": 10.0
         },
         {
           "field": "EchoTime",
           "tag": "0018,0081",
-          "value": 3.69
+          "value": 3.69,
+          "tolerance": 1.0
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 20
+          "value": 20,
+          "tolerance": 2.0
         },
         {
           "field": "EchoTrainLength",
@@ -507,12 +538,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.03299
+          "value": 0.03299,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -527,12 +560,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 91
+          "value": 91,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "AngioFlag",
@@ -583,7 +618,13 @@
     },
     "T2-weighted 3D SPACE": {
       "description": "3D T2-weighted SPACE/CUBE with vNav motion correction for white matter lesion detection and CSF quantification",
-      "tags": ["analysis:segmentation", "analysis:lesion-detection", "brain", "structural", "T2-weighted"],
+      "tags": [
+        "analysis:segmentation",
+        "analysis:lesion-detection",
+        "brain",
+        "structural",
+        "T2-weighted"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -716,12 +757,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.08302
+          "value": 0.08302,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -736,12 +779,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -790,16 +835,156 @@
           "id": "abcd_t2_echo_time_vendor",
           "name": "T2 EchoTime Vendor-Specific Validation",
           "description": "Validates T2 echo time based on scanner manufacturer. TE varies significantly across vendors: Siemens ~565ms, Philips ~252ms, GE ~60ms.",
-          "implementation": "manufacturer = str(value['Manufacturer'].iloc[0]).upper()\nte = float(value['EchoTime'].iloc[0])\n\nif 'SIEMENS' in manufacturer:\n    if abs(te - 565) > 30:\n        raise ValidationError(f'T2 TE should be ~565ms for Siemens. Found: {te}ms')\nelif 'PHILIPS' in manufacturer:\n    if abs(te - 252) > 30:\n        raise ValidationError(f'T2 TE should be ~252ms for Philips. Found: {te}ms')\nelif 'GE' in manufacturer:\n    if abs(te - 60) > 15:\n        raise ValidationError(f'T2 TE should be ~60ms for GE. Found: {te}ms')",
-          "fields": ["Manufacturer", "EchoTime"],
-          "testCases": []
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
+          "fields": [
+            "Manufacturer",
+            "EchoTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_abcd_t2te_siemens_pass",
+              "name": "SIEMENS nominal",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  565
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_abcd_t2te_philips_pass",
+              "name": "Philips Medical Systems nominal",
+              "data": {
+                "Manufacturer": [
+                  "Philips Medical Systems"
+                ],
+                "EchoTime": [
+                  252
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_abcd_t2te_ge_pass",
+              "name": "GE MEDICAL SYSTEMS nominal",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "EchoTime": [
+                  60
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_abcd_t2te_fail",
+              "name": "SIEMENS out of range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "EchoTime": [
+                  400
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ],
+          "parameters": {
+            "label": "T2 TE",
+            "unit": "ms",
+            "siemens_min": 535,
+            "siemens_max": 595,
+            "philips_min": 222,
+            "philips_max": 282,
+            "ge_min": 45,
+            "ge_max": 75
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
+          ]
         }
       ],
       "detailed_description": "## 3D T2-Weighted Structural Imaging (SPACE/CUBE)\n\nHigh-resolution T2-weighted fast spin echo with variable flip angle (SPACE on Siemens, CUBE on GE) for detection and quantification of white matter lesions and CSF. Uses volumetric navigators for prospective motion correction.\n\n### Clinical Purpose\n- White matter hyperintensity detection\n- CSF quantification\n- Lesion characterization\n- Complementary contrast to T1w\n\n### Key Parameters (from Table 2)\n| Platform | Matrix | Resolution | TR | TE | Flip | Time |\n|----------|--------|------------|-----|-----|------|------|\n| Siemens | 256\u00d7256 | 1.0 mm iso | 3200 ms | 565 ms | Variable | 6:35 |\n| Philips | 256\u00d7256 | 1.0 mm iso | 2500 ms | 251.6 ms | 90\u00b0 | 2:53 |\n| GE | 256\u00d7256 | 1.0 mm iso | 3200 ms | 60 ms | Variable | 5:50 |\n\n### Technical Notes\n- Parallel imaging: 2\u00d7 \n- Variable refocusing flip angle train for optimal contrast\n- 176-256 slices depending on platform"
     },
     "T1-weighted 3D MPRAGE": {
       "description": "3D T1-weighted MPRAGE with vNav motion correction for cortical and subcortical segmentation",
-      "tags": ["analysis:segmentation", "analysis:volumetry", "analysis:cortical-thickness", "brain", "structural", "T1-weighted"],
+      "tags": [
+        "analysis:segmentation",
+        "analysis:volumetry",
+        "analysis:cortical-thickness",
+        "brain",
+        "structural",
+        "T1-weighted"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -942,12 +1127,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.03788
+          "value": 0.03788,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -962,12 +1149,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -988,7 +1177,14 @@
     },
     "Diffusion MRI (Multi-shell HARDI)": {
       "description": "High angular resolution diffusion imaging (HARDI) with multi-shell acquisition for white matter tract segmentation",
-      "tags": ["analysis:diffusion", "brain", "dMRI", "diffusion", "multiband", "HARDI"],
+      "tags": [
+        "analysis:diffusion",
+        "brain",
+        "dMRI",
+        "diffusion",
+        "multiband",
+        "HARDI"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1113,12 +1309,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.26572
+          "value": 0.26572,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -1133,12 +1331,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -1159,25 +1359,895 @@
           "id": "abcd_diffusion_directions",
           "name": "ABCD Diffusion Directions",
           "description": "Validates expected number of diffusion gradient directions (96 diffusion-weighted + 7 b=0)",
-          "implementation": "directions = value.get('DiffusionGradientDirectionSequence', [])\nn_directions = len(set(tuple(d) if isinstance(d, list) else d for d in directions))\n\nif n_directions < 96:\n  raise ValidationError(f'Expected at least 96 diffusion directions, found {n_directions}')",
-          "fields": ["DiffusionGradientDirectionSequence"],
-          "testCases": []
+          "implementation": "dir_col = next((c for c in value.columns if c not in (\"DiffusionBValue\", \"Count\")), None)\nif dir_col is None:\n    raise ValidationWarning(\"Cannot count directions (no gradient orientation field available).\")\nrows = value\nb0_thr = params.get(\"b0_threshold\")\nif \"DiffusionBValue\" in value.columns and b0_thr is not None:\n    b = value[\"DiffusionBValue\"].fillna(0).astype(float)\n    rows = value[b > b0_thr]\ndirs = set()\nfor o in rows[dir_col]:\n    if o is None or o != o:\n        continue\n    try:\n        dirs.add(tuple(round(float(x), 3) for x in as_list(o)))\n    except (TypeError, ValueError):\n        dirs.add(str(o))\nn = len(dirs)\nexact = params.get(\"exact_directions\")\nif exact is not None:\n    if n != exact:\n        raise ValidationError(f\"Expected exactly {exact} unique diffusion directions, found {n}.\")\nelse:\n    min_n = params.get(\"min_directions\")\n    if min_n is not None and n < min_n:\n        raise ValidationError(f\"Only {n} unique diffusion directions; at least {min_n} required.\")\n    rec = params.get(\"recommended_directions\")\n    if rec is not None and n < rec:\n        raise ValidationWarning(f\"{n} unique diffusion directions; {rec}+ recommended.\")\n",
+          "fields": [
+            "DiffusionGradientDirectionSequence"
+          ],
+          "testCases": [
+            {
+              "id": "test_abcd_dirs_pass",
+              "name": "103 unique directions",
+              "data": {
+                "DiffusionGradientDirectionSequence": [
+                  [
+                    0.0,
+                    1.0,
+                    0.0
+                  ],
+                  [
+                    0.01,
+                    0.99,
+                    0.0
+                  ],
+                  [
+                    0.02,
+                    0.98,
+                    0.0
+                  ],
+                  [
+                    0.03,
+                    0.97,
+                    0.0
+                  ],
+                  [
+                    0.04,
+                    0.96,
+                    0.0
+                  ],
+                  [
+                    0.05,
+                    0.95,
+                    0.0
+                  ],
+                  [
+                    0.06,
+                    0.94,
+                    0.0
+                  ],
+                  [
+                    0.07,
+                    0.93,
+                    0.0
+                  ],
+                  [
+                    0.08,
+                    0.92,
+                    0.0
+                  ],
+                  [
+                    0.09,
+                    0.91,
+                    0.0
+                  ],
+                  [
+                    0.1,
+                    0.9,
+                    0.0
+                  ],
+                  [
+                    0.11,
+                    0.89,
+                    0.0
+                  ],
+                  [
+                    0.12,
+                    0.88,
+                    0.0
+                  ],
+                  [
+                    0.13,
+                    0.87,
+                    0.0
+                  ],
+                  [
+                    0.14,
+                    0.86,
+                    0.0
+                  ],
+                  [
+                    0.15,
+                    0.85,
+                    0.0
+                  ],
+                  [
+                    0.16,
+                    0.84,
+                    0.0
+                  ],
+                  [
+                    0.17,
+                    0.83,
+                    0.0
+                  ],
+                  [
+                    0.18,
+                    0.82,
+                    0.0
+                  ],
+                  [
+                    0.19,
+                    0.81,
+                    0.0
+                  ],
+                  [
+                    0.2,
+                    0.8,
+                    0.0
+                  ],
+                  [
+                    0.21,
+                    0.79,
+                    0.0
+                  ],
+                  [
+                    0.22,
+                    0.78,
+                    0.0
+                  ],
+                  [
+                    0.23,
+                    0.77,
+                    0.0
+                  ],
+                  [
+                    0.24,
+                    0.76,
+                    0.0
+                  ],
+                  [
+                    0.25,
+                    0.75,
+                    0.0
+                  ],
+                  [
+                    0.26,
+                    0.74,
+                    0.0
+                  ],
+                  [
+                    0.27,
+                    0.73,
+                    0.0
+                  ],
+                  [
+                    0.28,
+                    0.72,
+                    0.0
+                  ],
+                  [
+                    0.29,
+                    0.71,
+                    0.0
+                  ],
+                  [
+                    0.3,
+                    0.7,
+                    0.0
+                  ],
+                  [
+                    0.31,
+                    0.69,
+                    0.0
+                  ],
+                  [
+                    0.32,
+                    0.68,
+                    0.0
+                  ],
+                  [
+                    0.33,
+                    0.67,
+                    0.0
+                  ],
+                  [
+                    0.34,
+                    0.66,
+                    0.0
+                  ],
+                  [
+                    0.35,
+                    0.65,
+                    0.0
+                  ],
+                  [
+                    0.36,
+                    0.64,
+                    0.0
+                  ],
+                  [
+                    0.37,
+                    0.63,
+                    0.0
+                  ],
+                  [
+                    0.38,
+                    0.62,
+                    0.0
+                  ],
+                  [
+                    0.39,
+                    0.61,
+                    0.0
+                  ],
+                  [
+                    0.4,
+                    0.6,
+                    0.0
+                  ],
+                  [
+                    0.41,
+                    0.59,
+                    0.0
+                  ],
+                  [
+                    0.42,
+                    0.58,
+                    0.0
+                  ],
+                  [
+                    0.43,
+                    0.57,
+                    0.0
+                  ],
+                  [
+                    0.44,
+                    0.56,
+                    0.0
+                  ],
+                  [
+                    0.45,
+                    0.55,
+                    0.0
+                  ],
+                  [
+                    0.46,
+                    0.54,
+                    0.0
+                  ],
+                  [
+                    0.47,
+                    0.53,
+                    0.0
+                  ],
+                  [
+                    0.48,
+                    0.52,
+                    0.0
+                  ],
+                  [
+                    0.49,
+                    0.51,
+                    0.0
+                  ],
+                  [
+                    0.5,
+                    0.5,
+                    0.0
+                  ],
+                  [
+                    0.51,
+                    0.49,
+                    0.0
+                  ],
+                  [
+                    0.52,
+                    0.48,
+                    0.0
+                  ],
+                  [
+                    0.53,
+                    0.47,
+                    0.0
+                  ],
+                  [
+                    0.54,
+                    0.46,
+                    0.0
+                  ],
+                  [
+                    0.55,
+                    0.45,
+                    0.0
+                  ],
+                  [
+                    0.56,
+                    0.44,
+                    0.0
+                  ],
+                  [
+                    0.57,
+                    0.43,
+                    0.0
+                  ],
+                  [
+                    0.58,
+                    0.42,
+                    0.0
+                  ],
+                  [
+                    0.59,
+                    0.41,
+                    0.0
+                  ],
+                  [
+                    0.6,
+                    0.4,
+                    0.0
+                  ],
+                  [
+                    0.61,
+                    0.39,
+                    0.0
+                  ],
+                  [
+                    0.62,
+                    0.38,
+                    0.0
+                  ],
+                  [
+                    0.63,
+                    0.37,
+                    0.0
+                  ],
+                  [
+                    0.64,
+                    0.36,
+                    0.0
+                  ],
+                  [
+                    0.65,
+                    0.35,
+                    0.0
+                  ],
+                  [
+                    0.66,
+                    0.34,
+                    0.0
+                  ],
+                  [
+                    0.67,
+                    0.33,
+                    0.0
+                  ],
+                  [
+                    0.68,
+                    0.32,
+                    0.0
+                  ],
+                  [
+                    0.69,
+                    0.31,
+                    0.0
+                  ],
+                  [
+                    0.7,
+                    0.3,
+                    0.0
+                  ],
+                  [
+                    0.71,
+                    0.29,
+                    0.0
+                  ],
+                  [
+                    0.72,
+                    0.28,
+                    0.0
+                  ],
+                  [
+                    0.73,
+                    0.27,
+                    0.0
+                  ],
+                  [
+                    0.74,
+                    0.26,
+                    0.0
+                  ],
+                  [
+                    0.75,
+                    0.25,
+                    0.0
+                  ],
+                  [
+                    0.76,
+                    0.24,
+                    0.0
+                  ],
+                  [
+                    0.77,
+                    0.23,
+                    0.0
+                  ],
+                  [
+                    0.78,
+                    0.22,
+                    0.0
+                  ],
+                  [
+                    0.79,
+                    0.21,
+                    0.0
+                  ],
+                  [
+                    0.8,
+                    0.2,
+                    0.0
+                  ],
+                  [
+                    0.81,
+                    0.19,
+                    0.0
+                  ],
+                  [
+                    0.82,
+                    0.18,
+                    0.0
+                  ],
+                  [
+                    0.83,
+                    0.17,
+                    0.0
+                  ],
+                  [
+                    0.84,
+                    0.16,
+                    0.0
+                  ],
+                  [
+                    0.85,
+                    0.15,
+                    0.0
+                  ],
+                  [
+                    0.86,
+                    0.14,
+                    0.0
+                  ],
+                  [
+                    0.87,
+                    0.13,
+                    0.0
+                  ],
+                  [
+                    0.88,
+                    0.12,
+                    0.0
+                  ],
+                  [
+                    0.89,
+                    0.11,
+                    0.0
+                  ],
+                  [
+                    0.9,
+                    0.1,
+                    0.0
+                  ],
+                  [
+                    0.91,
+                    0.09,
+                    0.0
+                  ],
+                  [
+                    0.92,
+                    0.08,
+                    0.0
+                  ],
+                  [
+                    0.93,
+                    0.07,
+                    0.0
+                  ],
+                  [
+                    0.94,
+                    0.06,
+                    0.0
+                  ],
+                  [
+                    0.95,
+                    0.05,
+                    0.0
+                  ],
+                  [
+                    0.96,
+                    0.04,
+                    0.0
+                  ],
+                  [
+                    0.97,
+                    0.03,
+                    0.0
+                  ],
+                  [
+                    0.98,
+                    0.02,
+                    0.0
+                  ],
+                  [
+                    0.99,
+                    0.01,
+                    0.0
+                  ],
+                  [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    1.01,
+                    -0.01,
+                    0.0
+                  ],
+                  [
+                    1.02,
+                    -0.02,
+                    0.0
+                  ]
+                ]
+              },
+              "expectedResult": "pass",
+              "description": "ABCD multi-shell: >= 96 unique gradient directions"
+            },
+            {
+              "id": "test_abcd_dirs_fail",
+              "name": "Only 6 directions",
+              "data": {
+                "DiffusionGradientDirectionSequence": [
+                  [
+                    1.0,
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    1.0,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    1.0
+                  ],
+                  [
+                    0.7,
+                    0.7,
+                    0
+                  ],
+                  [
+                    0,
+                    0.7,
+                    0.7
+                  ],
+                  [
+                    0.7,
+                    0,
+                    0.7
+                  ]
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ],
+          "parameters": {
+            "min_directions": 96
+          },
+          "parameterDefinitions": [
+            {
+              "name": "min_directions",
+              "label": "Minimum directions",
+              "type": "number",
+              "default": 30,
+              "min": 1,
+              "description": "Fail if fewer unique directions than this"
+            },
+            {
+              "name": "recommended_directions",
+              "label": "Recommended directions",
+              "type": "number",
+              "default": null,
+              "description": "Warn if fewer unique directions than this (optional)"
+            },
+            {
+              "name": "exact_directions",
+              "label": "Exact directions",
+              "type": "number",
+              "default": null,
+              "description": "Require exactly this many directions (overrides min/recommended)"
+            },
+            {
+              "name": "b0_threshold",
+              "label": "b=0 threshold",
+              "type": "number",
+              "default": 50,
+              "min": 0,
+              "unit": "s/mm\u00b2",
+              "description": "Volumes with b-value at or below this are excluded (b=0 orientations are meaningless)"
+            }
+          ]
         },
         {
           "id": "abcd_diffusion_tr_vendor",
           "name": "Diffusion TR Vendor-Specific Validation",
           "description": "Validates diffusion TR based on scanner manufacturer. TR varies across vendors: Siemens/GE ~4100ms, Philips ~5300ms.",
-          "implementation": "manufacturer = str(value['Manufacturer'].iloc[0]).upper()\ntr = float(value['RepetitionTime'].iloc[0])\n\nif 'SIEMENS' in manufacturer:\n    if abs(tr - 4100) > 200:\n        raise ValidationError(f'Diffusion TR should be ~4100ms for Siemens. Found: {tr}ms')\nelif 'PHILIPS' in manufacturer:\n    if abs(tr - 5300) > 200:\n        raise ValidationError(f'Diffusion TR should be ~5300ms for Philips. Found: {tr}ms')\nelif 'GE' in manufacturer:\n    if abs(tr - 4100) > 200:\n        raise ValidationError(f'Diffusion TR should be ~4100ms for GE. Found: {tr}ms')",
-          "fields": ["Manufacturer", "RepetitionTime"],
-          "testCases": []
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
+          "fields": [
+            "Manufacturer",
+            "RepetitionTime"
+          ],
+          "testCases": [
+            {
+              "id": "test_abcd_difftr_siemens_pass",
+              "name": "SIEMENS nominal",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "RepetitionTime": [
+                  4100
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_abcd_difftr_philips_pass",
+              "name": "Philips Medical Systems nominal",
+              "data": {
+                "Manufacturer": [
+                  "Philips Medical Systems"
+                ],
+                "RepetitionTime": [
+                  5300
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_abcd_difftr_ge_pass",
+              "name": "GE MEDICAL SYSTEMS nominal",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "RepetitionTime": [
+                  4100
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_abcd_difftr_fail",
+              "name": "SIEMENS out of range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "RepetitionTime": [
+                  5000
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ],
+          "parameters": {
+            "label": "diffusion TR",
+            "unit": "ms",
+            "siemens_min": 3900,
+            "siemens_max": 4300,
+            "philips_min": 5100,
+            "philips_max": 5500,
+            "ge_min": 3900,
+            "ge_max": 4300
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
+          ]
         },
         {
           "id": "abcd_diffusion_flip_vendor",
           "name": "Diffusion Flip Angle Vendor-Specific Validation",
           "description": "Validates diffusion flip angle based on scanner manufacturer. Flip angle varies: Siemens 90, Philips 78, GE 77 degrees.",
-          "implementation": "manufacturer = str(value['Manufacturer'].iloc[0]).upper()\nflip = float(value['FlipAngle'].iloc[0])\n\nif 'SIEMENS' in manufacturer:\n    if abs(flip - 90) > 5:\n        raise ValidationError(f'Diffusion flip angle should be ~90 deg for Siemens. Found: {flip} deg')\nelif 'PHILIPS' in manufacturer:\n    if abs(flip - 78) > 5:\n        raise ValidationError(f'Diffusion flip angle should be ~78 deg for Philips. Found: {flip} deg')\nelif 'GE' in manufacturer:\n    if abs(flip - 77) > 5:\n        raise ValidationError(f'Diffusion flip angle should be ~77 deg for GE. Found: {flip} deg')",
-          "fields": ["Manufacturer", "FlipAngle"],
-          "testCases": []
+          "implementation": "field = [c for c in value.columns if c not in (\"Manufacturer\", \"Count\")][0]\nm = str(value[\"Manufacturer\"].iloc[0]).upper() if \"Manufacturer\" in value.columns else \"\"\nv = value[field].iloc[0]\nlabel = params.get(\"label\") or field\nunit = params.get(\"unit\") or \"\"\nissue = ValidationWarning if params.get(\"severity\") == \"warning\" else ValidationError\nif v is not None and not pd.isna(v):\n    v = float(v)\n    ranges = {\n        \"SIEMENS\": (params.get(\"siemens_min\"), params.get(\"siemens_max\")),\n        \"PHILIPS\": (params.get(\"philips_min\"), params.get(\"philips_max\")),\n        \"GE\": (params.get(\"ge_min\"), params.get(\"ge_max\")),\n    }\n    for vendor, (lo, hi) in ranges.items():\n        if vendor in m:\n            if lo is not None and v < lo:\n                raise issue(f\"{vendor.title()} {label} should be >= {lo} {unit}. Found: {v} {unit}\")\n            if hi is not None and v > hi:\n                raise issue(f\"{vendor.title()} {label} should be <= {hi} {unit}. Found: {v} {unit}\")\n            break\n",
+          "fields": [
+            "Manufacturer",
+            "FlipAngle"
+          ],
+          "testCases": [
+            {
+              "id": "test_abcd_diffflip_siemens_pass",
+              "name": "SIEMENS nominal",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "FlipAngle": [
+                  90
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_abcd_diffflip_philips_pass",
+              "name": "Philips Medical Systems nominal",
+              "data": {
+                "Manufacturer": [
+                  "Philips Medical Systems"
+                ],
+                "FlipAngle": [
+                  78
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_abcd_diffflip_ge_pass",
+              "name": "GE MEDICAL SYSTEMS nominal",
+              "data": {
+                "Manufacturer": [
+                  "GE MEDICAL SYSTEMS"
+                ],
+                "FlipAngle": [
+                  77
+                ]
+              },
+              "expectedResult": "pass",
+              "description": ""
+            },
+            {
+              "id": "test_abcd_diffflip_fail",
+              "name": "SIEMENS out of range",
+              "data": {
+                "Manufacturer": [
+                  "SIEMENS"
+                ],
+                "FlipAngle": [
+                  70
+                ]
+              },
+              "expectedResult": "fail",
+              "description": ""
+            }
+          ],
+          "parameters": {
+            "label": "diffusion flip angle",
+            "unit": "deg",
+            "siemens_min": 85,
+            "siemens_max": 95,
+            "philips_min": 73,
+            "philips_max": 83,
+            "ge_min": 72,
+            "ge_max": 82
+          },
+          "parameterDefinitions": [
+            {
+              "name": "label",
+              "label": "Value label",
+              "type": "string",
+              "default": "value",
+              "description": "Human-readable name of the checked value, used in messages (e.g. 'MPRAGE TE')"
+            },
+            {
+              "name": "unit",
+              "label": "Unit",
+              "type": "string",
+              "default": "ms",
+              "description": "Unit shown in messages"
+            },
+            {
+              "name": "siemens_min",
+              "label": "Siemens min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "siemens_max",
+              "label": "Siemens max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_min",
+              "label": "GE min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "ge_max",
+              "label": "GE max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_min",
+              "label": "Philips min",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "philips_max",
+              "label": "Philips max",
+              "type": "number",
+              "default": null
+            },
+            {
+              "name": "severity",
+              "label": "Severity",
+              "type": "enum",
+              "default": "error",
+              "options": [
+                "error",
+                "warning"
+              ],
+              "description": "Whether an out-of-range value fails validation or only warns"
+            }
+          ]
         }
       ],
       "detailed_description": "## Diffusion-Weighted Imaging (HARDI)\n\nHigh angular resolution diffusion imaging (HARDI) with multiple b-values for white matter tract segmentation and diffusion measurement. Includes fast integrated B0 distortion correction using reversed polarity gradient (RPG) method.\n\n### Clinical Purpose\n- White matter tract segmentation\n- Fractional anisotropy (FA) mapping\n- Mean diffusivity (MD) measurement\n- Tractography and connectomics\n\n### Key Parameters (from Table 2)\n| Platform | Matrix | Resolution | TR | TE | Flip | Directions | b-values | Time |\n|----------|--------|------------|-----|-----|------|------------|----------|------|\n| Siemens | 140\u00d7140 | 1.7 mm iso | 4100 ms | 88 ms | 90\u00b0 | 96 | 500(6), 1000(15), 2000(15), 3000(60) | 7:31 |\n| Philips | 140\u00d7140 | 1.7 mm iso | 5300 ms | 89 ms | 78\u00b0 | 96 | 500(6), 1000(15), 2000(15), 3000(60) | 9:14 |\n| GE | 140\u00d7140 | 1.7 mm iso | 4100 ms | 81.9 ms | 77\u00b0 | 96 | 500(6), 1000(15), 2000(15), 3000(60) | 7:30 |\n\n### Technical Notes\n- Multiband acceleration: 3\u00d7\n- Partial Fourier: 6/8 (Siemens/GE) or 0.6 (Philips)\n- 81 slices\n- Multi-shell scheme enables advanced diffusion models (NODDI, etc.)",
@@ -1185,7 +2255,12 @@
     },
     "Diffusion Field Map (A>>P)": {
       "description": "Diffusion B0 field map - Anterior-Posterior phase encoding",
-      "tags": ["brain", "fieldmap", "dMRI", "diffusion"],
+      "tags": [
+        "brain",
+        "fieldmap",
+        "dMRI",
+        "diffusion"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1239,7 +2314,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 1.7
+          "value": 1.7,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -1247,7 +2323,8 @@
           "value": [
             1.71429,
             1.71429
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -1272,17 +2349,20 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 12400
+          "value": 12400,
+          "tolerance": 10.0
         },
         {
           "field": "EchoTime",
           "tag": "0018,0081",
-          "value": 89
+          "value": 89,
+          "tolerance": 1.0
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 90
+          "value": 90,
+          "tolerance": 2.0
         },
         {
           "field": "EchoTrainLength",
@@ -1329,12 +2409,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.13485
+          "value": 0.13485,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -1349,12 +2431,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -1376,7 +2460,12 @@
     },
     "Diffusion Field Map (P>>A)": {
       "description": "Diffusion B0 field map - Posterior-Anterior phase encoding",
-      "tags": ["brain", "fieldmap", "dMRI", "diffusion"],
+      "tags": [
+        "brain",
+        "fieldmap",
+        "dMRI",
+        "diffusion"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1430,7 +2519,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 1.7
+          "value": 1.7,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -1438,7 +2528,8 @@
           "value": [
             1.71429,
             1.71429
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -1463,17 +2554,20 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 12400
+          "value": 12400,
+          "tolerance": 10.0
         },
         {
           "field": "EchoTime",
           "tag": "0018,0081",
-          "value": 89
+          "value": 89,
+          "tolerance": 1.0
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 90
+          "value": 90,
+          "tolerance": 2.0
         },
         {
           "field": "EchoTrainLength",
@@ -1520,12 +2614,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.13485
+          "value": 0.13485,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -1540,12 +2636,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -1567,7 +2665,11 @@
     },
     "fMRI Field Map (A>>P)": {
       "description": "fMRI B0 field map - Anterior-Posterior phase encoding",
-      "tags": ["brain", "fieldmap", "fMRI"],
+      "tags": [
+        "brain",
+        "fieldmap",
+        "fMRI"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1620,7 +2722,8 @@
         {
           "field": "SliceThickness",
           "tag": "0018,0050",
-          "value": 2.4
+          "value": 2.4,
+          "tolerance": 0.1
         },
         {
           "field": "PixelSpacing",
@@ -1628,7 +2731,8 @@
           "value": [
             2.4,
             2.4
-          ]
+          ],
+          "tolerance": 0.1
         },
         {
           "field": "Rows",
@@ -1653,17 +2757,20 @@
         {
           "field": "RepetitionTime",
           "tag": "0018,0080",
-          "value": 7030
+          "value": 7030,
+          "tolerance": 10.0
         },
         {
           "field": "EchoTime",
           "tag": "0018,0081",
-          "value": 80
+          "value": 80,
+          "tolerance": 1.0
         },
         {
           "field": "FlipAngle",
           "tag": "0018,1314",
-          "value": 90
+          "value": 90,
+          "tolerance": 2.0
         },
         {
           "field": "EchoTrainLength",
@@ -1705,12 +2812,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.17069
+          "value": 0.17069,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -1725,12 +2834,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -1749,7 +2860,13 @@
     },
     "Resting-State fMRI": {
       "description": "Resting-state fMRI with multiband acceleration (4 runs, ~7 min each)",
-      "tags": ["analysis:fmri", "brain", "fMRI", "resting-state", "multiband"],
+      "tags": [
+        "analysis:fmri",
+        "brain",
+        "fMRI",
+        "resting-state",
+        "multiband"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -1888,12 +3005,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.06807
+          "value": 0.06807,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -1908,12 +3027,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -1932,7 +3053,14 @@
     },
     "Task fMRI - Emotional N-back": {
       "description": "Emotional N-back (EN-back) fMRI measuring working memory and emotional processing (2 runs, ~5:13 each)",
-      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "working-memory", "emotion"],
+      "tags": [
+        "analysis:fmri",
+        "brain",
+        "fMRI",
+        "task-based",
+        "working-memory",
+        "emotion"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -2073,12 +3201,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.06805
+          "value": 0.06805,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -2093,12 +3223,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",
@@ -2117,7 +3249,13 @@
     },
     "Task fMRI - Stop Signal Task (SST)": {
       "description": "Stop Signal Task (SST) fMRI measuring response inhibition (2 runs, ~5:26 each)",
-      "tags": ["analysis:fmri", "brain", "fMRI", "task-based", "inhibition"],
+      "tags": [
+        "analysis:fmri",
+        "brain",
+        "fMRI",
+        "task-based",
+        "inhibition"
+      ],
       "fields": [
         {
           "field": "SeriesDescription",
@@ -2258,12 +3396,14 @@
         {
           "field": "SAR",
           "tag": "0018,1316",
-          "value": 0.06814
+          "value": 0.06814,
+          "severity": "warning"
         },
         {
           "field": "dBdt",
           "tag": "0018,1318",
-          "value": 0
+          "value": 0,
+          "severity": "warning"
         },
         {
           "field": "NumberOfAverages",
@@ -2278,12 +3418,14 @@
         {
           "field": "PercentSampling",
           "tag": "0018,0093",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "PercentPhaseFieldOfView",
           "tag": "0018,0094",
-          "value": 100
+          "value": 100,
+          "tolerance": 10.0
         },
         {
           "field": "ScanOptions",

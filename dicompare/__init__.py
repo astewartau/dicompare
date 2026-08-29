@@ -90,6 +90,7 @@ from .validation import (
     ValidationWarning,
     validator,
     safe_exec_rule,
+    resolve_rule_params,
     create_validation_model_from_rules,
     create_validation_models_from_rules,
 )
@@ -177,6 +178,7 @@ __all__ = [
     "ValidationWarning",
     "validator",
     "safe_exec_rule",
+    "resolve_rule_params",
     "create_validation_model_from_rules",
     "create_validation_models_from_rules",
     # Session handling
