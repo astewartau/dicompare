@@ -105,6 +105,10 @@
           "enum": ["error", "warning"],
           "description": "Compliance severity when this constraint is not met. 'error' (default) marks the constraint as a requirement; 'warning' records it as reference information — the value describes what the reference protocol used, but differing does not make data non-compliant."
         },
+        "notes": {
+          "type": "string",
+          "description": "Free-text rationale for this constraint — why this value was chosen, or what the consequence of deviating from it is. Documentation only; it does not affect validation."
+        },
         "tolerance": {
           "type": "number",
           "minimum": 0,
@@ -161,10 +165,22 @@
           "type": "string",
           "description": "Series identifier/name"
         },
+        "notes": {
+          "type": "string",
+          "description": "Free-text rationale for this series — why it is prescribed, or what role it plays in the acquisition. Documentation only; it does not affect validation."
+        },
         "fields": {
           "type": "array",
           "description": "Field constraints specific to this series",
-          "items": { "$ref": "#/$defs/field" }
+          "items": {
+            "allOf": [
+              { "$ref": "#/$defs/field" },
+              {
+                "description": "Series fields carry no 'notes' of their own — rationale is recorded once on the series, which is the unit a reader reasons about.",
+                "properties": { "notes": false }
+              }
+            ]
+          }
         },
         "images": {
           "type": "array",

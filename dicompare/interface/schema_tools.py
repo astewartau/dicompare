@@ -103,6 +103,24 @@ def build_schema_from_ui_acquisitions(
     """
     from ..schema import get_tag_info
 
+    def _carry_annotations(
+        field_entry: Dict[str, Any], field: Dict[str, Any], include_notes: bool = True
+    ) -> None:
+        """Copy severity and notes from a UI field onto its schema entry.
+
+        Only the non-default severity is written, matching how schemas are read
+        back ('error' is the default when the key is absent).
+
+        Series fields pass include_notes=False: rationale on a series is
+        recorded once against the series itself, not repeated per field.
+        """
+        if field.get('severity') == 'warning':
+            field_entry['severity'] = 'warning'
+        if include_notes:
+            notes = field.get('notes')
+            if isinstance(notes, str) and notes.strip():
+                field_entry['notes'] = notes.strip()
+
     dicompare_acquisitions = {}
 
     for acquisition in acquisitions:
@@ -161,6 +179,7 @@ def build_schema_from_ui_acquisitions(
             else:
                 field_entry['value'] = actual_value
 
+            _carry_annotations(field_entry, field)
             acq_fields.append(field_entry)
 
         # Process series
@@ -219,6 +238,8 @@ def build_schema_from_ui_acquisitions(
                 else:
                     field_entry['value'] = actual_value
 
+                _carry_annotations(field_entry, field, include_notes=False)
+
                 # Only include fields with actual constraints
                 if 'value' in field_entry or 'contains' in field_entry or 'tolerance' in field_entry or 'min' in field_entry or 'max' in field_entry:
                     series_fields.append(field_entry)
@@ -228,6 +249,9 @@ def build_schema_from_ui_acquisitions(
                     'name': series.get('name', f'Series {len(series_data) + 1}'),
                     'fields': series_fields
                 }
+                series_notes = series.get('notes')
+                if isinstance(series_notes, str) and series_notes.strip():
+                    series_entry['notes'] = series_notes.strip()
                 series_images = series.get('images', [])
                 if series_images:
                     series_entry['images'] = series_images

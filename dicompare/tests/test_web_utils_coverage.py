@@ -524,6 +524,51 @@ class TestBuildSchemaFromUiAcquisitions:
         assert entry["series"][0]["images"] == ["img1"]
         assert entry["series"][0]["fields"][0]["field"] == "EchoTime"
 
+    def test_severity_and_notes_survive_export(self):
+        acq = {
+            "protocolName": "P",
+            "acquisitionFields": [
+                {"keyword": "EchoTime", "value": 20, "severity": "warning", "notes": "  short TE  "},
+                {"keyword": "Rows", "value": 256},
+            ],
+            "series": [
+                {
+                    "name": "S1",
+                    "notes": "first echo",
+                    "fields": [
+                        {"keyword": "FlipAngle", "value": 9, "severity": "warning", "notes": "Ernst angle"}
+                    ],
+                }
+            ],
+        }
+        entry = build_schema_from_ui_acquisitions([acq], {})["acquisitions"]["P"]
+        fields = {f["field"]: f for f in entry["fields"]}
+
+        assert fields["EchoTime"]["severity"] == "warning"
+        # Notes are trimmed on the way out.
+        assert fields["EchoTime"]["notes"] == "short TE"
+
+        # Default severity and absent notes stay off the entry entirely.
+        assert "severity" not in fields["Rows"]
+        assert "notes" not in fields["Rows"]
+
+        series = entry["series"][0]
+        assert series["notes"] == "first echo"
+        assert series["fields"][0]["severity"] == "warning"
+        # Rationale on a series is recorded once, against the series. A note
+        # handed in on one of its fields is dropped rather than serialized.
+        assert "notes" not in series["fields"][0]
+
+    def test_blank_notes_are_not_serialized(self):
+        acq = {
+            "protocolName": "P",
+            "acquisitionFields": [{"keyword": "Rows", "value": 256, "notes": "   "}],
+            "series": [{"name": "S1", "notes": "  ", "fields": [{"keyword": "A", "value": 1}]}],
+        }
+        entry = build_schema_from_ui_acquisitions([acq], {})["acquisitions"]["P"]
+        assert "notes" not in entry["fields"][0]
+        assert "notes" not in entry["series"][0]
+
     def test_validation_functions_become_rules(self):
         acq = {
             "protocolName": "Rules Acq",
