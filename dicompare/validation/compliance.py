@@ -7,7 +7,8 @@ import logging
 from .core import BaseValidationModel, create_validation_models_from_rules
 from .helpers import (
     validate_constraint, validate_field_values, create_compliance_record,
-    ComplianceStatus
+    field_has_graded_edges, validate_field_graded, custom_message_for_status,
+    apply_message_template, ComplianceStatus
 )
 import pandas as pd
 
@@ -164,16 +165,35 @@ def check_acquisition_compliance(
 
             actual_values = in_acq[matched_field].unique().tolist()
 
-            # Use validation helper
-            passed, invalid_values, message = validate_field_values(
-                field, actual_values, expected_value, tolerance, contains, contains_any, contains_all,
-                min_value, max_value
-            )
+            # Graded fields (carrying error-edge keys) get three-way pass/warn/fail
+            # from geometry; every other field keeps the legacy pass/fail + severity
+            # behaviour, so existing schemas are validated exactly as before.
+            if field_has_graded_edges(fdef):
+                gstatus, invalid_values, message = validate_field_graded(field, actual_values, fdef)
+                status = {
+                    "ok": ComplianceStatus.OK,
+                    "warning": ComplianceStatus.WARNING,
+                    "error": ComplianceStatus.ERROR,
+                }[gstatus]
+            else:
+                passed, invalid_values, message = validate_field_values(
+                    field, actual_values, expected_value, tolerance, contains, contains_any, contains_all,
+                    min_value, max_value
+                )
+                status = ComplianceStatus.OK if passed else fail_status
+
+            # A custom warning/error message (with %V filled in) overrides the
+            # auto-generated text for the matching outcome; passes keep "Passed.".
+            status_name = {ComplianceStatus.ERROR: "error", ComplianceStatus.WARNING: "warning"}.get(status)
+            if status_name:
+                custom = custom_message_for_status(fdef, status_name, actual_values)
+                if custom:
+                    message = custom
 
             results.append(create_compliance_record(
                 field=field,
                 message=message,
-                status=ComplianceStatus.OK if passed else fail_status,
+                status=status,
                 value=actual_values,
                 expected=expected_value,
                 series=series_name,
@@ -288,6 +308,32 @@ def check_acquisition_compliance(
                 if series_fields and all(f.get("severity") == "warning" for f in series_fields)
                 else ComplianceStatus.ERROR
             )
+
+            # Prefer custom messages: for each constraint that no row satisfies,
+            # take the field's message for the series outcome (%V = values found).
+            status_name = "warning" if series_status == ComplianceStatus.WARNING else "error"
+            msg_key = "warningMessage" if status_name == "warning" else "errorMessage"
+            custom_msgs = []
+            for fdef in series_fields:
+                if not fdef.get(msg_key):
+                    continue  # only fields with a matching custom message need checking
+                actual_field = field_map[fdef["field"]]
+                satisfied = in_acq[actual_field].apply(
+                    lambda x, fd=fdef: validate_constraint(
+                        x, fd.get("value"), fd.get("tolerance"), fd.get("contains"),
+                        fd.get("contains_any"), fd.get("contains_all"), fd.get("min"), fd.get("max")
+                    )
+                ).any()
+                if not satisfied:
+                    # dict.fromkeys keeps first-seen order and tolerates list values
+                    # (unhashable, so .unique() can't be used) via str keys.
+                    seen = list(dict.fromkeys(str(v) for v in in_acq[actual_field].tolist()))
+                    cm = custom_message_for_status(fdef, status_name, seen)
+                    if cm:
+                        custom_msgs.append(cm)
+            if custom_msgs:
+                message = "; ".join(custom_msgs)
+
             compliance_summary.append(create_compliance_record(
                 field=field_list,
                 message=message,

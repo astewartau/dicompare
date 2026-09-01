@@ -398,6 +398,100 @@ def validate_field_values(
     return True, [], "Passed."
 
 
+def field_has_graded_edges(fdef: Dict[str, Any]) -> bool:
+    """True if a field constraint opts into graded (three-way) validation by
+    carrying any of the error-edge keys. Fields without them use the legacy
+    pass/fail path, so existing schemas are unaffected."""
+    return any(fdef.get(k) is not None for k in ("errorMin", "errorMax", "errorTolerance"))
+
+
+def validate_field_graded(
+    field_name: str,
+    actual_values: List[Any],
+    fdef: Dict[str, Any],
+) -> Tuple[str, List[Any], str]:
+    """Three-way validation for a field that carries error-edge keys.
+
+    The target (value / tolerance / min / max) is the pass zone; the error edges
+    (errorMin / errorMax, or errorTolerance) widen it into an accept zone. A value
+    inside the target passes; outside the target but inside the accept zone warns;
+    beyond the accept zone fails. A side with no error edge warns forever (never
+    fails) on that side.
+
+    Returns (status, invalid_values, message) where status is 'ok' | 'warning' | 'error'.
+    """
+    value = fdef.get("value")
+    tolerance = fdef.get("tolerance")
+    min_value = fdef.get("min")
+    max_value = fdef.get("max")
+    error_min = fdef.get("errorMin")
+    error_max = fdef.get("errorMax")
+    error_tolerance = fdef.get("errorTolerance")
+
+    # Pass zone = the target itself.
+    passed, invalid, message = validate_field_values(
+        field_name, actual_values, value, tolerance, None, None, None, min_value, max_value
+    )
+    if passed:
+        return "ok", [], message
+
+    # Accept zone = target widened to the error edges. A missing edge on a side is
+    # left unbounded there (so that side only ever warns, never fails).
+    if error_tolerance is not None:
+        accepted, acc_invalid, _ = validate_field_values(
+            field_name, actual_values, value, error_tolerance, None, None, None, None, None
+        )
+    else:
+        accepted, acc_invalid, _ = validate_field_values(
+            field_name, actual_values, None, None, None, None, None, error_min, error_max
+        )
+    if accepted:
+        return "warning", invalid, message
+    return "error", acc_invalid, message
+
+
+def _format_actual_values(actual_values: Any) -> str:
+    """Render the value(s) found for substitution into a custom message."""
+    if isinstance(actual_values, (list, tuple, set)):
+        vals = list(actual_values)
+        if len(vals) == 1:
+            return str(vals[0])
+        return ", ".join(str(v) for v in vals)
+    return str(actual_values)
+
+
+def apply_message_template(template: str, actual_values: Any) -> str:
+    """Substitute placeholders in a custom warning/error message.
+
+    Supported placeholders:
+      - ``%V`` → the actual value(s) found (comma-joined when multiple)
+      - ``%%`` → a literal ``%``
+
+    ``%%`` is resolved last so a literal percent can never be re-interpreted as a
+    placeholder.
+    """
+    if not template:
+        return template
+    SENTINEL = "\x00"  # protect escaped %% while we expand the real placeholders
+    out = template.replace("%%", SENTINEL)
+    out = out.replace("%V", _format_actual_values(actual_values))
+    return out.replace(SENTINEL, "%")
+
+
+def custom_message_for_status(fdef: Dict[str, Any], status: str, actual_values: Any) -> Optional[str]:
+    """The field's custom message for a WARNING/ERROR outcome, if one is set.
+
+    ``status`` is the resolved outcome: 'error' selects ``errorMessage`` and
+    'warning' selects ``warningMessage``. Returns None (keep the auto-generated
+    message) when the field has no matching custom message.
+    """
+    key = "errorMessage" if status == "error" else "warningMessage" if status == "warning" else None
+    template = fdef.get(key) if key else None
+    if not template:
+        return None
+    return apply_message_template(template, actual_values)
+
+
 def format_constraint_description(
     expected_value: Any = None,
     tolerance: float = None,

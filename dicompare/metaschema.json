@@ -135,6 +135,31 @@
           "type": "array",
           "items": {},
           "description": "List of values that must all be present (for list fields)"
+        },
+        "errorMin": {
+          "type": "number",
+          "description": "Graded fail edge below the target. A value between 'errorMin' and the target ('min'/'value') is a warning; below 'errorMin' it is a failure. Optional; when absent, values below the target only warn (never fail). Its presence switches the field to graded (three-way pass/warn/fail) validation."
+        },
+        "errorMax": {
+          "type": "number",
+          "description": "Graded fail edge above the target. A value between the target ('max'/'value') and 'errorMax' is a warning; above 'errorMax' it is a failure. Optional; when absent, values above the target only warn (never fail). Its presence switches the field to graded validation."
+        },
+        "errorTolerance": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Graded tolerance (half-width). A value within 'tolerance' passes, within 'errorTolerance' warns, and beyond fails. Optional; requires 'tolerance'. Its presence switches the field to graded validation."
+        },
+        "reference": {
+          "type": "number",
+          "description": "The value the reference protocol actually used, recorded for documentation. Does not affect validation."
+        },
+        "warningMessage": {
+          "type": "string",
+          "description": "Custom message shown when this field produces a warning (a value in the graded warn band, or a reference/advisory constraint that is not met). Overrides the auto-generated text. The placeholder '%V' is replaced with the actual value(s) found, and '%%' with a literal '%'."
+        },
+        "errorMessage": {
+          "type": "string",
+          "description": "Custom message shown when this field fails (a value beyond the error edge, or a required constraint that is not met). Overrides the auto-generated text. The placeholder '%V' is replaced with the actual value(s) found, and '%%' with a literal '%'."
         }
       },
       "allOf": [
@@ -154,6 +179,10 @@
               }
             }
           }
+        },
+        {
+          "if": { "required": ["errorTolerance"] },
+          "then": { "required": ["tolerance"] }
         }
       ]
     },
