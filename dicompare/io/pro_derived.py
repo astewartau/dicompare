@@ -718,10 +718,23 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
     if "SliceThickness" not in dicom_data:
         slab_thickness = extract_nested_value(pro_data, "sSliceArray.asSlice.0.dThickness")
         images_per_slab = extract_nested_value(pro_data, "sKSpace.lImagesPerSlab")
-        
+        # sKSpace.ucDimension is the authoritative 2D/3D flag (2 = 2D, 4 = 3D).
+        # 2D multi-slice protocols carry lImagesPerSlab > 1 as well, so deciding
+        # on that alone divides a true 2D slice thickness by the slice count
+        # (a 2 mm EPI slice became 0.03 mm). Fall back to it only when the flag
+        # is missing or holds an unexpected value.
+        dimension = extract_nested_value(pro_data, "sKSpace.ucDimension")
+        if dimension == 4:
+            is_3d = True
+        elif dimension == 2:
+            is_3d = False
+        else:
+            is_3d = bool(images_per_slab) and images_per_slab > 1
+
         if slab_thickness is not None:
-            if images_per_slab and images_per_slab > 1:
-                # 3D sequence - calculate actual slice thickness from slab thickness
+            if is_3d and images_per_slab and images_per_slab > 1:
+                # 3D sequence - dThickness is the slab, so divide to get the
+                # thickness of a single reconstructed partition
                 slice_thickness = slab_thickness / images_per_slab
                 dicom_data["SliceThickness"] = slice_thickness
                 # Store original slab thickness for reference
@@ -729,10 +742,11 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
                 # Set MR acquisition type
                 dicom_data["MRAcquisitionType"] = "3D"
             else:
-                # 2D sequence - use thickness directly
+                # 2D sequence (or single-partition 3D) - dThickness is already
+                # the slice thickness
                 dicom_data["SliceThickness"] = slab_thickness
                 # Set MR acquisition type
-                dicom_data["MRAcquisitionType"] = "2D"
+                dicom_data["MRAcquisitionType"] = "3D" if is_3d else "2D"
                 
     # Calculate SpacingBetweenSlices from dDistFact and slice thickness
     if "SpacingBetweenSlices" not in dicom_data:
