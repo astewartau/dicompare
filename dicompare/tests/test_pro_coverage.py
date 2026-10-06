@@ -529,6 +529,44 @@ class TestCalculateOtherDicomFields:
         assert d["SliceThickness"] == 3.0
         assert d["MRAcquisitionType"] == "2D"
 
+    def test_ucdimension_2d_overrides_images_per_slab(self):
+        """ucDimension=2 wins over lImagesPerSlab>1: dThickness is the slice."""
+        d = {}
+        calculate_other_dicom_fields(d, {
+            "sSliceArray": {"asSlice": [{"dThickness": 2.0}]},
+            "sKSpace": {"ucDimension": 2, "lImagesPerSlab": 64}})
+        assert d["SliceThickness"] == 2.0
+        assert d["MRAcquisitionType"] == "2D"
+        assert "SlabThickness" not in d
+
+    def test_ucdimension_3d_divides_slab(self):
+        """ucDimension=4 keeps the slab/partition division."""
+        d = {}
+        calculate_other_dicom_fields(d, {
+            "sSliceArray": {"asSlice": [{"dThickness": 110.0}]},
+            "sKSpace": {"ucDimension": 4, "lImagesPerSlab": 22}})
+        assert d["SliceThickness"] == 5.0
+        assert d["SlabThickness"] == 110.0
+        assert d["MRAcquisitionType"] == "3D"
+
+    def test_unexpected_ucdimension_falls_back_to_images_per_slab(self):
+        """An unrecognised flag value defers to the old heuristic."""
+        d = {}
+        calculate_other_dicom_fields(d, {
+            "sSliceArray": {"asSlice": [{"dThickness": 160.0}]},
+            "sKSpace": {"ucDimension": 99, "lImagesPerSlab": 80}})
+        assert d["SliceThickness"] == 2.0
+        assert d["MRAcquisitionType"] == "3D"
+
+    def test_single_partition_3d_keeps_thickness(self):
+        """ucDimension=4 with one partition has nothing to divide."""
+        d = {}
+        calculate_other_dicom_fields(d, {
+            "sSliceArray": {"asSlice": [{"dThickness": 4.0}]},
+            "sKSpace": {"ucDimension": 4, "lImagesPerSlab": 1}})
+        assert d["SliceThickness"] == 4.0
+        assert d["MRAcquisitionType"] == "3D"
+
     def test_spacing_between_slices(self):
         d = {"SliceThickness": 4.0}
         calculate_other_dicom_fields(d, {

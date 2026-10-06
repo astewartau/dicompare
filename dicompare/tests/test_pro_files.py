@@ -408,5 +408,28 @@ class TestInversionRecovery:
         assert "InversionTime" not in d
 
 
+class TestTwoDimensionalSliceThickness:
+    """2D protocols must keep dThickness as the slice thickness.
+
+    These EPI fixtures all declare sKSpace.ucDimension = 2 alongside
+    lImagesPerSlab = 64. Deciding 2D vs 3D from lImagesPerSlab alone treated
+    them as 3D and divided the thickness by the slice count, turning a 2 mm
+    slice into 0.03125 mm.
+    """
+
+    @pytest.mark.parametrize("filename", [
+        "PRODUCT__ep2d_bold__p2_sms1.pro",
+        "PRODUCT__ep2d_diff__p3_sms1.pro",
+        "C2P__cmrr_mbep2d_bold__p3_mb2.pro",
+    ])
+    def test_epi_slice_thickness_not_divided_by_slice_count(self, filename):
+        result = load_pro_file(str(FIXTURES_DIR / filename))
+
+        assert result["SliceThickness"] == 2.0
+        assert result["MRAcquisitionType"] == "2D"
+        # SlabThickness is a 3D-only concept and must not be invented here
+        assert "SlabThickness" not in result
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
