@@ -8,6 +8,7 @@ that have no direct .pro counterpart. Split out of ``pro.py``, which owns
 parsing, mapping, and session loading.
 """
 
+import math
 from typing import Dict, Any, Optional, Tuple, Union, List
 
 def _decode_siemens_version(ul_version: Union[int, str]) -> str:
@@ -563,6 +564,48 @@ def extract_nested_value(data: Dict[str, Any], path: str) -> Optional[Any]:
 
 
 
+def _derive_phase_encoding_direction(pro_data: Dict[str, Any]) -> Optional[str]:
+    """
+    Derive InPlanePhaseEncodingDirection from the slice orientation.
+
+    With no in-plane rotation Siemens phase-encodes A>>P on transverse and sagittal
+    slices and R>>L on coronal slices, which is COL on transverse images and ROW on the
+    other two. A rotation of about +/-90 degrees swaps the axis. Oblique slices take the
+    orientation of their largest normal component.
+    """
+    prefix = "sSliceArray.asSlice.0."
+    normal = {
+        axis: abs(extract_nested_value(pro_data, f"{prefix}sNormal.d{axis}") or 0.0)
+        for axis in ("Sag", "Cor", "Tra")
+    }
+    if not any(normal.values()):
+        return None
+
+    unrotated = "COL" if max(normal, key=normal.get) == "Tra" else "ROW"
+    rotation = extract_nested_value(pro_data, f"{prefix}dInPlaneRot") or 0.0
+    if abs(math.sin(rotation)) > math.sin(math.pi / 4):
+        return "ROW" if unrotated == "COL" else "COL"
+    return unrotated
+
+
+def _epi_echo_train_length(pro_data: Dict[str, Any]) -> Optional[int]:
+    """
+    Number of echoes per EPI readout: phase lines after partial Fourier and acceleration.
+
+    Returns None if the protocol doesn't give its phase encoding lines.
+    """
+    lines = extract_nested_value(pro_data, "sKSpace.lPhaseEncodingLines")
+    if not lines:
+        return None
+    pf_code = extract_nested_value(pro_data, "sKSpace.ucPhasePartialFourier") or 16
+    acquired = lines * _decode_partial_fourier(pf_code)
+    acceleration = extract_nested_value(pro_data, "sPat.lAccelFactPE") or 1
+    if acceleration > 1:
+        # The sampled lines span lines - 1 intervals of the accelerated grid
+        return int(math.floor((acquired - 1) / acceleration))
+    return int(math.floor(acquired))
+
+
 def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str, Any]) -> None:
     """
     Add default values for DICOM fields that are expected but might not be mappable from .pro files.
@@ -612,6 +655,11 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
         # Store as slice normal for now - would need more complex calculation for full orientation
         dicom_data["SliceNormal"] = [norm_sag, norm_cor, norm_tra]
     
+    if "InPlanePhaseEncodingDirection" not in dicom_data:
+        phase_encoding_direction = _derive_phase_encoding_direction(pro_data)
+        if phase_encoding_direction:
+            dicom_data["InPlanePhaseEncodingDirection"] = phase_encoding_direction
+
     # Calculate additional derived fields
     cols = dicom_data.get("Columns")
     rows = dicom_data.get("Rows")
@@ -934,20 +982,29 @@ def calculate_other_dicom_fields(dicom_data: Dict[str, Any], pro_data: Dict[str,
         sequence_type = extract_nested_value(pro_data, "ucSequenceType") or 1
         echo_times = extract_nested_value(pro_data, "alTE") or []
         contrasts = extract_nested_value(pro_data, "lContrasts")
-        
-        if turbo_factor > 1:
+        # MEDIC acquires several echoes but combines them into one contrast
+        combined_echoes = extract_nested_value(pro_data, "lCombinedEchoes")
+
+        if turbo_factor > 1 and epi_factor > 1:
+            # GRASE - real DICOM reports the EPI factor, not turbo * EPI
+            echo_train_length = epi_factor
+        elif turbo_factor > 1:
             # TSE/FSE sequence - use turbo factor
             # For segmented sequences (like GRASE), multiply by segments
             echo_train_length = turbo_factor * segments
         elif epi_factor > 1:
-            # EPI sequence - use EPI factor
-            echo_train_length = epi_factor
+            # EPI sequence - lEPIFactor keeps a stale UI value (often 128), so count the
+            # lines actually acquired when the protocol gives them
+            echo_train_length = _epi_echo_train_length(pro_data) or epi_factor
+        elif combined_echoes and combined_echoes > 1:
+            echo_train_length = combined_echoes
         elif contrasts and contrasts > 1:
             # Multi-echo sequence - use actual number of contrasts (preferred over alTE length)
             echo_train_length = contrasts
-        elif isinstance(echo_times, list) and len(echo_times) > 1:
-            # Multi-echo sequence (fallback) - use number of echo times defined
-            echo_train_length = len(echo_times)
+        elif not contrasts and isinstance(echo_times, list) and sum(1 for t in echo_times if t) > 1:
+            # Multi-echo sequence (fallback) - alTE is padded with unused slots, and
+            # lContrasts is authoritative whenever the protocol has it
+            echo_train_length = sum(1 for t in echo_times if t)
         else:
             # Standard single-echo sequences - 1 line per excitation
             echo_train_length = 1
