@@ -1,7 +1,7 @@
 {
   "name": "ABCD Study Protocol",
   "description": "Adolescent Brain Cognitive Development (ABCD) Study imaging protocol.\n\nThe ABCD study is a longitudinal study tracking brain development and health of over 10,000 children (enrolled at ages 9-10) through adolescence across 21 sites in the United States. The imaging protocol was developed by the ABCD Data Analysis and Informatics Center (DAIC) and the ABCD Imaging Acquisition Workgroup, harmonized across three 3T scanner platforms:\n\n- Siemens Prisma (VE11B-C)\n- General Electric 750 (DV25-26)\n- Philips Achieva dStream/Ingenia\n\nNote: This schema contains parameters for Siemens Prisma. Parameters vary across vendors - see official protocol documentation for GE and Philips values.\n\n**Citation:** Casey, B.J., et al. (2018). The Adolescent Brain Cognitive Development (ABCD) study: Imaging acquisition across 21 sites. Developmental Cognitive Neuroscience, 32, 43-54. https://doi.org/10.1016/j.dcn.2018.03.001\n\n**Image Processing:** Hagler, D.J., et al. (2019). Image processing and analysis methods for the Adolescent Brain Cognitive Development Study. NeuroImage, 202, 116091. https://doi.org/10.1016/j.neuroimage.2019.116091\n\n**Protocol Documents:**\n- https://abcdstudy.org/images/Protocol_Imaging_Sequences.pdf\n- https://github.com/nih-fmrif/abcd_protocols",
-  "version": "1.1",
+  "version": "1.2",
   "authors": [
     "Chloe Hampson",
     "Ashley Stewart",
@@ -1361,7 +1361,8 @@
           "description": "Validates expected number of diffusion gradient directions (96 diffusion-weighted + 7 b=0)",
           "implementation": "dir_col = next((c for c in value.columns if c not in (\"DiffusionBValue\", \"Count\")), None)\nif dir_col is None:\n    raise ValidationWarning(\"Cannot count directions (no gradient orientation field available).\")\nrows = value\nb0_thr = params.get(\"b0_threshold\")\nif \"DiffusionBValue\" in value.columns and b0_thr is not None:\n    b = value[\"DiffusionBValue\"].fillna(0).astype(float)\n    rows = value[b > b0_thr]\ndirs = set()\nfor o in rows[dir_col]:\n    if o is None or o != o:\n        continue\n    try:\n        dirs.add(tuple(round(float(x), 3) for x in as_list(o)))\n    except (TypeError, ValueError):\n        dirs.add(str(o))\nn = len(dirs)\nexact = params.get(\"exact_directions\")\nif exact is not None:\n    if n != exact:\n        raise ValidationError(f\"Expected exactly {exact} unique diffusion directions, found {n}.\")\nelse:\n    min_n = params.get(\"min_directions\")\n    if min_n is not None and n < min_n:\n        raise ValidationError(f\"Only {n} unique diffusion directions; at least {min_n} required.\")\n    rec = params.get(\"recommended_directions\")\n    if rec is not None and n < rec:\n        raise ValidationWarning(f\"{n} unique diffusion directions; {rec}+ recommended.\")\n",
           "fields": [
-            "DiffusionGradientDirectionSequence"
+            "DiffusionGradientDirectionSequence",
+            "DiffusionBValue"
           ],
           "testCases": [
             {
@@ -1965,6 +1966,9 @@
               "unit": "s/mm\u00b2",
               "description": "Volumes with b-value at or below this are excluded (b=0 orientations are meaningless)"
             }
+          ],
+          "optional_fields": [
+            "DiffusionBValue"
           ]
         },
         {
