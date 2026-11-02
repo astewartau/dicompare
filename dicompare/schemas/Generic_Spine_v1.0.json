@@ -1,7 +1,7 @@
 {
   "name": "Generic Spine Protocol",
   "description": "Standardized quantitative spinal cord imaging protocol for multi-vendor 3.0T MRI systems. Based on the spine-generic protocol (Cohen-Adad et al., Nature Protocols 2021). Designed for cross-vendor compatibility (GE, Siemens, Philips) enabling reproducible quantitative spinal cord imaging across 42+ research sites.",
-  "version": "r20210521",
+  "version": "r20210521-1",
   "authors": [
     "Spine Generic Protocol Contributors",
     "Ashley Stewart"
@@ -64,12 +64,27 @@
           "tolerance": 0.5
         },
         {
-          "field": "BaseResolution",
-          "tag": "0018,9231",
-          "value": 320,
-          "vr": "US",
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            1.0,
+            1.0
+          ],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.1,
+          "severity": "warning",
+          "notes": "Protocol's nominal in-plane resolution. Recorded rather than required: GE reconstructs these scans to larger matrices (spine-generic data shows ReconMatrixPE differing from AcquisitionMatrixPE), so reported spacing can legitimately differ."
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 81.25,
+          "vr": "DS",
           "dataType": "number",
-          "tolerance": 32
+          "tolerance": 1.5,
+          "severity": "warning",
+          "notes": "Range across GE, Philips and Siemens in the spine-generic multi-subject dataset. Recorded for replication."
         },
         {
           "field": "ScanOptions",
@@ -543,12 +558,27 @@
           "dataType": "string"
         },
         {
-          "field": "BaseResolution",
-          "tag": "0018,9231",
-          "value": 320,
-          "vr": "US",
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            0.8,
+            0.8
+          ],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.1,
+          "severity": "warning",
+          "notes": "Protocol's nominal in-plane resolution. Recorded rather than required: GE reconstructs these scans to larger matrices (spine-generic data shows ReconMatrixPE differing from AcquisitionMatrixPE), so reported spacing can legitimately differ."
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100,
+          "vr": "DS",
           "dataType": "number",
-          "tolerance": 32
+          "tolerance": 7.5,
+          "severity": "warning",
+          "notes": "Range across GE, Philips and Siemens in the spine-generic multi-subject dataset. Recorded for replication."
         }
       ],
       "series": [],
@@ -1051,18 +1081,25 @@
         {
           "field": "ParallelReductionFactorInPlane",
           "tag": "0018,9069",
-          "value": 2,
           "vr": "FD",
           "dataType": "number",
-          "tolerance": 0.5
+          "min": 1,
+          "max": 2,
+          "severity": "warning",
+          "notes": "ZOOMit protocols use no in-plane acceleration (factor 1); full-FOV Siemens protocols use 2. Most Siemens DWI in the spine-generic dataset reports no factor, so this cannot be required."
         },
         {
-          "field": "BaseResolution",
-          "tag": "0018,9231",
-          "value": 96,
-          "vr": "US",
-          "dataType": "number",
-          "tolerance": 10
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            0.9,
+            0.9
+          ],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.1,
+          "severity": "warning",
+          "notes": "Protocol's nominal in-plane resolution. Recorded rather than required: GE reconstructs these scans to larger matrices (spine-generic data shows ReconMatrixPE differing from AcquisitionMatrixPE), so reported spacing can legitimately differ."
         },
         {
           "field": "PartialFourier",
@@ -1070,7 +1107,9 @@
           "value": 0.75,
           "vr": "CS",
           "dataType": "number",
-          "tolerance": 0.25
+          "tolerance": 0.25,
+          "severity": "warning",
+          "notes": "Fractions from 0.625 to 0.97 appear in the spine-generic dataset. Recorded rather than required: not every vendor's DICOM exposes this as a fraction."
         },
         {
           "field": "InPlanePhaseEncodingDirection",
@@ -1420,12 +1459,36 @@
           "tolerance": 0.5
         },
         {
-          "field": "BaseResolution",
-          "tag": "0018,9231",
-          "value": 448,
-          "vr": "US",
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            0.5,
+            0.5
+          ],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.05,
+          "severity": "warning",
+          "notes": "Protocol's nominal in-plane resolution. Recorded rather than required: GE reconstructs these scans to larger matrices (spine-generic data shows ReconMatrixPE differing from AcquisitionMatrixPE), so reported spacing can legitimately differ."
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100,
+          "vr": "DS",
           "dataType": "number",
-          "tolerance": 48
+          "tolerance": 1,
+          "severity": "warning",
+          "notes": "Range across GE, Philips and Siemens in the spine-generic multi-subject dataset. Recorded for replication."
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 3,
+          "vr": "IS",
+          "dataType": "number",
+          "severity": "warning",
+          "notes": "Three echoes on GE, Philips and Siemens in the spine-generic multi-subject dataset. The multi-echo rule decides compliance."
         }
       ],
       "series": [],
@@ -1658,12 +1721,27 @@
           "tolerance": 0.5
         },
         {
-          "field": "BaseResolution",
-          "tag": "0018,9231",
-          "value": 256,
-          "vr": "US",
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            0.9,
+            0.9
+          ],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.1,
+          "severity": "warning",
+          "notes": "Protocol's nominal in-plane resolution. Recorded rather than required: GE reconstructs these scans to larger matrices (spine-generic data shows ReconMatrixPE differing from AcquisitionMatrixPE), so reported spacing can legitimately differ."
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100,
+          "vr": "DS",
           "dataType": "number",
-          "tolerance": 26
+          "tolerance": 1,
+          "severity": "warning",
+          "notes": "Range across GE, Philips and Siemens in the spine-generic multi-subject dataset. Recorded for replication."
         },
         {
           "field": "ScanOptions",
@@ -2175,12 +2253,27 @@
           "tolerance": 0.5
         },
         {
-          "field": "BaseResolution",
-          "tag": "0018,9231",
-          "value": 256,
-          "vr": "US",
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            0.9,
+            0.9
+          ],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.1,
+          "severity": "warning",
+          "notes": "Protocol's nominal in-plane resolution. Recorded rather than required: GE reconstructs these scans to larger matrices (spine-generic data shows ReconMatrixPE differing from AcquisitionMatrixPE), so reported spacing can legitimately differ."
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100,
+          "vr": "DS",
           "dataType": "number",
-          "tolerance": 26
+          "tolerance": 1,
+          "severity": "warning",
+          "notes": "Range across GE, Philips and Siemens in the spine-generic multi-subject dataset. Recorded for replication."
         }
       ],
       "series": [],
@@ -2569,12 +2662,27 @@
           "tolerance": 0.5
         },
         {
-          "field": "BaseResolution",
-          "tag": "0018,9231",
-          "value": 256,
-          "vr": "US",
+          "field": "PixelSpacing",
+          "tag": "0028,0030",
+          "value": [
+            0.9,
+            0.9
+          ],
+          "vr": "DS",
+          "dataType": "list_number",
+          "tolerance": 0.1,
+          "severity": "warning",
+          "notes": "Protocol's nominal in-plane resolution. Recorded rather than required: GE reconstructs these scans to larger matrices (spine-generic data shows ReconMatrixPE differing from AcquisitionMatrixPE), so reported spacing can legitimately differ."
+        },
+        {
+          "field": "PercentPhaseFieldOfView",
+          "tag": "0018,0094",
+          "value": 100,
+          "vr": "DS",
           "dataType": "number",
-          "tolerance": 26
+          "tolerance": 1,
+          "severity": "warning",
+          "notes": "Range across GE, Philips and Siemens in the spine-generic multi-subject dataset. Recorded for replication."
         }
       ],
       "series": [],
