@@ -764,3 +764,18 @@ def test_load_schema_backward_compatible(json_file):
     assert "acquisitions" in schema_data
     assert "acq1" in schema_data["acquisitions"]
 
+
+
+def test_load_dicom_session_inside_running_event_loop(tmp_path):
+    """The sync loader works where an event loop is already running, as in Jupyter."""
+    from dicompare.tests.test_dicom_factory import create_test_dicom_series
+
+    create_test_dicom_series(str(tmp_path), acquisition_name="T1", num_slices=2,
+                             metadata_base={'ProtocolName': 'T1'})
+
+    async def load_from_coroutine():
+        return dicompare.load_dicom_session(session_dir=str(tmp_path))
+
+    df = asyncio.run(load_from_coroutine())
+    assert len(df) == 2
+    assert set(df["ProtocolName"]) == {"T1"}
