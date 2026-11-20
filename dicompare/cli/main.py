@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 
 import sys
-import json
 import argparse
 import logging
 import pandas as pd
 
-from dicompare.io import load_dicom_session, load_schema
-from dicompare.io.json import make_json_serializable
+from dicompare.io import load_dicom_session, load_schema, save_schema
 from dicompare.schema import build_schema
-from dicompare.check import check_session, mapping_confidence, UNMAPPED_STATUS
+from dicompare.check import check_session, mapping_confidence, save_report, UNMAPPED_STATUS
 from dicompare.session import map_to_json_reference, interactive_mapping_to_json_reference, assign_acquisition_and_run_numbers
 
 # Set up logging — only show warnings and errors; CLI output uses print()
@@ -29,9 +27,7 @@ def build_command(args) -> None:
     json_schema = build_schema(session_df=session_data)
 
     # Write JSON to output file
-    serializable_schema = make_json_serializable(json_schema)
-    with open(args.schema, "w") as f:
-        json.dump(serializable_schema, f, indent=4)
+    save_schema(json_schema, args.schema)
     print(f"JSON schema saved to {args.schema}")
 
 
@@ -168,8 +164,7 @@ def check_command(args) -> int:
 
     # Save results, including the mapping and unmapped acquisitions, to JSON
     if args.report:
-        with open(args.report, "w") as f:
-            json.dump(make_json_serializable(records), f, indent=4)
+        save_report(results_df, args.report)
         print(f"Compliance report saved to {args.report}")
 
     return exit_status

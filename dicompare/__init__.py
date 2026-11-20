@@ -8,11 +8,13 @@ Public API overview:
   per vendor protocol format (``load_pro_file``, ``load_examcard_file``,
   ``load_lxprotocol_file``, ``load_printprot_file``, ... — each with a
   ``_schema_format`` variant).
-- Schemas: ``build_schema``, ``load_schema``, ``validate_schema`` (metaschema),
+- Schemas: ``build_schema``, ``load_schema``, ``save_schema``, ``validate_schema`` (metaschema),
   and ``lint_schema`` (best-practice checks, also ``dicompare lint`` on the
   command line).
 - Checking a session: ``check_session`` maps a session's acquisitions to a
   schema and checks them all, returning a DataFrame (also ``dicompare check``).
+  ``map_session`` runs only the mapping step, and ``save_report`` writes the
+  results as JSON.
 - Validation: ``check_acquisition_compliance`` plus the rule framework
   (``BaseValidationModel``, ``RuleContext``, ``ValidationError`` /
   ``ValidationWarning``).
@@ -53,7 +55,7 @@ from .io import (
 # ---------------------------------------------------------------------------
 # Schemas: build, load, validate, lint
 # ---------------------------------------------------------------------------
-from .io import load_schema, validate_schema
+from .io import load_schema, save_schema, validate_schema
 from .schema import (
     build_schema,
     get_tag_info,
@@ -109,7 +111,7 @@ from .session import (
 # ---------------------------------------------------------------------------
 # Checking a whole session against a schema
 # ---------------------------------------------------------------------------
-from .check import check_session
+from .check import check_session, map_session, save_report
 
 # ---------------------------------------------------------------------------
 # Configuration and utilities
@@ -159,6 +161,7 @@ __all__ = [
     "make_json_serializable",
     # Schemas
     "load_schema",
+    "save_schema",
     "validate_schema",
     "build_schema",
     "get_tag_info",
@@ -194,6 +197,8 @@ __all__ = [
     "interactive_mapping_to_json_reference",
     # Checking a session
     "check_session",
+    "map_session",
+    "save_report",
     # Configuration and utilities
     "DEFAULT_SETTINGS_FIELDS",
     "DEFAULT_ACQUISITION_FIELDS",

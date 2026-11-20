@@ -182,9 +182,7 @@ attached to derive shell descriptors (`DiffusionBValues`,
 ### Build a JSON schema
 
 ```python
-from dicompare import load_dicom_session, build_schema, make_json_serializable
-from dicompare.config import DEFAULT_SETTINGS_FIELDS
-import json
+from dicompare import load_dicom_session, build_schema, save_schema
 
 # Load the reference session
 session_df = load_dicom_session(
@@ -196,15 +194,16 @@ session_df = load_dicom_session(
 json_schema = build_schema(session_df)
 
 # Save the schema
-serializable_schema = make_json_serializable(json_schema)
-with open("schema.json", "w") as f:
-    json.dump(serializable_schema, f, indent=4)
+save_schema(json_schema, "schema.json")
 ```
 
 ### Validate a session against a JSON schema
 
 ```python
-from dicompare import check_session
+from dicompare import check_session, map_session, save_report
+
+# Optional: see which input acquisition maps to each schema acquisition
+print(map_session("/path/to/dicom/session", "schema.json"))
 
 # Map the session's acquisitions to the schema and check each one
 results = check_session("/path/to/dicom/session", "schema.json")
@@ -212,12 +211,18 @@ results = check_session("/path/to/dicom/session", "schema.json")
 # One row per check, plus a row for each reference acquisition left unmapped
 print(results[["reference_acquisition", "input_acquisition", "mapping_confidence",
                "field", "status", "message"]])
-failed = results[results["status"].isin(["error", "unmapped"])]
+failed = results[~results["passed"]]
+
+# Save the same JSON report as `dicompare check --report`
+save_report(results, "report.json")
 ```
 
 `check_session` also accepts a session DataFrame (from `load_dicom_session`)
 and a schema dict, and takes `mapping={"RefAcq": "InputAcq", ...}` to set the
 acquisition mapping instead of finding it automatically.
+
+To try it without data of your own, `dicompare.examples.write_multisite_example()`
+writes two small synthetic sessions, one of which deviates from the other.
 
 ### The canonical field registry
 
