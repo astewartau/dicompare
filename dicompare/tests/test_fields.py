@@ -35,10 +35,6 @@ class TestDecode:
     def test_ge_imode_3de(self):
         assert decode("MRAcquisitionType", "ge.IMODE", "3DE") == "3D"
 
-    def test_siemens_phase_encoding_type(self):
-        assert decode("InPlanePhaseEncodingDirection", "siemens.pro.lPhaseEncodingType", 1) == "ROW"
-        assert decode("InPlanePhaseEncodingDirection", "siemens.pro.lPhaseEncodingType", 2) == "COL"
-
     def test_siemens_pat_mode(self):
         # IDEA PATSelMode enum: 1 none, 2 GRAPPA, 4 (m)SENSE. "None" maps to
         # None (drop the field — real DICOM omits it on unaccelerated scans).

@@ -421,13 +421,53 @@ class TestApplyProToDicomMapping:
         d = apply_pro_to_dicom_mapping({"sPat": {"ucPATMode": 32}})
         assert "ParallelAcquisitionTechnique" not in d
 
-    def test_phase_encoding_row(self):
-        d = apply_pro_to_dicom_mapping({"sSpecPara": {"lPhaseEncodingType": 1}})
-        assert d["InPlanePhaseEncodingDirection"] == "ROW"
+    @pytest.mark.parametrize("normal,rotation,expected", [
+        ({"dTra": 1.0}, None, "COL"),
+        ({"dTra": 1.0}, 1.57079632679, "ROW"),
+        ({"dSag": 1.0}, None, "ROW"),
+        ({"dSag": 1.0}, 1.57079632679, "COL"),
+        ({"dCor": 1.0}, None, "ROW"),
+        ({"dCor": 1.0}, -1.57079632679, "COL"),
+        ({"dSag": 0.0628, "dTra": 0.998}, -4.9e-12, "COL"),
+    ])
+    def test_phase_encoding_from_orientation(self, normal, rotation, expected):
+        # Values checked against real Siemens DICOM for transverse and sagittal slices
+        slice_0 = {"sNormal": normal}
+        if rotation is not None:
+            slice_0["dInPlaneRot"] = rotation
+        d = apply_pro_to_dicom_mapping({"sSliceArray": {"asSlice": [slice_0]}})
+        assert d["InPlanePhaseEncodingDirection"] == expected
 
-    def test_phase_encoding_col(self):
-        d = apply_pro_to_dicom_mapping({"sSpecPara": {"lPhaseEncodingType": 2}})
-        assert d["InPlanePhaseEncodingDirection"] == "COL"
+    def test_phase_encoding_type_is_not_a_direction(self):
+        d = apply_pro_to_dicom_mapping({"sSpecPara": {"lPhaseEncodingType": 1}})
+        assert "InPlanePhaseEncodingDirection" not in d
+
+    @pytest.mark.parametrize("kspace,accel,expected", [
+        ({"lPhaseEncodingLines": 72, "ucPhasePartialFourier": 4}, 1, 54),
+        ({"lPhaseEncodingLines": 64, "ucPhasePartialFourier": 4}, 1, 48),
+        ({"lPhaseEncodingLines": 36, "ucPhasePartialFourier": 8}, 1, 31),
+        ({"lPhaseEncodingLines": 72, "ucPhasePartialFourier": 16}, 2, 35),
+    ])
+    def test_epi_echo_train_ignores_stale_epi_factor(self, kspace, accel, expected):
+        # Echo train lengths from real Siemens DICOM of the same protocols
+        d = apply_pro_to_dicom_mapping({
+            "sFastImaging": {"lEPIFactor": 128, "lTurboFactor": 1},
+            "sKSpace": kspace,
+            "sPat": {"lAccelFactPE": accel},
+        })
+        assert d["EchoTrainLength"] == expected
+
+    def test_grase_echo_train_is_epi_factor(self):
+        d = apply_pro_to_dicom_mapping({"sFastImaging": {"lEPIFactor": 23, "lTurboFactor": 40}})
+        assert d["EchoTrainLength"] == 23
+
+    def test_medic_echo_train_is_combined_echoes(self):
+        d = apply_pro_to_dicom_mapping({"lContrasts": 1, "lCombinedEchoes": 3})
+        assert d["EchoTrainLength"] == 3
+
+    def test_padded_echo_times_are_not_echoes(self):
+        d = apply_pro_to_dicom_mapping({"lContrasts": 1, "alTE": [3130] + [1000] * 11})
+        assert d["EchoTrainLength"] == 1
 
     def test_angio_flag(self):
         d = apply_pro_to_dicom_mapping({"sAngio": {"ucPCFlowMode": 4}})

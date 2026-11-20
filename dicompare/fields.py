@@ -75,10 +75,6 @@ _DEFS: List[FieldDef] = [
     FieldDef(
         keyword="InPlanePhaseEncodingDirection", tag="0018,1312", vr="CS",
         vocabulary=("ROW", "COL"),
-        encodings={
-            # Siemens .pro sSpecPara.lPhaseEncodingType
-            "siemens.pro.lPhaseEncodingType": {1: "ROW", 2: "COL"},
-        },
     ),
     FieldDef(
         # Derived: Siemens CSA / XA private polarity flag; ROW/COL cannot

@@ -342,11 +342,10 @@ PRO_TO_DICOM_MAPPING = {
     # Bandwidth - PixelBandwidth calculated separately with proper formula
     # BandwidthPerPixelPhaseEncode calculated separately from dwell time and phase encoding steps
     
-    # Phase encoding direction (canonical ROW/COL vocabulary from the registry)
-    "sSpecPara.lPhaseEncodingType": ("InPlanePhaseEncodingDirection",
-        lambda x: _decode_field("InPlanePhaseEncodingDirection",
-                                "siemens.pro.lPhaseEncodingType", x) if x in (1, 2) else "COL"),
-    
+    # InPlanePhaseEncodingDirection is derived in calculate_other_dicom_fields from the
+    # slice orientation. sSpecPara.lPhaseEncodingType is not a direction: it reads 1 on
+    # protocols whose real DICOM reports either ROW or COL.
+
     # Scanner hardware - only real DICOM fields
     "sProtConsistencyInfo.flNominalB0": ("MagneticFieldStrength", lambda x: _nominal_field_strength(x)),
     "sTXSPEC.asNucleusInfo.0.tNucleus": "ImagedNucleus",
