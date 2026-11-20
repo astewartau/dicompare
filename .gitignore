@@ -8,3 +8,7 @@ compliance_report.json
 spec.json
 data/
 TEST_DATA/
+# Files written by examples/dicompare_tutorial.ipynb
+examples/dicompare_tutorial_data/
+examples/site_A_schema.json
+examples/site_B_report*.json

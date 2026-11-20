@@ -40,3 +40,9 @@ jobs:
         # Coverage gate (fail_under) is configured in pyproject.toml so the
         # threshold and the omit list stay in one place.
         pytest --cov=dicompare --cov-report=term-missing
+    - name: Run the tutorial notebook
+      # One Python version is enough: this checks the notebook still runs end to end
+      if: matrix.python-version == '3.12'
+      run: |
+        python -m pip install nbmake matplotlib jinja2
+        pytest --nbmake examples/

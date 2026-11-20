@@ -12,6 +12,7 @@ import os
 import pydicom
 import re
 import asyncio
+import concurrent.futures
 import pandas as pd
 import nibabel as nib
 import json
@@ -1302,18 +1303,24 @@ def load_dicom_session(
 ) -> pd.DataFrame:
     """
     Synchronous version of load_dicom_session.
-    It reuses the async version by calling it via asyncio.run().
+    It reuses the async version by calling it via asyncio.run(). When an event
+    loop is already running in this thread (as in Jupyter), asyncio.run() is
+    not allowed, so the load runs in a worker thread instead.
     """
-    return asyncio.run(
-        async_load_dicom_session(
-            session_dir=session_dir,
-            dicom_bytes=dicom_bytes,
-            skip_pixel_data=skip_pixel_data,
-            show_progress=show_progress,
-            progress_function=progress_function,
-            parallel_workers=parallel_workers,
-        )
+    coro = async_load_dicom_session(
+        session_dir=session_dir,
+        dicom_bytes=dicom_bytes,
+        skip_pixel_data=skip_pixel_data,
+        show_progress=show_progress,
+        progress_function=progress_function,
+        parallel_workers=parallel_workers,
     )
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(asyncio.run, coro).result()
 
 
 # Import the refactored function

@@ -125,6 +125,11 @@ Use `--format json` or `--format markdown` for machine-readable output.
 
 The `dicompare` package provides a comprehensive Python API for programmatic schema generation, validation, and DICOM processing.
 
+**New to the Python API?** Start with the [tutorial notebook](https://github.com/astewartau/dicompare/blob/main/examples/dicompare_tutorial.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/astewartau/dicompare/blob/main/examples/dicompare_tutorial.ipynb).
+It builds a schema from one synthetic site, checks a second site that has drifted from it, plots the results,
+and shows the command-line equivalent for pipelines.
+
 ### Loading DICOM data
 
 **Load a DICOM session:**
