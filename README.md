@@ -296,4 +296,4 @@ all_tags = get_all_tags_in_dataset(dicom_metadata)
 - [dicompare Web & Desktop App](https://github.com/astewartau/dicompare-web) — Visual interface for building, viewing, and validating protocol schemas
 - [Live App (Neurodesk)](https://dicompare.neurodesk.org/)
 - [Live App (Brainlife)](https://brainlife.io/dicompare)
-- [Report Issues](https://github.com/astewartau/dicompare-pip/issues)
+- [Report Issues](https://github.com/astewartau/dicompare/issues)
