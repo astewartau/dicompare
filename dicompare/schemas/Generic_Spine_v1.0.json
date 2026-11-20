@@ -1,7 +1,7 @@
 {
   "name": "Generic Spine Protocol",
   "description": "Standardized quantitative spinal cord imaging protocol for multi-vendor 3.0T MRI systems. Based on the spine-generic protocol (Cohen-Adad et al., Nature Protocols 2021). Designed for cross-vendor compatibility (GE, Siemens, Philips) enabling reproducible quantitative spinal cord imaging across 42+ research sites.",
-  "version": "r20210521-1",
+  "version": "r20210521-2",
   "authors": [
     "Spine Generic Protocol Contributors",
     "Ashley Stewart"
@@ -91,7 +91,46 @@
           "tag": "0018,0022",
           "vr": "CS",
           "dataType": "string",
-          "contains": "IR"
+          "contains": "IR",
+          "severity": "warning",
+          "notes": "Siemens reports IR here. GE reports it on only some scans and Philips reports OTHER, so requiring it would fail valid data."
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H",
+          "vr": "SH",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "Proton imaging in every spine-generic protocol. Recorded for completeness."
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1,
+          "vr": "DS",
+          "dataType": "number",
+          "severity": "warning",
+          "notes": "Agrees across the Siemens, Philips and GE protocol files."
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "ROW",
+          "vr": "CS",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "ROW on all three vendors in the spine-generic dataset."
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 150,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 5,
+          "severity": "warning",
+          "notes": "Siemens protocol value, matching Siemens scans in the spine-generic dataset. GE and Philips use different bandwidths, so this is not required."
         }
       ],
       "series": [],
@@ -579,6 +618,25 @@
           "tolerance": 7.5,
           "severity": "warning",
           "notes": "Range across GE, Philips and Siemens in the spine-generic multi-subject dataset. Recorded for replication."
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H",
+          "vr": "SH",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "Proton imaging in every spine-generic protocol. Recorded for completeness."
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 625,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 20,
+          "severity": "warning",
+          "notes": "Siemens protocol value, matching Siemens scans in the spine-generic dataset. GE and Philips use different bandwidths, so this is not required."
         }
       ],
       "series": [],
@@ -1117,6 +1175,34 @@
           "value": "COL",
           "vr": "CS",
           "dataType": "string"
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H",
+          "vr": "SH",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "Proton imaging in every spine-generic protocol. Recorded for completeness."
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1,
+          "vr": "DS",
+          "dataType": "number",
+          "severity": "warning",
+          "notes": "Agrees across the Siemens and Philips protocol files."
+        },
+        {
+          "field": "EchoTrainLength",
+          "tag": "0018,0091",
+          "value": 31,
+          "vr": "IS",
+          "dataType": "number",
+          "tolerance": 2,
+          "severity": "warning",
+          "notes": "Siemens ZOOMit value, the most common in the spine-generic dataset. Philips reports 47-65 because it acquires a different phase FOV."
         }
       ],
       "series": [],
@@ -1489,6 +1575,43 @@
           "dataType": "number",
           "severity": "warning",
           "notes": "Three echoes on GE, Philips and Siemens in the spine-generic multi-subject dataset. The multi-echo rule decides compliance."
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H",
+          "vr": "SH",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "Proton imaging in every spine-generic protocol. Recorded for completeness."
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 2,
+          "vr": "DS",
+          "dataType": "number",
+          "severity": "warning",
+          "notes": "Agrees across the Siemens, Philips and GE protocol files."
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL",
+          "vr": "CS",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "COL on nearly all scans in the spine-generic dataset; a few GE and Siemens scans are ROW."
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 260,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 10,
+          "severity": "warning",
+          "notes": "Siemens protocol value, matching Siemens scans in the spine-generic dataset. GE and Philips use different bandwidths, so this is not required."
         }
       ],
       "series": [],
@@ -1748,7 +1871,46 @@
           "tag": "0018,0022",
           "vr": "CS",
           "dataType": "string",
-          "contains": "MT"
+          "contains": "MT",
+          "severity": "warning",
+          "notes": "Siemens and GE report MT here; Philips does not. The validate_mton_mt_enabled rule decides compliance."
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H",
+          "vr": "SH",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "Proton imaging in every spine-generic protocol. Recorded for completeness."
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1,
+          "vr": "DS",
+          "dataType": "number",
+          "severity": "warning",
+          "notes": "Agrees across the Siemens, Philips and GE protocol files."
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL",
+          "vr": "CS",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "COL on nearly all scans in the spine-generic dataset; a few GE and Siemens scans are ROW."
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 260,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 10,
+          "severity": "warning",
+          "notes": "Siemens protocol value, matching Siemens scans in the spine-generic dataset. GE and Philips use different bandwidths, so this is not required."
         }
       ],
       "series": [],
@@ -2274,6 +2436,43 @@
           "tolerance": 1,
           "severity": "warning",
           "notes": "Range across GE, Philips and Siemens in the spine-generic multi-subject dataset. Recorded for replication."
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H",
+          "vr": "SH",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "Proton imaging in every spine-generic protocol. Recorded for completeness."
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1,
+          "vr": "DS",
+          "dataType": "number",
+          "severity": "warning",
+          "notes": "Agrees across the Siemens, Philips and GE protocol files."
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL",
+          "vr": "CS",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "COL on nearly all scans in the spine-generic dataset; a few GE and Siemens scans are ROW."
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 260,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 10,
+          "severity": "warning",
+          "notes": "Siemens protocol value, matching Siemens scans in the spine-generic dataset. GE and Philips use different bandwidths, so this is not required."
         }
       ],
       "series": [],
@@ -2683,6 +2882,43 @@
           "tolerance": 1,
           "severity": "warning",
           "notes": "Range across GE, Philips and Siemens in the spine-generic multi-subject dataset. Recorded for replication."
+        },
+        {
+          "field": "ImagedNucleus",
+          "tag": "0018,0085",
+          "value": "1H",
+          "vr": "SH",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "Proton imaging in every spine-generic protocol. Recorded for completeness."
+        },
+        {
+          "field": "NumberOfAverages",
+          "tag": "0018,0083",
+          "value": 1,
+          "vr": "DS",
+          "dataType": "number",
+          "severity": "warning",
+          "notes": "Agrees across the Siemens and Philips protocol files."
+        },
+        {
+          "field": "InPlanePhaseEncodingDirection",
+          "tag": "0018,1312",
+          "value": "COL",
+          "vr": "CS",
+          "dataType": "string",
+          "severity": "warning",
+          "notes": "COL on nearly all scans in the spine-generic dataset; a few GE and Siemens scans are ROW."
+        },
+        {
+          "field": "PixelBandwidth",
+          "tag": "0018,0095",
+          "value": 260,
+          "vr": "DS",
+          "dataType": "number",
+          "tolerance": 10,
+          "severity": "warning",
+          "notes": "Siemens protocol value, matching Siemens scans in the spine-generic dataset. GE and Philips use different bandwidths, so this is not required."
         }
       ],
       "series": [],
