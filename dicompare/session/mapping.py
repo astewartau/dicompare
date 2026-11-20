@@ -223,7 +223,9 @@ def map_to_json_reference(
     Returns:
         If return_costs is False: dict mapping {ref_acq: in_acq}
         If return_costs is True: tuple of (mapping, cost_details) where
-            cost_details has 'assigned_costs' mapping ref_acq -> cost.
+            cost_details has 'assigned_costs' mapping ref_acq -> cost, and
+            'cost_matrix' holding the cost of every pair (rows follow
+            'ref_acq_list', columns follow 'input_acq_list').
     """
     from scipy.optimize import linear_sum_assignment
 
@@ -298,6 +300,7 @@ def map_to_json_reference(
             'assigned_costs': assigned_costs,
             'ref_acq_list': ref_acq_list,
             'input_acq_list': input_acq_list,
+            'cost_matrix': top_cost_matrix,
         }
         return mapping, cost_details
 

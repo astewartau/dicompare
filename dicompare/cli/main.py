@@ -9,8 +9,7 @@ import pandas as pd
 from dicompare.io import load_dicom_session, load_schema
 from dicompare.io.json import make_json_serializable
 from dicompare.schema import build_schema
-from dicompare.validation import check_acquisition_compliance
-from dicompare.validation.helpers import ComplianceStatus, create_compliance_record
+from dicompare.check import check_session, mapping_confidence, UNMAPPED_STATUS
 from dicompare.session import map_to_json_reference, interactive_mapping_to_json_reference, assign_acquisition_and_run_numbers
 
 # Set up logging — only show warnings and errors; CLI output uses print()
@@ -36,8 +35,12 @@ def build_command(args) -> None:
     print(f"JSON schema saved to {args.schema}")
 
 
-def check_command(args) -> None:
-    """Check a DICOM session against a schema for compliance."""
+def check_command(args) -> int:
+    """Check a DICOM session against a schema for compliance.
+
+    Returns the exit status: 1 if any check fails or a reference acquisition
+    is unmapped, 0 otherwise.
+    """
     # Load the schema
     reference_fields, json_schema, validation_rules = load_schema(json_schema_path=args.schema)
 
@@ -49,7 +52,7 @@ def check_command(args) -> None:
     # Assign acquisition and series using canonical process
     in_session = assign_acquisition_and_run_numbers(in_session)
 
-    # Map and perform compliance check
+    # Map automatically first, so the mapping can be shown and adjusted
     session_map, cost_details = map_to_json_reference(in_session, json_schema, return_costs=True)
 
     # Display mapping summary with confidence
@@ -61,14 +64,7 @@ def check_command(args) -> None:
     for ref_acq in sorted(session_map.keys()):
         in_acq = session_map[ref_acq]
         cost = cost_details['assigned_costs'].get(ref_acq, float('nan'))
-        if cost == 0:
-            confidence = "exact"
-        elif cost < 5:
-            confidence = "high"
-        elif cost < 20:
-            confidence = "medium"
-        else:
-            confidence = "low"
+        confidence = mapping_confidence(cost)
         ref_display = ref_acq[:33] + ".." if len(ref_acq) > 35 else ref_acq
         in_display = in_acq[:23] + ".." if len(in_acq) > 25 else in_acq
         print(f"  {ref_display:<35} {in_display:<25} {cost:>6.1f}  {confidence}")
@@ -83,33 +79,26 @@ def check_command(args) -> None:
     if not args.auto_yes and sys.stdin.isatty():
         session_map = interactive_mapping_to_json_reference(in_session, json_schema, initial_mapping=session_map)
 
-    # Check compliance for each acquisition, grouped by ref acquisition
-    compliance_summary = []
+    # Check compliance for each mapped acquisition
+    results_df = check_session(in_session, json_schema, mapping=session_map)
+    records = results_df.to_dict(orient="records")
+
+    # Group results by reference acquisition, in schema order
+    compliance_summary = [r for r in records if r['status'] != UNMAPPED_STATUS]
+    unmapped_acquisitions = [r['reference_acquisition'] for r in records if r['status'] == UNMAPPED_STATUS]
     acq_groups = []  # list of (display_name, results)
+    for ref_acq_name in json_schema["acquisitions"]:
+        results = [r for r in compliance_summary if r['reference_acquisition'] == ref_acq_name]
+        if results:
+            display_name = f"{ref_acq_name}  ->  {results[0]['input_acquisition']}"
+            acq_groups.append((display_name, results))
 
-    unmapped_acquisitions = []
-
-    for ref_acq_name, schema_acq in json_schema["acquisitions"].items():
-        if ref_acq_name not in session_map:
-            unmapped_acquisitions.append(ref_acq_name)
-            continue
-
-        input_acq_name = session_map[ref_acq_name]
-        acq_validation_rules = validation_rules.get(ref_acq_name) if validation_rules else None
-        results = check_acquisition_compliance(
-            in_session,
-            schema_acq,
-            acquisition_name=input_acq_name,
-            validation_rules=acq_validation_rules
-        )
-        compliance_summary.extend(results)
-        display_name = f"{ref_acq_name}  ->  {input_acq_name}"
-        acq_groups.append((display_name, results))
+    exit_status = 1 if any(r['status'] == 'error' for r in compliance_summary) or unmapped_acquisitions else 0
 
     # If no results at all
     if not compliance_summary and not unmapped_acquisitions:
         print("Session is fully compliant with the schema model.")
-        return
+        return exit_status
 
     # Print compliance results
     verbose = getattr(args, 'verbose', False)
@@ -177,11 +166,13 @@ def check_command(args) -> None:
         else:
             print(f"Use --verbose to see all {total_pass + total_fail} results including passes.")
 
-    # Save compliance summary to JSON
+    # Save results, including the mapping and unmapped acquisitions, to JSON
     if args.report:
         with open(args.report, "w") as f:
-            json.dump(compliance_summary, f, indent=4)
+            json.dump(make_json_serializable(records), f, indent=4)
         print(f"Compliance report saved to {args.report}")
+
+    return exit_status
 
 
 def main() -> None:
@@ -227,7 +218,10 @@ def main() -> None:
     # Check subcommand
     check_parser = subparsers.add_parser(
         "check",
-        help="Check a DICOM session against a schema"
+        help="Check a DICOM session against a schema",
+        description="Check a DICOM session against a schema.",
+        epilog="Exit status is 1 if any check fails or a reference acquisition "
+               "is unmapped, and 0 otherwise (warnings do not fail)."
     )
     check_parser.add_argument(
         "dicoms",
@@ -353,7 +347,9 @@ def main() -> None:
         if not args.dicoms or not args.schema:
             check_parser.error("the following arguments are required: dicoms, schema")
 
-        check_command(args)
+        exit_status = check_command(args)
+        if exit_status:
+            sys.exit(exit_status)
 
     elif args.command == "match":
         from dicompare.cli.match import match_command

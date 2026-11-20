@@ -67,6 +67,14 @@ Save the compliance report to a JSON file by specifying a report path:
 dicompare check /path/to/dicom/session schema.json compliance_report.json
 ```
 
+The report lists every check with the reference and input acquisition it
+belongs to and the mapping's cost and confidence, plus a row for each
+reference acquisition that could not be mapped.
+
+`dicompare check` exits with status 1 if any check fails or a reference
+acquisition is unmapped, and 0 otherwise, so scripts and pipelines can stop on
+a non-compliant session. Warnings do not change the exit status.
+
 ### 3. Find best-matching schemas for your data
 
 Search across a schema library to identify which protocols best match your DICOM data:
@@ -191,50 +199,20 @@ with open("schema.json", "w") as f:
 ### Validate a session against a JSON schema
 
 ```python
-from dicompare import (
-    load_schema,
-    load_dicom_session,
-    check_acquisition_compliance,
-    map_to_json_reference,
-    assign_acquisition_and_run_numbers
-)
+from dicompare import check_session
 
-# Load the JSON schema
-reference_fields, json_schema, validation_rules = load_schema(json_schema_path="schema.json")
+# Map the session's acquisitions to the schema and check each one
+results = check_session("/path/to/dicom/session", "schema.json")
 
-# Load the input session
-in_session = load_dicom_session(
-    session_dir="/path/to/dicom/session",
-    show_progress=True
-)
-
-# Assign acquisition and run numbers
-in_session = assign_acquisition_and_run_numbers(in_session)
-
-# Map acquisitions to schema
-session_map = map_to_json_reference(in_session, json_schema)
-
-# Check compliance for each acquisition
-compliance_summary = []
-for ref_acq_name, schema_acq in json_schema["acquisitions"].items():
-    if ref_acq_name not in session_map:
-        continue
-
-    input_acq_name = session_map[ref_acq_name]
-    acq_validation_rules = validation_rules.get(ref_acq_name) if validation_rules else None
-
-    results = check_acquisition_compliance(
-        in_session,
-        schema_acq,
-        acquisition_name=input_acq_name,
-        validation_rules=acq_validation_rules
-    )
-    compliance_summary.extend(results)
-
-# Display results
-for entry in compliance_summary:
-    print(entry)
+# One row per check, plus a row for each reference acquisition left unmapped
+print(results[["reference_acquisition", "input_acquisition", "mapping_confidence",
+               "field", "status", "message"]])
+failed = results[results["status"].isin(["error", "unmapped"])]
 ```
+
+`check_session` also accepts a session DataFrame (from `load_dicom_session`)
+and a schema dict, and takes `mapping={"RefAcq": "InputAcq", ...}` to set the
+acquisition mapping instead of finding it automatically.
 
 ### The canonical field registry
 

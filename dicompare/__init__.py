@@ -11,6 +11,8 @@ Public API overview:
 - Schemas: ``build_schema``, ``load_schema``, ``validate_schema`` (metaschema),
   and ``lint_schema`` (best-practice checks, also ``dicompare lint`` on the
   command line).
+- Checking a session: ``check_session`` maps a session's acquisitions to a
+  schema and checks them all, returning a DataFrame (also ``dicompare check``).
 - Validation: ``check_acquisition_compliance`` plus the rule framework
   (``BaseValidationModel``, ``RuleContext``, ``ValidationError`` /
   ``ValidationWarning``).
@@ -105,6 +107,11 @@ from .session import (
 )
 
 # ---------------------------------------------------------------------------
+# Checking a whole session against a schema
+# ---------------------------------------------------------------------------
+from .check import check_session
+
+# ---------------------------------------------------------------------------
 # Configuration and utilities
 # ---------------------------------------------------------------------------
 from .config import (
@@ -185,6 +192,8 @@ __all__ = [
     "assign_acquisition_and_run_numbers",
     "map_to_json_reference",
     "interactive_mapping_to_json_reference",
+    # Checking a session
+    "check_session",
     # Configuration and utilities
     "DEFAULT_SETTINGS_FIELDS",
     "DEFAULT_ACQUISITION_FIELDS",

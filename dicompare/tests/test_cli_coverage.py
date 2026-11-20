@@ -18,6 +18,7 @@ import sys
 import pytest
 from argparse import Namespace
 
+import dicompare.check
 import dicompare.cli.main as cli_main
 from dicompare.cli.main import main, check_command
 from dicompare.cli import match as cli_match
@@ -348,7 +349,7 @@ def test_check_command_series_and_rule_name_printing(monkeypatch, capsys, dicom_
          "message": "Passed."},
         {"status": "na", "field": "Unknown", "message": "OK"},
     ]
-    monkeypatch.setattr(cli_main, "check_acquisition_compliance",
+    monkeypatch.setattr(dicompare.check, "check_acquisition_compliance",
                         lambda *a, **k: list(crafted))
     args = Namespace(
         dicoms=str(dicom_dir),
