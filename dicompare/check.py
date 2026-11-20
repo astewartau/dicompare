@@ -31,6 +31,9 @@ RESULT_COLUMNS = ["field", "series", "rule_name", "value", "expected", "message"
 # Status of the row added for a reference acquisition with no input acquisition.
 UNMAPPED_STATUS = "unmapped"
 
+# Statuses that count as a failure (passed is False, dicompare check exits 1).
+FAILING_STATUSES = ("error", UNMAPPED_STATUS)
+
 
 def mapping_confidence(cost: float) -> str:
     """
@@ -86,7 +89,8 @@ def check_session(
         ``input_acquisition``, ``mapping_cost`` and ``mapping_confidence``
         ("exact", "high", "medium" or "low"). Each unmapped reference
         acquisition gets one row with ``status`` "unmapped" and no input
-        acquisition or cost.
+        acquisition or cost. ``passed`` is False for "error" and "unmapped"
+        rows and True otherwise, matching the exit status of ``dicompare check``.
 
     Raises:
         ValueError: If ``mapping`` names an acquisition that is not in the
@@ -131,7 +135,6 @@ def check_session(
                 "mapping_confidence": None,
                 "field": None,
                 "message": f"No input acquisition mapped to reference acquisition '{ref_acq_name}'",
-                "passed": False,
                 "status": UNMAPPED_STATUS,
             })
             continue
@@ -155,5 +158,7 @@ def check_session(
 
     columns = MAPPING_COLUMNS + RESULT_COLUMNS
     df = pd.DataFrame(rows)
+    if not df.empty:
+        df["passed"] = ~df["status"].isin(FAILING_STATUSES)
     extra = [c for c in df.columns if c not in columns]
     return df.reindex(columns=columns + extra).astype(object).where(lambda d: d.notna(), None)

@@ -83,6 +83,7 @@ def test_check_session_paths_compliant(dicom_dir, self_schema):
         "reference_acquisition", "input_acquisition", "mapping_cost", "mapping_confidence",
     ]
     assert (results["status"] == "ok").all()
+    assert results["passed"].tolist() == [True] * len(results)
     assert (results["mapping_cost"] == 0).all()
     assert (results["mapping_confidence"] == "exact").all()
     (ref_name,) = json.loads(self_schema.read_text())["acquisitions"]
@@ -106,6 +107,7 @@ def test_check_session_reports_failures(dicom_dir, self_schema):
 
     failed = results[results["status"] == "error"]
     assert list(failed["field"]) == ["EchoTime"]
+    assert failed["passed"].tolist() == [False]
     # The mismatch also makes the mapping less certain
     assert (results["mapping_cost"] > 0).all()
     assert (results["mapping_confidence"] != "exact").all()
