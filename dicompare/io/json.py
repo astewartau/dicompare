@@ -106,6 +106,17 @@ def load_schema(json_schema_path: str, validate_schema: bool = True) -> Tuple[Li
     return sorted(reference_fields), schema_data, validation_rules
 
 
+def save_schema(schema_data: Dict[str, Any], json_schema_path: str) -> None:
+    """
+    Save a schema dictionary (for example from ``build_schema``) as a JSON file.
+
+    Values such as numpy numbers and tuples are converted to plain JSON types,
+    so the file can be read back with ``load_schema``.
+    """
+    with open(json_schema_path, "w") as f:
+        json.dump(make_json_serializable(schema_data), f, indent=4)
+
+
 def make_json_serializable(data: Any) -> Any:
     """
     Convert numpy/pandas types to standard Python types for JSON serialization.

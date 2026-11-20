@@ -9,8 +9,11 @@ import sys
 import pandas as pd
 import pytest
 
-from dicompare import check_session, load_dicom_session
+from dicompare import (
+    build_schema, check_session, load_dicom_session, load_schema, map_session, save_report, save_schema,
+)
 from dicompare.check import mapping_confidence
+from dicompare.examples import write_multisite_example
 from dicompare.cli.main import main
 from dicompare.tests.test_dicom_factory import create_test_dicom_series
 
@@ -108,6 +111,8 @@ def test_check_session_reports_failures(dicom_dir, self_schema):
     failed = results[results["status"] == "error"]
     assert list(failed["field"]) == ["EchoTime"]
     assert failed["passed"].tolist() == [False]
+    # passed is a bool column, so ~ selects everything that did not pass
+    assert results[~results["passed"]].equals(failed)
     # The mismatch also makes the mapping less certain
     assert (results["mapping_cost"] > 0).all()
     assert (results["mapping_confidence"] != "exact").all()
@@ -122,7 +127,7 @@ def test_check_session_unmapped_reference_row(dicom_dir, self_schema):
     assert row["input_acquisition"] is None
     assert row["mapping_cost"] is None
     assert row["mapping_confidence"] is None
-    assert row["passed"] is False
+    assert not row["passed"]
     # The other reference acquisition is still checked
     assert (results.loc[results["status"] != "unmapped", "status"] == "ok").all()
 
@@ -162,6 +167,86 @@ def test_check_session_rejects_unknown_mapping_names(dicom_dir, self_schema):
 ])
 def test_mapping_confidence(cost, label):
     assert mapping_confidence(cost) == label
+
+
+# --------------------------------------------------------------------------- #
+# map_session, save_report, save_schema                                       #
+# --------------------------------------------------------------------------- #
+
+def test_map_session_matches_check_session(dicom_dir, self_schema):
+    schema = _schema_with_extra_acquisition(self_schema)
+    mapping = map_session(dicom_dir, schema)
+
+    assert list(mapping.columns) == [
+        "reference_acquisition", "input_acquisition", "mapping_cost", "mapping_confidence",
+    ]
+    assert list(mapping["reference_acquisition"]) == list(schema["acquisitions"])
+    assert mapping["input_acquisition"].isna().sum() == 1
+    mapped = mapping.dropna(subset=["input_acquisition"])
+    assert list(mapped["mapping_confidence"]) == ["exact"]
+
+    results = check_session(dicom_dir, schema)
+    from_results = (results[["reference_acquisition", "input_acquisition"]]
+                    .drop_duplicates().set_index("reference_acquisition")["input_acquisition"])
+    assert mapping.set_index("reference_acquisition")["input_acquisition"].equals(from_results)
+
+
+def test_map_session_with_explicit_mapping(dicom_dir, self_schema):
+    schema = json.loads(self_schema.read_text())
+    assert map_session(dicom_dir, schema, mapping={})["input_acquisition"].isna().all()
+
+
+def test_save_report_writes_records(tmp_path, dicom_dir, self_schema):
+    results = check_session(dicom_dir, _schema_with_extra_acquisition(self_schema))
+    path = tmp_path / "report.json"
+    save_report(results, path)
+
+    records = json.loads(path.read_text())
+    assert len(records) == len(results)
+    assert records[0]["reference_acquisition"] == results.iloc[0]["reference_acquisition"]
+    assert sum(r["status"] == "unmapped" for r in records) == 1
+
+
+def test_save_schema_round_trip(tmp_path, dicom_dir):
+    schema = build_schema(load_dicom_session(session_dir=str(dicom_dir)))
+    path = tmp_path / "schema.json"
+    save_schema(schema, str(path))
+
+    _, loaded, _ = load_schema(str(path))  # also validates against the metaschema
+    assert list(loaded["acquisitions"]) == list(schema["acquisitions"])
+    assert (check_session(dicom_dir, path)["status"] == "ok").all()
+
+
+# --------------------------------------------------------------------------- #
+# write_multisite_example                                                     #
+# --------------------------------------------------------------------------- #
+
+def test_multisite_example_has_the_documented_deviations(tmp_path):
+    sites = write_multisite_example(tmp_path / "data")
+    assert set(sites) == {"site_A", "site_B"}
+
+    schema = build_schema(load_dicom_session(session_dir=str(sites["site_A"])))
+    assert (check_session(sites["site_A"], schema)["status"] == "ok").all()
+
+    mapping = map_session(sites["site_B"], schema).set_index("reference_acquisition")
+    assert mapping.loc["acq-t1wmpr", "input_acquisition"] == "acq-t1mpragesag"
+    assert mapping.loc["acq-qsmmegre", "input_acquisition"] == "acq-greqsm5echo"
+    assert mapping.loc["acq-t2wflair", "input_acquisition"] is None
+
+    results = check_session(sites["site_B"], schema)
+    failed = results[results["status"] == "error"]
+    assert sorted(zip(failed["reference_acquisition"], failed["field"])) == [
+        ("acq-qsmmegre", "SliceThickness"),
+        ("acq-t1wmpr", "EchoTime"),
+        ("acq-t1wmpr", "RepetitionTime"),
+        ("acq-t1wmpr", "SliceThickness"),
+    ]
+    assert list(results.loc[results["status"] == "unmapped", "reference_acquisition"]) == ["acq-t2wflair"]
+
+    # Writing again gives the same files
+    before = sorted(p.read_bytes() for p in (tmp_path / "data").rglob("*.dcm"))
+    write_multisite_example(tmp_path / "data")
+    assert sorted(p.read_bytes() for p in (tmp_path / "data").rglob("*.dcm")) == before
 
 
 # --------------------------------------------------------------------------- #
